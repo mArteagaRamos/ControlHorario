@@ -1,0 +1,98 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+
+CREATE TYPE company_role AS ENUM ('manager', 'employee'); 
+CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
+CREATE TYPE entry_status AS ENUM ('ongoing', 'confirmed', 'auto_closed', 'corrected', 'voided');
+CREATE TYPE event_type AS ENUM ('clock_in', 'clock_out', 'pause_start', 'pause_end', 'manual_adjust', 'reopen', 'auto_close');
+CREATE TYPE correction_status AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE audit_action AS ENUM ('create', 'update', 'voided', 'manual_correction');
+
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    surname VARCHAR(100) NOT NULL,
+    is_admin BOOLEAN DEFAULT FALSE,
+    status user_status DEFAULT 'active',
+    date_joined TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password_hash VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE companies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL,
+    legal_name VARCHAR(200) not null,
+    tax_id VARCHAR(20) UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_company_membership (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    role company_role DEFAULT 'employee', 
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, company_id)
+);
+
+CREATE TABLE company_settings (
+    id SERIAL PRIMARY KEY,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    work_start TIME DEFAULT '08:00:00',
+    work_end TIME DEFAULT '15:00:00',
+    max_tolerance INTERVAL DEFAULT '15 minutes',
+    auto_close_hours INTEGER DEFAULT 12,
+    weekend_days INTEGER[] DEFAULT ARRAY[6, 0],
+    holidays DATE[],
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE time_entries (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    clock_in TIMESTAMP NOT NULL,
+    clock_out TIMESTAMP,
+    status entry_status DEFAULT 'ongoing',
+    notes TEXT
+);
+
+CREATE TABLE time_entry_event (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    time_entry_id UUID REFERENCES time_entries(id) ON DELETE CASCADE,
+    event_type event_type NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actor_id UUID REFERENCES users(id),
+    note TEXT
+);
+
+CREATE TABLE correction_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    time_entry_id UUID REFERENCES time_entries(id) ON DELETE CASCADE,
+    requester_id UUID REFERENCES users(id),
+    request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reason TEXT NOT NULL,
+    status correction_status DEFAULT 'pending',
+    approver_id UUID REFERENCES users(id),
+    approval_date TIMESTAMP,
+    correction_note TEXT
+);
+
+CREATE TABLE audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    table_name VARCHAR(50) NOT NULL,
+    record_id UUID NOT NULL,
+    actor_id UUID REFERENCES users(id),
+    action_type audit_action NOT NULL,
+    before JSONB,
+    after JSONB,
+    reason TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_time_entries_company_date ON time_entries(company_id, date);
+CREATE INDEX idx_membership_lookup ON user_company_membership(user_id, company_id);
