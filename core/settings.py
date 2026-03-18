@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
     'apps.timetracking',
     'apps.users',
+    'apps.audit',
 ]
 
 MIDDLEWARE = [
