@@ -66,3 +66,4 @@ class CompanySettings(models.Model):
     class Meta:
         managed = False
         db_table = 'company_settings'
+
