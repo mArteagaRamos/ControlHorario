@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Time Tracking</h1>
+
+<form method="post">
+  {% csrf_token %}
+  <button name="action" value="clock_in">Clock In</button>
+  <button name="action" value="clock_out">Clock Out</button>
+  <button name="action" value="pause_start">Start Pause</button>
+  <button name="action" value="pause_end">End Pause</button>
+</form>
+
+{% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+<h2>Entries</h2>
+<table>
+  <thead>
+    <tr><th>Date</th><th>In</th><th>Out</th><th>Status</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for entry in time_entries %}
+      <tr>
+        <td>{{ entry.date }}</td>
+        <td>{{ entry.clock_in }}</td>
+        <td>{{ entry.clock_out|default:'-' }}</td>
+        <td>{{ entry.status }}</td>
+        <td><a href="{% url 'total_time_entry' entry.id %}">Details</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5">No entries yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div>
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">Previous</a>
+  {% endif %}
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">Next</a>
+  {% endif %}
+</div>
+
+<h2>Events (pausas y demás)</h2>
+<table>
+  <thead>
+    <tr><th>Entry</th><th>Tipo</th><th>Fecha/Hora</th><th>Actor</th></tr>
+  </thead>
+  <tbody>
+    {% for ev in events %}
+      <tr>
+        <td>{{ ev.time_entry.id }}</td>
+        <td>{{ ev.event_type }}</td>
+        <td>{{ ev.timestamp }}</td>
+        <td>{{ ev.actor }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4">No events yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

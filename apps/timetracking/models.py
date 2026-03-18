@@ -1,10 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields import ArrayField
-from users.models import Users
-from users.models import Companies
-from users.models import UserCompanyMembership
-from users.models import CompanySettings
+from uuid import uuid4
+from users.models import Users, Companies, UserCompanyMembership, CompanySettings
 
 
 class TimeEntries(models.Model):
