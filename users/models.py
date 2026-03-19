@@ -1,26 +1,45 @@
 from django.db import models
-from django.utils import timezone
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.postgres.fields import ArrayField
+from django.utils import timezone
+import uuid
 
+class UsersManager(BaseUserManager):
+    def create_user(self, email, username, password=None, **extra_fields):
+        if not email:
+            raise ValueError('Email is required')
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-class Users(models.Model):
+class Users(AbstractBaseUser):
     class StatusChoices(models.TextChoices):
         ACTIVE = 'active'
         INACTIVE = 'inactive'
         SUSPENDED = 'suspended'
 
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=50)
-    email = models.CharField(max_length=100, unique=True)
+    email = models.EmailField(max_length=100, unique=True)
     surname = models.CharField(max_length=100)
     is_admin = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
-    password_hash = models.CharField(max_length=255)
+    password = models.CharField(db_column='password_hash', max_length=255)
+
+    objects = UsersManager()
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     class Meta:
         managed = False
         db_table = 'users'
+
+    def __str__(self):
+        return self.email
 
 
 class Companies(models.Model):
@@ -68,51 +87,6 @@ class CompanySettings(models.Model):
         managed = False
         db_table = 'company_settings'
 
-
-class TimeEntries(models.Model):
-    class EntryStatus(models.TextChoices):
-        ONGOING = 'ongoing'
-        CONFIRMED = 'confirmed'
-        AUTO_CLOSED = 'auto_closed'
-        CORRECTED = 'corrected'
-        VOIDED = 'voided'
-
-    id = models.UUIDField(primary_key=True)
-    user = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='user_id')
-    company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
-    date = models.DateField(default=timezone.now)
-    clock_in = models.DateTimeField()
-    clock_out = models.DateTimeField(blank=True, null=True)
-    status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
-    notes = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'time_entries'
-
-
-class TimeEntryEvent(models.Model):
-    class EventType(models.TextChoices):
-        CLOCK_IN = 'clock_in'
-        CLOCK_OUT = 'clock_out'
-        PAUSE_START = 'pause_start'
-        PAUSE_END = 'pause_end'
-        MANUAL_ADJUST = 'manual_adjust'
-        REOPEN = 'reopen'
-        AUTO_CLOSE = 'auto_close'
-
-    id = models.UUIDField(primary_key=True)
-    time_entry = models.ForeignKey(TimeEntries, on_delete=models.CASCADE, db_column='time_entry_id')
-    event_type = models.CharField(max_length=20, choices=EventType.choices)
-    timestamp = models.DateTimeField(default=timezone.now)
-    actor = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='actor_id', blank=True, null=True)
-    note = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'time_entry_event'
-
-
 class CorrectionRequests(models.Model):
     class CorrectionStatus(models.TextChoices):
         PENDING = 'pending'
@@ -120,7 +94,7 @@ class CorrectionRequests(models.Model):
         REJECTED = 'rejected'
 
     id = models.UUIDField(primary_key=True)
-    time_entry = models.ForeignKey(TimeEntries, on_delete=models.CASCADE, db_column='time_entry_id')
+    time_entry = models.ForeignKey('timetracking.TimeEntries', on_delete=models.CASCADE, db_column='time_entry_id')
     requester = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='requester_id')
     request_date = models.DateTimeField(default=timezone.now)
     reason = models.TextField()
@@ -132,25 +106,3 @@ class CorrectionRequests(models.Model):
     class Meta:
         managed = False
         db_table = 'correction_requests'
-
-
-class AuditLog(models.Model):
-    class AuditAction(models.TextChoices):
-        CREATE = 'create'
-        UPDATE = 'update'
-        VOIDED = 'voided'
-        MANUAL_CORRECTION = 'manual_correction'
-
-    id = models.UUIDField(primary_key=True)
-    table_name = models.CharField(max_length=50)
-    record_id = models.UUIDField()
-    actor = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='actor_id', blank=True, null=True)
-    action_type = models.CharField(max_length=20, choices=AuditAction.choices)
-    before = models.JSONField(blank=True, null=True)
-    after = models.JSONField(blank=True, null=True)
-    reason = models.TextField(blank=True, null=True)
-    timestamp = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        managed = False
-        db_table = 'audit_log'

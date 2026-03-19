@@ -1,33 +1,24 @@
-{% load static %}
-
-
+{% load django_bootstrap5 %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Time Tracking{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    {# CSS - Bootstrap 5 #}
+    {% bootstrap_css %}
+    
+    {# Font Awesome - icons #}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
-    <header>
-        <h1>Time Tracking</h1>
-        <nav>
-            <ul>
-                <li><a href="{% url 'time_entry_list' %}">Time Entries</a></li>
-                <li><a href="{% url 'time_entry_create' %}">Create Entry</a></li>
-                <li><a href="{% url 'logout' %}">Logout</a></li>
-            </ul>
-        </nav>
-    </header>
 
-    <main>
-        {% block content %}
-        {% endblock %}
-    </main>
+    {% block content %}
+    {% endblock %}
 
-    <footer>
-        <p>&copy; 2063 Aeptic. All rights reserved.</p>
-    </footer>
+    {# JS - Bootstrap 5 #}
+    {% bootstrap_javascript %}
+
 </body>
 </html>

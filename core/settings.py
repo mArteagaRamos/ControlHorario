@@ -27,8 +27,23 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
+AUTH_USER_MODEL = 'users.Users'
+
+#Redirections
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
+
+#Messages
+from django.contrib.messages import constants as messages
+MESSAGE_TAGS = {
+    messages.DEBUG: 'secondary',
+    messages.INFO: 'info',
+    messages.SUCCESS: 'success',
+    messages.WARNING: 'warning',
+    messages.ERROR: 'danger',
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -38,8 +53,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
-    'apps.timetracking',
-    'apps.users',
+    'timetracking',
+    'users',
+    'audit',
+    'django_bootstrap5',
+    'dashboard',
 ]
 
 MIDDLEWARE = [

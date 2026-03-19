@@ -16,10 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect
+from users import views as user_views
+from dashboard import views as dashboard_views
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('', lambda request: redirect('time_entries')),  # root redirects to tracker
+    path('', dashboard_views.home, name='home'),
+    path('login/', user_views.login_view, name='login'),
+    path('sign_up/', user_views.register, name='register'),
     path('timetracking/', include('apps.timetracking.urls')),
 ]
