@@ -18,7 +18,7 @@ if not request.user.is_authenticated or not request.user.is_admin:
             return redirect('login')
     else:
         form = FormRegister()
-    return render(request, 'sign_up.html', {'form': form})
+    return render(request, 'login/sign_up.html', {'form': form})
 
 def login_view(request):
     if request.method == 'POST':
@@ -40,4 +40,4 @@ def login_view(request):
             messages.error(request, 'Please check the form for errors.')
     else:
         form = LoginForm(request)
-    return render(request, 'login.html', {'form': form})
+    return render(request, 'login/login.html', {'form': form})
