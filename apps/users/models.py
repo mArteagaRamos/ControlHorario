@@ -16,6 +16,7 @@ class Users(models.Model):
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
     password_hash = models.CharField(max_length=255)
+    last_login = models.DateTimeField(default=timezone.now)
 
     class Meta:
         managed = False

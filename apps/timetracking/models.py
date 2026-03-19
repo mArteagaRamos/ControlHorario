@@ -2,7 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.contrib.postgres.fields import ArrayField
 from uuid import uuid4
-from users.models import Users, Companies, UserCompanyMembership, CompanySettings
+from apps.users.models import Users, Companies, UserCompanyMembership, CompanySettings
 
 
 class TimeEntries(models.Model):
@@ -21,6 +21,7 @@ class TimeEntries(models.Model):
     clock_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
     notes = models.TextField(blank=True, null=True)
+    total_seconds = models.IntegerField(default=0)
 
     class Meta:
         managed = False
