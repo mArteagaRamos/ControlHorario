@@ -96,3 +96,16 @@ CREATE TABLE audit_log (
 
 CREATE INDEX idx_time_entries_company_date ON time_entries(company_id, date);
 CREATE INDEX idx_membership_lookup ON user_company_membership(user_id, company_id);
+
+
+-- añadidos despues
+
+ALTER TABLE users
+ADD COLUMN last_login TIMESTAMPTZ DEFAULT now();
+ 
+UPDATE users
+SET last_login = now();
+ 
+ALTER TABLE time_entries
+ADD COLUMN IF NOT EXISTS total_seconds INTEGER DEFAULT 0;
+

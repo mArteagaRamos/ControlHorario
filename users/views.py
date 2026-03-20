@@ -32,9 +32,6 @@ def register(request):
         form = FormRegister()
     return render(request, 'login/sign_up.html', {'form': form})
 
-
-# User login section
-
 def login_view(request):
     """Authenticate user credentials and log in admin users."""
 
