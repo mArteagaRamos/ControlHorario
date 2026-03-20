@@ -36,6 +36,17 @@
 
             </div>
 
+            <!--  
+            <form method="post" class="d-flex flex-wrap align-items-center gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" id="action_field" value="" />
+                <button class="btn btn-primary" type="submit" onclick="document.getElementById('action_field').value='clock_in'">Clock In</button>
+                <button class="btn btn-secondary" type="submit" onclick="document.getElementById('action_field').value='clock_out'">Clock Out</button>
+                <button class="btn btn-warning" type="submit" onclick="document.getElementById('action_field').value='pause_start'">Pausa inicio</button>
+                <button class="btn btn-info text-white" type="submit" onclick="document.getElementById('action_field').value='pause_end'">Pausa fin</button>
+            </form>
+            -->
+
         </div>
     </div>
 
@@ -61,73 +72,21 @@
                     </thead>
 
                     <tbody>
-
-                        <!-- FILA 1 -->
+                        {% for entry in entry_rows %}
                         <tr>
-                            <td>11/03/2021</td>
-                            <td>08:55</td>
-                            <td>17:30</td>
-                            <td>8:55</td>
+                            <td>{{ entry.date }}</td>
+                            <td>{{ entry.clock_in|date:"H:i" }}</td>
+                            <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
+                            <td>{{ entry.worked }}</td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion">
-                                    Editar Entrada
-                                </button>
-
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion" data-entry-id="{{ entry.id }}">Editar Entrada</button>
                             </td>
                         </tr>
-
-                        <!-- FILA 2 -->
+                        {% empty %}
                         <tr>
-                            <td>11/03/2021</td>
-                            <td>09:50</td>
-                            <td>19:00</td>
-                            <td>7:28</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion">
-                                    Editar Entrada
-                                </button>
-                            </td>
+                            <td colspan="5" class="text-center">No hay fichajes registrados.</td>
                         </tr>
-
-                        <!-- FILA 3 -->
-                        <tr>
-                            <td>11/03/2021</td>
-                            <td>09:50</td>
-                            <td>11:35</td>
-                            <td>8:56</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion">
-                                    Editar Entrada
-                                </button>
-                            </td>
-                        </tr>
-
-                        <!-- FILA 4 -->
-                        <tr>
-                            <td>10/03/2021</td>
-                            <td>08:40</td>
-                            <td>17:10</td>
-                            <td>8:30</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion">
-                                    Editar Entrada
-                                </button>
-                            </td>
-                        </tr>
-
-                        <!-- FILA 5 -->
-                        <tr>
-                            <td>09/03/2021</td>
-                            <td>09:00</td>
-                            <td>18:00</td>
-                            <td>8:00</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion">
-                                    Editar Entrada
-                                </button>
-                            </td>
-                        </tr>
-
+                        {% endfor %}
                     </tbody>
 
                 </table>
@@ -135,78 +94,42 @@
 
             <!--  HISTORIAL -->
             <div class="text-center mt-4">
-                <a href="#" class="text-primary fw-semibold text-decoration-none">
-                    Ver Historial Completo
-                </a>
+                <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
             </div>
-
-        </div>
-    </div>
-
-    <!-- SOLICITUDES DE CORRECCIÓN -->
-    <div class="card shadow-sm border-0 mt-4">
-        <div class="card-body">
-
-            <h6 class="mb-3 text-warning fw-semibold">
-                Solicitudes de Corrección
-            </h6>
-
-            <div class="table-responsive">
+            <div class="table-responsive mt-3">
                 <table class="table align-middle">
-
                     <thead class="table-light">
                         <tr>
                             <th>Fecha</th>
-                            <th>Entrada Nueva</th>
-                            <th>Salida Nueva</th>
+                            <th>Entrada</th>
+                            <th>Salida</th>
                             <th>Motivo</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
-
                     <tbody>
-
-                        <!-- Ejemplo 1 -->
+                        {% for r in request_rows %}
                         <tr>
-                            <td>12/03/2024</td>
-                            <td>08:30</td>
-                            <td>17:15</td>
-                            <td>Olvidé fichar la salida</td>
+                            <td>{{ r.date }}</td>
+                            <td>{{ r.new_clock_in|default:'--' }}</td>
+                            <td>{{ r.new_clock_out|default:'--' }}</td>
+                            <td>{{ r.reason }}</td>
                             <td>
-                                <span class="badge bg-warning text-dark">
-                                    Pendiente
-                                </span>
+                                {% if r.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% elif r.status == 'approved' %}
+                                    <span class="badge bg-success">Aprobada</span>
+                                {% elif r.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rechazada</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ r.status }}</span>
+                                {% endif %}
                             </td>
                         </tr>
-
-                        <!-- Ejemplo 2 -->
-                        <tr>
-                            <td>10/03/2024</td>
-                            <td>09:00</td>
-                            <td>18:00</td>
-                            <td>Error al fichar entrada</td>
-                            <td>
-                                <span class="badge bg-success">
-                                    Aprobada
-                                </span>
-                            </td>
-                        </tr>
-
-                        <!-- Ejemplo 3 -->
-                        <tr>
-                            <td>08/03/2024</td>
-                            <td>08:45</td>
-                            <td>17:00</td>
-                            <td>Olvido puntual</td>
-                            <td>
-                                <span class="badge bg-danger">
-                                    Rechazada
-                                </span>
-                            </td>
-                        </tr>
-
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center">No hay solicitudes de corrección.</td></tr>
+                        {% endfor %}
                     </tbody>
-
                 </table>
             </div>
 
@@ -219,49 +142,47 @@
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
 
-                <!-- HEADER -->
                 <div class="modal-header">
                     <h5 class="modal-title">Solicitud de Corrección</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
 
-                <!-- BODY -->
                 <div class="modal-body">
-
-                    <form>
-
-                        <!-- Entrada -->
+                    <form id="correctionForm" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="request_correction">
+                        <input type="hidden" name="entry_id" id="entry_id">
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Entrada:</label>
-                            <input type="date" class="form-control">
+                            <input type="datetime-local" name="new_clock_in" class="form-control">
                         </div>
-
-                        <!-- Salida -->
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Salida:</label>
-                            <input type="time" class="form-control">
+                            <input type="datetime-local" name="new_clock_out" class="form-control">
                         </div>
-
-                        <!-- Motivo -->
                         <div class="mb-3">
                             <label class="form-label">Motivo de la Corrección:</label>
-                            <textarea class="form-control" rows="3" placeholder="Ej: Olvidé fichar la salida..."></textarea>
+                            <textarea name="reason" class="form-control" rows="3" placeholder="Ej: Olvidé fichar la salida..."></textarea>
                         </div>
-
                     </form>
-
                 </div>
 
-                <!-- FOOTER -->
                 <div class="modal-footer justify-content-center">
-                    <button class="btn btn-primary px-4">
-                        Enviar Solicitud
-                    </button>
+                    <button form="correctionForm" type="submit" class="btn btn-primary px-4">Enviar Solicitud</button>
                 </div>
 
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    var correctionModal = document.getElementById('modalCorreccion');
+    correctionModal.addEventListener('show.bs.modal', function(event) {
+        var button = event.relatedTarget;
+        var entryId = button.getAttribute('data-entry-id');
+        document.getElementById('entry_id').value = entryId;
+    });
+</script>
 
 {% endblock %}

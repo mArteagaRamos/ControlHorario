@@ -1,5 +1,4 @@
 # ---------- Backend Models: timetracking/models.py ----------
-# Section comments are added in English for readability.
 
 from django.db import models
 from users.models import Users, Companies
