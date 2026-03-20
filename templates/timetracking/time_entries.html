@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: 300px; }
+    .timer { font-size: 2.5rem; font-weight: bold; }
+    .btn { padding: 12px 24px; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; }
+    .btn-primary { background: #25ffe2; color: #fff; }
+    .btn-secondary { background: #f689f4; color: #222; }
+    .btn-danger { background: #a300e9; color: #fff; }
+  </style>
+</head>
+<body>
+{% load static %}
+
+  <div class="timer" id="timerDisplay">00:00:00</div>
+  <input type="hidden" id="csrfToken" value="{{ csrf_token }}" />
+
+  <div id="buttonGroup">
+    <button class="btn btn-primary" id="clockInBtn">Clock In</button>
+  </div>
+
+  {% if messages %}
+    <div style="position: fixed; top: 8px; right: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 8px; border-radius: 5px;">
+      {% for msg in messages %}
+        <div>{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div style="width: 90%; max-width: 650px; margin-top: 20px;">
+    <h3>Your time entries (last 10)</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead><tr><th></th><th>Entrada</th><th>Salida</th><th>Estado</th><th>Horas</th></tr></thead>
+      <tbody>
+      {% for e in time_entries %}
+        <tr style="border-top: 1px solid #ddd;">
+          <td>{{ forloop.counter }}</td>
+          <td>{{ e.clock_in }}</td>
+          <td>{{ e.clock_out|default:'--' }}</td>
+          <td>{{ e.status }}</td>
+          <td>{{ e.total_seconds|default:'--' }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No time entries yet</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    const timerDisplay = document.getElementById('timerDisplay');
+    const buttonGroup = document.getElementById('buttonGroup');
+    const clockInBtn = document.getElementById('clockInBtn');
+
+    let timerInterval = null;
+    let startTime = null;
+    let paused = false;
+    let pauseStart = null;
+    let totalPausedMs = 0;
+
+    function formatTime(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+      const s = String(totalSec % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    function updateTimer() {
+      if (!startTime || paused) return;
+      const elapsed = Date.now() - startTime - totalPausedMs;
+      timerDisplay.textContent = formatTime(elapsed);
+    }
+
+    function startTicker() {
+      timerInterval = setInterval(updateTimer, 500);
+    }
+
+    function stopTicker() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    async function postAction(action) {
+      const csrfToken = document.getElementById('csrfToken').value;
+      const data = new URLSearchParams({action});
+
+      const res = await fetch(window.location.href, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken,
+        },
+        body: data.toString(),
+      });
+
+      return res.ok;
+    }
+
+    function switchToClockOutPauseUI() {
+      buttonGroup.innerHTML = `
+        <button class="btn btn-danger" id="clockOutBtn">Clock Out</button>
+        <button class="btn btn-secondary" id="pauseBtn">Pause</button>
+      `;
+      document.getElementById('clockOutBtn').addEventListener('click', onClockOut);
+      document.getElementById('pauseBtn').addEventListener('click', onPauseToggle);
+    }
+
+    async function onClockOut() {
+      stopTicker();
+      const finalDuration = Date.now() - startTime - totalPausedMs;
+      timerDisplay.textContent = formatTime(finalDuration);
+
+      const success = await postAction('clock_out');
+      if (!success) {
+        alert('Error al enviar clock-out.');
+        return;
+      }
+
+      // Reset visual and internal timer state after clock out
+      startTime = null;
+      paused = false;
+      pauseStart = null;
+      totalPausedMs = 0;
+      timerDisplay.textContent = '00:00:00';
+
+      // Force refresh 
+      window.location.reload();
+    }
+
+    async function onPauseToggle() {
+      const btn = document.getElementById('pauseBtn');
+      if (!paused) {
+        paused = true;
+        pauseStart = Date.now();
+        btn.textContent = 'Resume';
+        await postAction('pause_start');
+      } else {
+        paused = false;
+        totalPausedMs += (Date.now() - pauseStart);
+        pauseStart = null;
+        btn.textContent = 'Pause';
+        await postAction('pause_end');
+      }
+    }
+
+    async function onClockIn() {
+      await postAction('clock_in');
+
+      if (!startTime) {
+        startTime = Date.now();
+      }
+      paused = false;
+      pauseStart = null;
+      totalPausedMs = 0;
+      timerDisplay.textContent = '00:00:00';
+      startTicker();
+      switchToClockOutPauseUI();
+    }
+
+    clockInBtn.addEventListener('click', onClockIn);
+  </script>
+
+</body>
+</html>

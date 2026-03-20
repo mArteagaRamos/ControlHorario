@@ -1,6 +1,4 @@
 from uuid import uuid4
-
-
 from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
@@ -90,7 +88,6 @@ def auto_close_entry_if_expired(entry, company):
 # save clock-in, clock-out, pause start/end and calculate total hours worked
 
 #@login_required
-
 def time_entries(request):
     # pick a user from the system for tests (no auth required)
     user = None
@@ -115,9 +112,8 @@ def time_entries(request):
 
     # ensure user has a company and membership for testing
 
-    
     membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
-    if not membership: 
+    if not membership:
         company = Companies.objects.first()
         if not company:
             company = Companies.objects.create(
@@ -176,7 +172,6 @@ def time_entries(request):
         elif action == 'clock_out':
             if not active_entry:
                 messages.error(request, 'No active clock-in entry found to clock out.')
-             
             
             else:
                     # Check if this entry should be auto-closed by company policy
@@ -199,7 +194,7 @@ def time_entries(request):
                             actor=user,
                         )
                         messages.success(request, 'Clock-out registered.')
-             
+               
         #PAUSE START
 
         elif action == 'pause_start':
@@ -255,3 +250,4 @@ def time_entries(request):
         'page_obj': page_obj,
         'events': events,
     })
+

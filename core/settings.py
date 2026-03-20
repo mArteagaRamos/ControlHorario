@@ -27,8 +27,24 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
-
 # Application definition
+AUTH_USER_MODEL = 'users.Users'
+
+#Redirections
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
+TIME_TRACKING_URL = 'timetracker'
+
+#Messages
+from django.contrib.messages import constants as messages
+MESSAGE_TAGS = {
+    messages.DEBUG: 'secondary',
+    messages.INFO: 'info',
+    messages.SUCCESS: 'success',
+    messages.WARNING: 'warning',
+    messages.ERROR: 'danger',
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,7 +53,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'timetracking',
+    'users',
+    'audit',
+    'django_bootstrap5',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
@@ -124,6 +145,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
