@@ -18,6 +18,7 @@ class TimeEntries(models.Model):
     clock_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
     notes = models.TextField(blank=True, null=True)
+    total_seconds = models.IntegerField(default=0)
 
     class Meta:
         managed = False
