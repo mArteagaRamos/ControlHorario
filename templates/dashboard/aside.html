@@ -7,6 +7,13 @@
     <ul class="nav nav-pills flex-column mb-auto">
 
         <li>
+            <a href={% url 'time_entries' %} class="nav-link text-white">
+                <i class="bi bi-pencil-square me-2"></i>
+                Registrar actividad 
+            </a>
+        </li>
+
+        <li>
             <a href="#" class="nav-link text-white">
                 <i class="bi bi-pencil-square me-2"></i>
                 Solicitar corrección
@@ -21,9 +28,23 @@
         </li>
 
         <li>
-            <a href="#" class="nav-link text-white">
+            <a href={% url 'user_panel' %} class="nav-link text-white">
                 <i class="bi bi-speedometer2 me-2"></i>
                 Panel usuario
+            </a>
+        </li>
+
+        <li>
+            <a href="#" class="nav-link text-white">
+                <i class="bi bi-building me-2"></i>
+                Dar de alta Entidad
+            </a>
+        </li>
+
+        <li>
+            <a href="#" class="nav-link text-white">
+                <i class="bi bi-building me-2"></i>
+                Dar de alta Usuario
             </a>
         </li>
 
@@ -31,7 +52,7 @@
 
     <hr>
 
-    <a href="#" class="nav-link text-danger">
+    <a href={% url 'login' %} class="nav-link text-danger">
         <i class="bi bi-box-arrow-right me-2"></i>
         Log out
     </a>

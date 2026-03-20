@@ -10,13 +10,15 @@
         </button>
 
         <!-- Logo -->
-        <a class="navbar-brand d-flex align-items-center" href="#">
+        <a class="navbar-brand d-flex align-items-center" href={% url 'user_panel' %}>
             <img src="{% static 'img/icon_clock.png' %}" alt="Logo" height="40">
         </a>
 
         <!-- Perfil -->
         <div>
-            <i class="bi bi-person-circle text-white fs-4"></i>
+            <a href={% url 'user_panel' %}>
+                <i class="bi bi-person-circle text-white fs-4"></i>
+            </a>
         </div>
 
     </div>
