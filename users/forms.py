@@ -6,6 +6,14 @@ class FormRegister(forms.ModelForm):
     class Meta:
         model = Users
         fields = ['username', 'surname', 'email', 'status', 'is_admin', 'password']
+        labels = {
+            'username': 'Usuario',
+            'surname': 'Apellidos',
+            'email': 'Correo electrónico',
+            'status': 'Estado',
+            'is_admin': '¿Es administrador?',
+            'password': 'Contraseña',
+        }
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'surname': forms.TextInput(attrs={'class': 'form-control'}),

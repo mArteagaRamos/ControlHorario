@@ -19,9 +19,9 @@ class UsersManager(BaseUserManager):
 
 class Users(AbstractBaseUser):
     class StatusChoices(models.TextChoices):
-        ACTIVE = 'active'
-        INACTIVE = 'inactive'
-        SUSPENDED = 'suspended'
+        ACTIVE = 'active', 'Activo'
+        INACTIVE = 'inactive', 'Inactivo'
+        SUSPENDED = 'suspended', 'Suspendido'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=50)
