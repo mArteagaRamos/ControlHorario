@@ -1,7 +1,11 @@
+# ---------- Backend Models: timetracking/models.py ----------
+# Section comments are added in English for readability.
+
 from django.db import models
 from users.models import Users, Companies
 from django.utils import timezone
 
+# Time entry models
 class TimeEntries(models.Model):
     class EntryStatus(models.TextChoices):
         ONGOING = 'ongoing'
@@ -44,3 +48,5 @@ class TimeEntryEvent(models.Model):
     class Meta:
         managed = False
         db_table = 'time_entry_event'
+
+# (End of timetracking models)

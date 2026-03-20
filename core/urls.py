@@ -14,13 +14,18 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+# ---------- Backend URL Routing: core/urls.py ----------
+# English section comments help quickly spot route groups.
+
 from django.contrib import admin
 from django.urls import path, include
 from users import views as user_views
 from dashboard import views as dashboard_views
 
+# Project URL patterns
 urlpatterns = [
     path('', dashboard_views.home, name='home'),
     path('login/', user_views.login_view, name='login'),
     path('sign_up/', user_views.register, name='register'),
+    path('user_panel/', user_views.user_panel, name='user_panel'),
 ]
