@@ -1,20 +1,22 @@
+{% load static %}
 {% load django_bootstrap5 %}
 
 <nav class="navbar navbar-dark bg-dark px-3">
     <div class="container-fluid d-flex justify-content-between align-items-center">
 
-        <!-- Logo / Icono izquierda -->
-        <div class="d-flex align-items-center">
-            <a class="navbar-brand mb-0 h1" href="#">
-                <i class="bi bi-speedometer2"></i> Dashboard
-            </a>
-        </div>
+        <!-- Botón menú (solo móvil) -->
+        <button class="btn btn-outline-light d-md-none" id="menu-toggle">
+            <i class="bi bi-list"></i>
+        </button>
 
-        <!-- Icono derecha (perfil) -->
-        <div class="d-flex align-items-center">
-            <a href="#" class="text-white">
-                <i class="bi bi-person-circle fs-4"></i>
-            </a>
+        <!-- Logo -->
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <img src="{% static 'img/icon_clock.png' %}" alt="Logo" height="40">
+        </a>
+
+        <!-- Perfil -->
+        <div>
+            <i class="bi bi-person-circle text-white fs-4"></i>
         </div>
 
     </div>

@@ -1,0 +1,40 @@
+/* Sidebar */
+.sidebar {
+    width: 250px;
+    height: 100vh;
+    background-color: #343a40;
+    position: fixed;
+    top: 56px; /* altura del navbar */
+    left: 0;
+    transition: transform 0.3s ease;
+}
+
+/* Main content */
+.main-content {
+    margin-left: 250px;
+    padding: 20px;
+    width: 100%;
+}
+
+/* Hover links */
+.nav-link:hover {
+    background-color: #495057;
+    border-radius: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .sidebar {
+        transform: translateX(-100%);
+        z-index: 1000;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+}
