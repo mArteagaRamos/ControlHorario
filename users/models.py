@@ -1,9 +1,12 @@
+# ---------- Backend Models: users/models.py ----------
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 import uuid
 
+# Manager section
 class UsersManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:
@@ -16,9 +19,9 @@ class UsersManager(BaseUserManager):
 
 class Users(AbstractBaseUser):
     class StatusChoices(models.TextChoices):
-        ACTIVE = 'active'
-        INACTIVE = 'inactive'
-        SUSPENDED = 'suspended'
+        ACTIVE = 'active', 'Activo'
+        INACTIVE = 'inactive', 'Inactivo'
+        SUSPENDED = 'suspended', 'Suspendido'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(max_length=50)
@@ -42,6 +45,7 @@ class Users(AbstractBaseUser):
         return self.email
 
 
+# Company / membership models section
 class Companies(models.Model):
     id = models.UUIDField(primary_key=True)
     name = models.CharField(max_length=100)
@@ -87,6 +91,8 @@ class CompanySettings(models.Model):
         managed = False
         db_table = 'company_settings'
 
+
+# Correction requests section for time corrections
 class CorrectionRequests(models.Model):
     class CorrectionStatus(models.TextChoices):
         PENDING = 'pending'
