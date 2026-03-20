@@ -5,12 +5,11 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login
 from django.utils import timezone
 from uuid import uuid4
-from .forms import FormRegister, LoginForm
+from .forms import FormRegister, LoginForm, CompanyForm, ManagerSelectForm, ManagerCreateForm
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
 
 # Authentication / registration views
-
 
 def compute_worked_seconds(entry):
     if not entry.clock_in or not entry.clock_out:
@@ -73,6 +72,69 @@ def register(request):
         # GET request: display an empty registration form
         form = FormRegister()
     return render(request, 'login/sign_up.html', {'form': form})
+
+
+def create_company(request):
+    if request.method == 'POST':
+        company_form = CompanyForm(request.POST)
+        manager_action = request.POST.get('manager_action', 'select')
+        select_form = ManagerSelectForm(request.POST)
+        create_form = ManagerCreateForm(request.POST)
+
+        if company_form.is_valid():
+            company = company_form.save(commit=False)
+            company.id = uuid4()
+            company.created_at = timezone.now()
+            company.updated_at = timezone.now()
+            company.save()
+            CompanySettings.objects.create(company=company)
+
+            if manager_action == 'select':
+                if select_form.is_valid():
+                    manager_email = select_form.cleaned_data['manager_email']
+                    manager = Users.objects.filter(email=manager_email).first()
+                    if manager:
+                        UserCompanyMembership.objects.create(
+                            id=uuid4(),
+                            user=manager,
+                            company=company,
+                            role=UserCompanyMembership.RoleChoices.MANAGER
+                        )
+            elif manager_action == 'create' and create_form.is_valid():
+                manager_user = create_form.save(commit=False)
+                manager_user.id = uuid4()
+                manager_user.is_admin = False
+                manager_user.set_password(create_form.cleaned_data['password'])
+                manager_user.save()
+                UserCompanyMembership.objects.create(
+                    id=uuid4(),
+                    user=manager_user,
+                    company=company,
+                    role=UserCompanyMembership.RoleChoices.MANAGER
+                )
+
+            messages.success(request, 'Empresa guardada correctamente.')
+            return redirect('home')
+
+        # Build errors for all forms
+        if not company_form.is_valid():
+            messages.error(request, 'Por favor corrige los datos de la empresa.')
+        if manager_action == 'select' and not select_form.is_valid():
+            messages.error(request, 'Por favor corrige el correo del manager seleccionado.')
+        if manager_action == 'create' and not create_form.is_valid():
+            messages.error(request, 'Por favor corrige los datos del manager a crear.')
+    else:
+        company_form = CompanyForm()
+        select_form = ManagerSelectForm()
+        create_form = ManagerCreateForm()
+        manager_action = 'select'
+
+    return render(request, 'login/create_company.html', {
+        'company_form': company_form,
+        'select_form': select_form,
+        'create_form': create_form,
+        'manager_action': manager_action,
+    })
 
 
 def login_view(request):

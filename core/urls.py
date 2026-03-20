@@ -8,9 +8,11 @@ from timetracking import views as timetracking_views
 
 # Project URL patterns
 urlpatterns = [
-    path('', dashboard_views.home, name='home'),
+    path('', user_views.login_view, name='login'),
+    path('home/', dashboard_views.home, name='home'),
     path('login/', user_views.login_view, name='login'),
     path('sign_up/', user_views.register, name='register'),
+    path('create_company/', user_views.create_company, name='create_company'),
     path('user_panel/', user_views.user_panel, name='user_panel'),
     path('timetracking/', timetracking_views.time_entries, name='time_entries'),
 ]
