@@ -142,11 +142,10 @@ def time_entries(request):
         messages.info(request, 'An overdue active entry was auto-closed based on company policy.')
         active_entry = None
 
-        if request.method == 'POST':
+    if request.method == 'POST':
         action = request.POST.get('action')
 
         active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
-
         #CLOCK IN
 
         if action == 'clock_in':
