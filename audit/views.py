@@ -6,7 +6,7 @@ from django.core.paginator import Paginator
 from django.contrib import messages
 from django.utils import timezone
 from .models import TimeEntries, TimeEntryEvent
-from apps.users.models import Users, Companies, UserCompanyMembership, CompanySettings
+from users.models import Users, Companies, UserCompanyMembership, CompanySettings
 
 
 # CALCULATE WORKED SECONDS 

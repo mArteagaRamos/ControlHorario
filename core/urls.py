@@ -18,10 +18,11 @@ from django.contrib import admin
 from django.urls import path, include
 from users import views as user_views
 from dashboard import views as dashboard_views
+from timetracking import views as timetracking_views
 
 urlpatterns = [
     path('', dashboard_views.home, name='home'),
     path('login/', user_views.login_view, name='login'),
     path('sign_up/', user_views.register, name='register'),
-    path('timetracking/', include('apps.timetracking.urls')),
+    path('timetracking/', timetracking_views.time_entries, name='time_entries'),
 ]
