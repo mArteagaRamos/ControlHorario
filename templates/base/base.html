@@ -19,7 +19,7 @@
     {# Custom CSS #}
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'css/user_panel.css' %}">
+    <link rel="stylesheet" href="{% static 'css/workday.css' %}">
 </head>
 <body>
 
@@ -32,13 +32,13 @@
             </button>
 
             <!-- Logo -->
-            <a class="navbar-brand d-flex align-items-center" href={% url 'user_panel' %}>
+            <a class="navbar-brand d-flex align-items-center" href={% url 'home' %}>
                 <img src="{% static 'img/icon_clock.png' %}" alt="Logo" height="40">
             </a>
 
             <!-- Perfil -->
             <div>
-                <a href={% url 'user_panel' %}>
+                <a href={% url 'workday' %}>
                     <i class="bi bi-person-circle text-white fs-4"></i>
                 </a>
             </div>
@@ -46,6 +46,7 @@
         </div>
     </nav>
 
+ <!-- ASIDE / SIDEBAR / MENÚ -->
     <div class="d-flex">
 
     <aside id="sidebar" class="sidebar d-flex flex-column p-3 text-white">
@@ -55,16 +56,16 @@
         <ul class="nav nav-pills flex-column mb-auto">
 
             <li>
-                <a href={% url 'time_entries' %} class="nav-link text-white">
+                <a href={% url 'control' %} class="nav-link text-white">
                     <i class="bi bi-pencil-square me-2"></i>
-                    Registrar actividad
+                    Panel de control
                 </a>
             </li>
 
             <li>
                 <a href={% url 'time_entries' %} class="nav-link text-white">
                     <i class="bi bi-pencil-square me-2"></i>
-                    Panel de control
+                    Registrar actividad
                 </a>
             </li>
 
@@ -83,27 +84,27 @@
                 <div class="collapse" id="submenuUsuario">
                     <ul class="nav flex-column ms-3 mt-1 small">
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="{% url 'time_entries' %}">
+                            <a class="nav-link text-white-50" href={% url 'profile' %}>
                                 <i class="bi bi-play-circle me-2"></i>Perfil
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
+                            <a class="nav-link text-white-50" href={% url 'workday' %}>
                                 <i class="bi bi-pause-circle me-2"></i>Jornadas
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
+                            <a class="nav-link text-white-50" href={% url 'calendar' %}>
                                 <i class="bi bi-stop-circle me-2"></i>Calendario
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
+                            <a class="nav-link text-white-50" href={% url 'absence' %}>
                                 <i class="bi bi-stop-circle me-2"></i>Ausencias
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
+                            <a class="nav-link text-white-50" href={% url 'request_correction' %}>
                                 <i class="bi bi-stop-circle me-2"></i>Solicitar correción
                             </a>
                         </li>
@@ -127,25 +128,20 @@
                 <div class="collapse" id="submenuEquipo">
                     <ul class="nav flex-column ms-3 mt-1 small">
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="{% url 'time_entries' %}">
+                            <a class="nav-link text-white-50" href={% url 'staff' %}>
                                 <i class="bi bi-play-circle me-2"></i>Personal
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
-                                <i class="bi bi-pause-circle me-2"></i>Jornadas
+                            <a class="nav-link text-white-50" href={% url 'entity_info' %}>
+                                <i class="bi bi-pause-circle me-2"></i>Información empresa
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
+                            <a class="nav-link text-white-50" href={% url 'notes' %}>
                                 <i class="bi bi-stop-circle me-2"></i>Notas
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white-50" href="#">
-                                <i class="bi bi-stop-circle me-2"></i>Info Empresa
-                            </a>
-                        </li>                
+                        </li>              
                     </ul>
                 </div>
             </li>
