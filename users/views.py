@@ -85,6 +85,7 @@ def login_view(request):
             # Extract cleaned data from the form
             email = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
+            
 
             # Authenticate against Django auth backend
             user = authenticate(request, username=email, password=password)
