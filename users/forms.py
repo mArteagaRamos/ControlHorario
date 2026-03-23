@@ -1,5 +1,5 @@
 from django import forms
-from users.models import Users
+from users.models import Users, Companies
 from django.contrib.auth.forms import AuthenticationForm
 
 class FormRegister(forms.ModelForm):
@@ -7,11 +7,11 @@ class FormRegister(forms.ModelForm):
         model = Users
         fields = ['username', 'surname', 'email', 'status', 'is_admin', 'password']
         labels = {
-            'username': 'Usuario',
+            'username': 'Nombre',
             'surname': 'Apellidos',
             'email': 'Correo electrónico',
             'status': 'Estado',
-            'is_admin': '¿Es administrador?',
+            'is_admin': '',
             'password': 'Contraseña',
         }
         widgets = {
@@ -26,20 +26,67 @@ class FormRegister(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password"])
+        user.is_admin = False
+        if commit:
+            user.save()
+        return user
+
+class CompanyForm(forms.ModelForm):
+    class Meta:
+        model = Companies
+        fields = ['name', 'legal_name']
+        labels = {
+            'name': 'Nombre de la empresa',
+            'legal_name': 'Razón social',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'legal_name': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class ManagerSelectForm(forms.Form):
+    manager_email = forms.EmailField(
+        label='Email del manager existente',
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'manager@ejemplo.com'})
+    )
+
+class ManagerCreateForm(forms.ModelForm):
+    class Meta:
+        model = Users
+        fields = ['username', 'surname', 'email', 'status', 'password']
+        labels = {
+            'username': 'Nombre',
+            'surname': 'Apellidos',
+            'email': 'Correo electrónico',
+            'status': 'Estado',
+            'password': 'Contraseña',
+        }
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'surname': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'password': forms.PasswordInput(attrs={'class': 'form-control'}),
+        }
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password'])
+        user.is_admin = False
         if commit:
             user.save()
         return user
 
 class LoginForm(AuthenticationForm):
     username = forms.EmailField(
-        label="Email",
+        label="Correo electrónico",
         widget=forms.EmailInput(attrs={
             'class': 'form-control',
-            'placeholder': 'example@email.com'
+            'placeholder': 'ejemplo@email.com'
         })
     )
     password = forms.CharField(
-        label="Password",
+        label="Contraseña",
         widget=forms.PasswordInput(attrs={
             'class': 'form-control',
             'placeholder': '********'
