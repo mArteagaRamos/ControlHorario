@@ -23,24 +23,79 @@
 </head>
 <body>
 
+    <!-- NAVBAR -->
     <nav class="navbar navbar-dark bg-dark px-3">
         <div class="container-fluid d-flex justify-content-between align-items-center">
 
-            <!-- Botón menú (solo móvil) -->
+            <!-- Botón menú (móvil) -->
             <button class="btn btn-outline-light d-md-none" id="menu-toggle">
                 <i class="bi bi-list"></i>
             </button>
 
-            <!-- Logo -->
-            <a class="navbar-brand d-flex align-items-center" href={% url 'home' %}>
-                <img src="{% static 'img/icon_clock.png' %}" alt="Logo" height="40">
-            </a>
+            <!-- Empresa -->
+            {% if company_count > 1 %}
+                <!-- CON DROPDOWN -->
+                <div class="dropdown">
+                    <a class="navbar-brand d-flex align-items-center gap-2 dropdown-toggle text-white text-decoration-none"
+                    href="#"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false">
 
-            <!-- Perfil -->
-            <div>
-                <a href={% url 'workday' %}>
+                        <img src="{% static 'img/icon_clock.png' %}" height="40">
+
+                        {% if current_company %}
+                            <span class="fw-semibold">
+                                {{ current_company.name }}
+                            </span>
+                        {% endif %}
+                    </a>
+
+                    <ul class="dropdown-menu dropdown-menu-dark">
+                        {% for membership in memberships %}
+                            <li>
+                                <a class="dropdown-item"
+                                href="{% url 'switch_company' membership.company.id %}">
+                                    {{ membership.company.name }}
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+            {% else %}
+                <!-- SIN DROPDOWN -->
+                <a class="navbar-brand d-flex align-items-center gap-2 text-white text-decoration-none"
+                href="{% url 'workday' %}">
+
+                    <img src="{% static 'img/icon_clock.png' %}" height="40">
+
+                    {% if current_company %}
+                        <span class="fw-semibold">
+                            {{ current_company.name }}
+                        </span>
+                    {% endif %}
+                </a>
+            {% endif %}
+
+            <!-- Usuario -->
+            <div class="d-flex align-items-center gap-2">
+
+                {% if request.user.is_authenticated %}
+                    <span class="text-white">
+                        {{ request.user.username }} {{ request.user.surname }}
+
+                        {% if current_role %}
+                            <small class="text-secondary">
+                                ({{ current_role }})
+                            </small>
+                        {% endif %}
+                    </span>
+                {% endif %}
+
+                <a href="{% url 'workday' %}">
                     <i class="bi bi-person-circle text-white fs-4"></i>
                 </a>
+
             </div>
 
         </div>
