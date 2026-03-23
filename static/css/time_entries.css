@@ -1,0 +1,39 @@
+
+    .timer { 
+        font-size: 5rem; 
+        font-weight: bold; 
+        align-items: center;
+        display: flex;
+        justify-content: center;
+    }
+
+    .btn-entries{
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .btn-entry{ 
+        padding: 12px 24px; 
+        font-size: 1rem; 
+        border: none; 
+        border-radius: 8px; 
+        cursor: pointer; 
+        
+    }
+
+    .btn-primary {
+        background: #25ffe2;
+        color: #fff;
+    }
+
+    .btn-secondary {
+        background: #f689f4; 
+        color: #222;
+    }
+
+    .btn-danger {
+        background: #a300e9;
+        color: #fff; 
+    }

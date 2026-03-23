@@ -1,46 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Time Tracker</title>
-  <style>
-    body { font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; gap: 20px; padding-top: 300px; }
-    .timer { font-size: 2.5rem; font-weight: bold; }
-    .btn { padding: 12px 24px; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; }
-    .btn-primary { background: #25ffe2; color: #fff; }
-    .btn-secondary { background: #f689f4; color: #222; }
-    .btn-danger { background: #a300e9; color: #fff; }
-  </style>
-</head>
-<body>
-{% load static %}
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Timer{% endblock %}
+
+{% block content %}
+{% load static %} {% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/time_entries.css' %}">
+{% endblock %}
 
   <div class="timer" id="timerDisplay">00:00:00</div>
   <input type="hidden" id="csrfToken" value="{{ csrf_token }}" />
 
-  <div id="buttonGroup">
-    <button class="btn btn-primary" id="clockInBtn">Clock In</button>
+  <div id="buttonGroup" class="btn-entries">
+    <button class="btn-entry btn-primary" id="clockInBtn">Clock In</button>
   </div>
 
   {% if messages %}
-    <div style="position: fixed; top: 8px; right: 8px; background: rgba(0,0,0,.6); color: #fff; padding: 8px; border-radius: 5px;">
+    <div class="messages">
       {% for msg in messages %}
         <div>{{ msg }}</div>
       {% endfor %}
     </div>
   {% endif %}
 
-  <div style="width: 90%; max-width: 650px; margin-top: 20px;">
-    <h3>Your time entries (last 10)</h3>
+  <div >
+    <h3>Últimos Fichajes</h3>
     <table style="width: 100%; border-collapse: collapse;">
-      <thead><tr><th></th><th>Entrada</th><th>Salida</th><th>Estado</th><th>Horas</th></tr></thead>
+      <thead></th><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Estado</th><th>Horas</th></tr></thead>
       <tbody>
       {% for e in time_entries %}
         <tr style="border-top: 1px solid #ddd;">
-          <td>{{ forloop.counter }}</td>
-          <td>{{ e.clock_in }}</td>
-          <td>{{ e.clock_out|default:'--' }}</td>
+          <td>{{ e.clock_in|date:"d/m/Y" }}</td>
+          <td>{{ e.clock_in|time:"H:i" }}</td>
+          <td>{% if e.clock_out %}{{ e.clock_out|time:"H:i" }}{% else %}--{% endif %}</td>
           <td>{{ e.status }}</td>
           <td>{{ e.total_seconds|default:'--' }}</td>
         </tr>
@@ -103,8 +95,8 @@
 
     function switchToClockOutPauseUI() {
       buttonGroup.innerHTML = `
-        <button class="btn btn-danger" id="clockOutBtn">Clock Out</button>
-        <button class="btn btn-secondary" id="pauseBtn">Pause</button>
+        <button class="btn-entry btn-danger" id="clockOutBtn">Clock Out</button>
+        <button class="btn-entry btn-secondary" id="pauseBtn">Pause</button>
       `;
       document.getElementById('clockOutBtn').addEventListener('click', onClockOut);
       document.getElementById('pauseBtn').addEventListener('click', onPauseToggle);
@@ -165,5 +157,4 @@
     clockInBtn.addEventListener('click', onClockIn);
   </script>
 
-</body>
-</html>
+{% endblock %}

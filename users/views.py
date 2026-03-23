@@ -3,14 +3,14 @@
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from uuid import uuid4
-from .forms import FormRegister, LoginForm
+from .forms import FormRegister, LoginForm, CompanyForm, ManagerSelectForm, ManagerCreateForm
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
 
 # Authentication / registration views
-
 
 def compute_worked_seconds(entry):
     if not entry.clock_in or not entry.clock_out:
@@ -75,8 +75,109 @@ def register(request):
     return render(request, 'login/sign_up.html', {'form': form})
 
 
+@login_required
+def create_company(request):
+    if not request.user.is_admin:
+        messages.error(request, 'No tienes permisos para crear empresas.')
+        return redirect('home')
+    if request.method == 'POST':
+        company_form = CompanyForm(request.POST)
+        manager_action = request.POST.get('manager_action', 'select')
+        select_form = ManagerSelectForm(request.POST)
+        create_form = ManagerCreateForm(request.POST)
+
+        # Debug prints
+        print(f"DEBUG: manager_action = {manager_action}")
+        print(f"DEBUG: request.POST = {request.POST.dict()}")
+
+        manager_user = None
+        manager_error = None
+
+        if company_form.is_valid():
+            # Check for tax_id uniqueness before saving
+            tax_id = company_form.cleaned_data.get('tax_id')
+            if tax_id and Companies.objects.filter(tax_id=tax_id).exists():
+                messages.error(request, 'El CIF/NIF ya está registrado para otra empresa.')
+                return render(request, 'login/create_company.html', {
+                    'company_form': company_form,
+                    'select_form': select_form,
+                    'create_form': create_form,
+                    'manager_action': manager_action,
+                })
+
+            if manager_action == 'select':
+                print("DEBUG: Processing select manager")
+                if select_form.is_valid():
+                    manager_email = select_form.cleaned_data['manager_email'].strip()
+                    print(f"DEBUG: manager_email cleaned = '{manager_email}'")
+                    manager = Users.objects.filter(email__iexact=manager_email).first()
+                    print(f"DEBUG: manager found = {manager}")
+                    if manager:
+                        manager_user = manager
+                        messages.info(request, f"Manager encontrado: {manager.email}")
+                    else:
+                        manager_error = 'No existe ningún manager con ese correo.'
+                        print(f"DEBUG: No manager found for email '{manager_email}'")
+                else:
+                    manager_error = 'Por favor corrige el correo del manager seleccionado.'
+                    print(f"DEBUG: select_form errors = {select_form.errors}")
+
+            elif manager_action == 'create':
+                print("DEBUG: Processing create manager")
+                if create_form.is_valid():
+                    manager_user = create_form.save(commit=False)
+                    manager_user.id = uuid4()
+                    manager_user.is_admin = False
+                    manager_user.set_password(create_form.cleaned_data['password'])
+                    manager_user.save()
+                else:
+                    manager_error = 'Por favor corrige los datos del manager a crear.'
+                    print(f"DEBUG: create_form errors = {create_form.errors}")
+
+            if manager_user:
+                print(f"DEBUG: Saving company with manager {manager_user.email}")
+                company = company_form.save(commit=False)
+                company.id = uuid4()
+                company.created_at = timezone.now()
+                company.updated_at = timezone.now()
+                company.save()
+                CompanySettings.objects.create(company=company)
+
+                UserCompanyMembership.objects.create(
+                    id=uuid4(),
+                    user=manager_user,
+                    company=company,
+                    role=UserCompanyMembership.RoleChoices.MANAGER
+                )
+
+                messages.success(request, 'Empresa guardada correctamente.')
+                return redirect('home')
+            else:
+                if manager_error:
+                    messages.error(request, manager_error)
+                else:
+                    messages.error(request, 'No se pudo asignar el manager. Revisa los datos.')
+                print(f"DEBUG: No manager_user assigned, error: {manager_error}")
+        else:
+            messages.error(request, 'Por favor corrige los datos de la empresa.')
+            print(f"DEBUG: company_form errors = {company_form.errors}")
+
+    else:
+        company_form = CompanyForm()
+        select_form = ManagerSelectForm()
+        create_form = ManagerCreateForm()
+        manager_action = 'select'
+
+    return render(request, 'login/create_company.html', {
+        'company_form': company_form,
+        'select_form': select_form,
+        'create_form': create_form,
+        'manager_action': manager_action,
+    })
+
+
 def login_view(request):
-    """Authenticate user credentials and log in admin users."""
+    """Authenticate user credentials and log in users."""
 
     if request.method == 'POST':
         # Bind submitted credentials to authentication form
@@ -90,13 +191,9 @@ def login_view(request):
             # Authenticate against Django auth backend
             user = authenticate(request, username=email, password=password)
             if user is not None:
-                # Only allow admin users to log in here
-                if user.is_admin:
-                    auth_login(request, user)
-                    messages.success(request, 'Logged in successfully as admin.')
-                    return redirect('home')
-                else:
-                    messages.error(request, 'You do not have permission to access this page.')
+                auth_login(request, user)
+                messages.success(request, 'Logged in successfully.')
+                return redirect('home')
             else:
                 messages.error(request, 'Invalid email or password.')
         else:
@@ -109,15 +206,15 @@ def login_view(request):
 
 # User panel section
 
+@login_required
 def user_panel(request):
-    # Determine current user from auth, fallback to demo user for quick tests
-    if hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False):
-        user = Users.objects.filter(email=getattr(request.user, 'email', None)).first()
-    else:
-        user = None
-
+    # Get the authenticated user
+    django_user = request.user
+    user = Users.objects.filter(email=django_user.email).first()
+    
     if not user:
-        user = get_or_create_demo_user()
+        messages.error(request, 'Usuario no encontrado en el sistema.')
+        return redirect('home')
 
     membership = ensure_membership(user)
     company = membership.company
