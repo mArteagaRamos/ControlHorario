@@ -4,7 +4,7 @@ from uuid import uuid4
 from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
-#from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from .models import TimeEntries, TimeEntryEvent
@@ -89,52 +89,22 @@ def auto_close_entry_if_expired(entry, company):
 
 # save clock-in, clock-out, pause start/end and calculate total hours worked
 
-#@login_required
-
+@login_required
 def time_entries(request):
-    # pick a user from the system for tests (no auth required)
-    user = None
-
-    if hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False):
-        django_user = request.user
-
-        # try match by email in your app user table
-        user = Users.objects.filter(email=getattr(django_user, 'email', None)).first()
-
-    if not user:
-        user = Users.objects.first()
-
-    if not user:
-        user = Users.objects.create(
-            id=uuid4(),
-            username='demo',
-            email='demo@example.com',
-            surname='Demo',
-            password_hash='demo',
-        )
-
-    # ensure user has a company and membership for testing
-
+    # Get the authenticated user
+    django_user = request.user
+    user = Users.objects.filter(email=django_user.email).first()
     
+    if not user:
+        messages.error(request, 'Usuario no encontrado en el sistema.')
+        return redirect('home')
+
     membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
-    if not membership: 
-        company = Companies.objects.first()
-        if not company:
-            company = Companies.objects.create(
-                id=uuid4(),
-                name='DemoCorp',
-                legal_name='Demo Corporation',
-            )
-        membership = UserCompanyMembership.objects.create(
-            id=uuid4(),
-            user=user,
-            company=company,
-            role=UserCompanyMembership.RoleChoices.EMPLOYEE,
-        )
+    if not membership:
+        messages.error(request, 'No tienes una membresía activa en ninguna empresa.')
+        return redirect('home')
 
-    company = membership.company
-
-    # eliminar esto cuando hagamos la prueba  
+    company = membership.company  
 
 
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
