@@ -2,7 +2,7 @@ from uuid import uuid4
 from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
-#from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from .models import TimeEntries, TimeEntryEvent
@@ -87,7 +87,7 @@ def auto_close_entry_if_expired(entry, company):
 
 # save clock-in, clock-out, pause start/end and calculate total hours worked
 
-#@login_required
+@login_required
 def time_entries(request):
     # pick a user from the system for tests (no auth required)
     user = None
