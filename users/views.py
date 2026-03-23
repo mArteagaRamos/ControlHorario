@@ -206,7 +206,7 @@ def login_view(request):
 # User panel section
 
 @login_required
-def user_panel(request):
+def workday(request):
     # Get the authenticated user
     django_user = request.user
     user = Users.objects.filter(email=django_user.email).first()
@@ -267,7 +267,7 @@ def user_panel(request):
             else:
                 messages.error(request, 'Datos incompletos para la solicitud de corrección.')
 
-        return redirect('user_panel')
+        return redirect('workday')
 
     entries = TimeEntries.objects.filter(user=user).order_by('-date', '-clock_in')[:20]
     requests = CorrectionRequests.objects.filter(requester=user).order_by('-request_date')[:20]
@@ -297,7 +297,31 @@ def user_panel(request):
             'status': r.status,
         })
 
-    return render(request, 'user_panel/user_panel.html', {
+    return render(request, 'user_panel/workday.html', {
         'entry_rows': entry_rows,
         'request_rows': request_rows,
     })
+
+
+def calendar(request):
+    return render(request, 'user_panel/calendar.html')
+
+def profile(request):
+    return render(request, 'user_panel/profile.html')
+
+def absence(request):
+    return render(request, 'user_panel/absence.html')
+
+def request_correction(request):
+    return render(request, 'user_panel/requests.html')   
+
+
+def entity_info(request):
+    return render(request, 'team/entity_info.html')
+
+def staff(request):
+    return render(request, 'team/staff.html')
+
+def notes(request):
+    return render(request, 'team/notes.html')
+    
