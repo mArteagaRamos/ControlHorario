@@ -1,9 +1,1 @@
-{% extends 'base/base.html' %}
-
-{% block title %}Home{% endblock %}
-
-{% block content %}
-    <a href={% url 'time_entries' %} class="btn btn-primary">
-    Registrar actividad
-    </a>
-{% endblock %}
+{% extends 'timetracking/time_entries.html' %}
