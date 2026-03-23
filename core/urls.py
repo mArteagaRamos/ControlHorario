@@ -1,7 +1,7 @@
 # ---------- Backend URL Routing: core/urls.py ----------
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path
 from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
@@ -15,4 +15,5 @@ urlpatterns = [
     path('create_company/', user_views.create_company, name='create_company'),
     path('user_panel/', user_views.user_panel, name='user_panel'),
     path('timetracking/', timetracking_views.time_entries, name='time_entries'),
+    path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
 ]

@@ -86,10 +86,6 @@ def create_company(request):
         select_form = ManagerSelectForm(request.POST)
         create_form = ManagerCreateForm(request.POST)
 
-        # Debug prints
-        print(f"DEBUG: manager_action = {manager_action}")
-        print(f"DEBUG: request.POST = {request.POST.dict()}")
-
         manager_user = None
         manager_error = None
 
@@ -106,24 +102,18 @@ def create_company(request):
                 })
 
             if manager_action == 'select':
-                print("DEBUG: Processing select manager")
                 if select_form.is_valid():
                     manager_email = select_form.cleaned_data['manager_email'].strip()
-                    print(f"DEBUG: manager_email cleaned = '{manager_email}'")
                     manager = Users.objects.filter(email__iexact=manager_email).first()
-                    print(f"DEBUG: manager found = {manager}")
                     if manager:
                         manager_user = manager
                         messages.info(request, f"Manager encontrado: {manager.email}")
                     else:
                         manager_error = 'No existe ningún manager con ese correo.'
-                        print(f"DEBUG: No manager found for email '{manager_email}'")
                 else:
                     manager_error = 'Por favor corrige el correo del manager seleccionado.'
-                    print(f"DEBUG: select_form errors = {select_form.errors}")
 
             elif manager_action == 'create':
-                print("DEBUG: Processing create manager")
                 if create_form.is_valid():
                     manager_user = create_form.save(commit=False)
                     manager_user.id = uuid4()
@@ -132,10 +122,8 @@ def create_company(request):
                     manager_user.save()
                 else:
                     manager_error = 'Por favor corrige los datos del manager a crear.'
-                    print(f"DEBUG: create_form errors = {create_form.errors}")
 
             if manager_user:
-                print(f"DEBUG: Saving company with manager {manager_user.email}")
                 company = company_form.save(commit=False)
                 company.id = uuid4()
                 company.created_at = timezone.now()
@@ -157,10 +145,8 @@ def create_company(request):
                     messages.error(request, manager_error)
                 else:
                     messages.error(request, 'No se pudo asignar el manager. Revisa los datos.')
-                print(f"DEBUG: No manager_user assigned, error: {manager_error}")
         else:
             messages.error(request, 'Por favor corrige los datos de la empresa.')
-            print(f"DEBUG: company_form errors = {company_form.errors}")
 
     else:
         company_form = CompanyForm()
@@ -207,28 +193,51 @@ def login_view(request):
 
 @login_required
 def user_panel(request):
-    # Get the authenticated user
-    django_user = request.user
-    user = Users.objects.filter(email=django_user.email).first()
-    
+
+    # Usuario actual
+    user = Users.objects.filter(email=request.user.email).first()
+
     if not user:
         messages.error(request, 'Usuario no encontrado en el sistema.')
         return redirect('home')
 
-    membership = ensure_membership(user)
-    company = membership.company
+    company = request.company
 
-    # Handle timetracking actions from panel
+    if not company:
+        messages.error(request, 'No tienes empresa asignada.')
+        return redirect('home')
+
+    # ----------- ACCIONES -----------
+
     if request.method == 'POST':
         action = request.POST.get('action')
-        active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
+
+        active_entry = TimeEntries.objects.filter(
+            user=user,
+            company=company,
+            status=TimeEntries.EntryStatus.ONGOING,
+            clock_out__isnull=True
+        ).order_by('-clock_in').first()
 
         if action == 'clock_in':
             if active_entry:
                 messages.warning(request, 'Ya tienes una entrada activa.')
             else:
-                entry = TimeEntries.objects.create(id=uuid4(), user=user, company=company, date=timezone.localdate(), clock_in=timezone.now(), status=TimeEntries.EntryStatus.ONGOING)
-                TimeEntryEvent.objects.create(id=uuid4(), time_entry=entry, event_type=TimeEntryEvent.EventType.CLOCK_IN, timestamp=timezone.now(), actor=user)
+                entry = TimeEntries.objects.create(
+                    id=uuid4(),
+                    user=user,
+                    company=company,
+                    date=timezone.localdate(),
+                    clock_in=timezone.now(),
+                    status=TimeEntries.EntryStatus.ONGOING
+                )
+                TimeEntryEvent.objects.create(
+                    id=uuid4(),
+                    time_entry=entry,
+                    event_type=TimeEntryEvent.EventType.CLOCK_IN,
+                    timestamp=timezone.now(),
+                    actor=user
+                )
                 messages.success(request, 'Clock-in registrado.')
 
         elif action == 'clock_out':
@@ -238,46 +247,86 @@ def user_panel(request):
                 active_entry.clock_out = timezone.now()
                 active_entry.status = TimeEntries.EntryStatus.CONFIRMED
                 active_entry.save(update_fields=['clock_out', 'status'])
-                TimeEntryEvent.objects.create(id=uuid4(), time_entry=active_entry, event_type=TimeEntryEvent.EventType.CLOCK_OUT, timestamp=timezone.now(), actor=user)
+
+                TimeEntryEvent.objects.create(
+                    id=uuid4(),
+                    time_entry=active_entry,
+                    event_type=TimeEntryEvent.EventType.CLOCK_OUT,
+                    timestamp=timezone.now(),
+                    actor=user
+                )
                 messages.success(request, 'Clock-out registrado.')
 
         elif action == 'pause_start':
             if not active_entry:
                 messages.error(request, 'No hay entrada activa para pausar.')
             else:
-                TimeEntryEvent.objects.create(id=uuid4(), time_entry=active_entry, event_type=TimeEntryEvent.EventType.PAUSE_START, timestamp=timezone.now(), actor=user)
+                TimeEntryEvent.objects.create(
+                    id=uuid4(),
+                    time_entry=active_entry,
+                    event_type=TimeEntryEvent.EventType.PAUSE_START,
+                    timestamp=timezone.now(),
+                    actor=user
+                )
                 messages.success(request, 'Pausa iniciada.')
 
         elif action == 'pause_end':
             if not active_entry:
                 messages.error(request, 'No hay pausa activa para terminar.')
             else:
-                TimeEntryEvent.objects.create(id=uuid4(), time_entry=active_entry, event_type=TimeEntryEvent.EventType.PAUSE_END, timestamp=timezone.now(), actor=user)
+                TimeEntryEvent.objects.create(
+                    id=uuid4(),
+                    time_entry=active_entry,
+                    event_type=TimeEntryEvent.EventType.PAUSE_END,
+                    timestamp=timezone.now(),
+                    actor=user
+                )
                 messages.success(request, 'Pausa finalizada.')
 
         elif action == 'request_correction':
             entry_id = request.POST.get('entry_id')
-            new_clock_in = request.POST.get('new_clock_in')
-            new_clock_out = request.POST.get('new_clock_out')
             reason = request.POST.get('reason', '').strip()
-            entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
+
+            entry = TimeEntries.objects.filter(
+                id=entry_id,
+                user=user,
+                company=company
+            ).first()
+
             if entry and reason:
-                CorrectionRequests.objects.create(id=uuid4(), time_entry=entry, requester=user, reason=reason, status='pending')
+                CorrectionRequests.objects.create(
+                    id=uuid4(),
+                    time_entry=entry,
+                    requester=user,
+                    reason=reason,
+                    status='pending'
+                )
                 messages.success(request, 'Solicitud de corrección enviada.')
             else:
-                messages.error(request, 'Datos incompletos para la solicitud de corrección.')
+                messages.error(request, 'Datos incompletos o inválidos.')
 
         return redirect('user_panel')
 
-    entries = TimeEntries.objects.filter(user=user).order_by('-date', '-clock_in')[:20]
-    requests = CorrectionRequests.objects.filter(requester=user).order_by('-request_date')[:20]
+    # ----------- DATOS -----------
 
-    # Build simple row data with computed duration
+    entries = TimeEntries.objects.filter(
+        user=user,
+        company=company
+    ).order_by('-date', '-clock_in')[:20]
+
+    requests = CorrectionRequests.objects.filter(
+        requester=user,
+        time_entry__company=company
+    ).order_by('-request_date')[:20]
+
+    # ----------- FORMATEO -----------
+
     entry_rows = []
     for e in entries:
         worked_seconds = compute_worked_seconds(e)
         hours = worked_seconds // 3600
         minutes = (worked_seconds % 3600) // 60
+
         entry_rows.append({
             'id': e.id,
             'date': e.date,
@@ -301,3 +350,20 @@ def user_panel(request):
         'entry_rows': entry_rows,
         'request_rows': request_rows,
     })
+
+
+# Company switching view
+@login_required
+def switch_company(request, company_id):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    membership = UserCompanyMembership.objects.filter(
+        user=request.user,
+        company_id=company_id
+    ).first()
+
+    if membership:
+        request.session['company_id'] = str(company_id)
+
+    return redirect('user_panel')
