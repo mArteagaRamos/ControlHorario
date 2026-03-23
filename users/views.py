@@ -346,23 +346,23 @@ def workday(request):
             'status': r.status,
         })
 
-    return render(request, 'workday/workday.html', {
+    return render(request, 'user_panel/workday.html', {
         'entry_rows': entry_rows,
         'request_rows': request_rows,
     })
 
 
 def calendar(request):
-    return render(request, 'workday/calendar.html')
+    return render(request, 'user_panel/calendar.html')
 
 def profile(request):
-    return render(request, 'workday/profile.html')
+    return render(request, 'user_panel/profile.html')
 
 def absence(request):
-    return render(request, 'workday/absence.html')
+    return render(request, 'user_panel/absence.html')
 
 def request_correction(request):
-    return render(request, 'workday/requests.html')   
+    return render(request, 'user_panel/requests.html')   
 
 
 def entity_info(request):
