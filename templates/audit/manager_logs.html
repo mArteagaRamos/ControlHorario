@@ -142,7 +142,7 @@
                                                     data-old-out="{{ registro.clock_out|time:'H:i'|default:'--:--' }}"
                                                     data-new-in="{{ incidencia.new_clock_in|time:'H:i'|default:'--:--' }}"
                                                     data-new-out="{{ incidencia.new_clock_out|time:'H:i'|default:'--:--' }}">
-                                                    <i class="bi bi-wrench" style="pointer-events: none;"></i> Resolver
+                                                    <i class="bi bi-wrench"></i> Resolver
                                                 </button>
                                             {% endif %}
                                         {% endfor %}
@@ -273,19 +273,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- MODAL RESOLVER INCIDENCIA ---
     const resolverModal = document.getElementById('modalResolver');
-    if (resolverModal) {
-        resolverModal.addEventListener('show.bs.modal', function(event) {
-            let button = event.relatedTarget.closest('button');
-            
-            document.getElementById('incidenciaIdInput').value = button.getAttribute('data-id');
-            document.getElementById('modalEmpleado').textContent = button.getAttribute('data-empleado');
-            document.getElementById('modalMotivo').textContent = button.getAttribute('data-motivo') || "No se especificó un motivo.";
-            document.getElementById('modalOldIn').textContent = button.getAttribute('data-old-in');
-            document.getElementById('modalOldOut').textContent = button.getAttribute('data-old-out');
-            document.getElementById('modalNewIn').textContent = button.getAttribute('data-new-in');
-            document.getElementById('modalNewOut').textContent = button.getAttribute('data-new-out');
-        });
-    }
+        if (resolverModal) {
+            resolverModal.addEventListener('show.bs.modal', function(event) {
+                // Usamos currentTarget o relatedTarget para asegurar que pillamos el botón
+                let button = event.relatedTarget; 
+                
+                // Extraemos la información de los atributos data-*
+                const id = button.getAttribute('data-id');
+                const empleado = button.getAttribute('data-empleado');
+                const motivo = button.getAttribute('data-motivo');
+                const oldIn = button.getAttribute('data-old-in');
+                const oldOut = button.getAttribute('data-old-out');
+                const newIn = button.getAttribute('data-new-in');
+                const newOut = button.getAttribute('data-new-out');
+
+                // Rellenamos el modal
+                document.getElementById('incidenciaIdInput').value = id;
+                document.getElementById('modalEmpleado').textContent = empleado;
+                document.getElementById('modalMotivo').textContent = motivo || "No se especificó un motivo.";
+                
+                // IMPORTANTE: Rellenar los spans de las horas
+                document.getElementById('modalOldIn').textContent = oldIn;
+                document.getElementById('modalOldOut').textContent = oldOut;
+                document.getElementById('modalNewIn').textContent = newIn;
+                document.getElementById('modalNewOut').textContent = newOut;
+            });
+        }
 
     // --- MODAL EDITAR ---
     const editarModal = document.getElementById('modalEditar');
