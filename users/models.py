@@ -105,8 +105,8 @@ class CorrectionRequests(models.Model):
     request_date = models.DateTimeField(default=timezone.now)
     reason = models.TextField()
     # --- ¡AQUÍ ESTÁN LOS CAMPOS NUEVOS! ---
-    new_clock_in = models.DateTimeField(blank=True, null=True)  
-    new_clock_out = models.DateTimeField(blank=True, null=True) 
+    #new_clock_in = models.DateTimeField(blank=True, null=True)  
+    #new_clock_out = models.DateTimeField(blank=True, null=True) 
     # --------------------------------------
     status = models.CharField(max_length=20, choices=CorrectionStatus.choices, default=CorrectionStatus.PENDING)
     approver = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='correctionrequests_approver_set', db_column='approver_id', blank=True, null=True)
@@ -114,5 +114,5 @@ class CorrectionRequests(models.Model):
     correction_note = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'correction_requests'
