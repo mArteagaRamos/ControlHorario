@@ -9,26 +9,29 @@ from audit import views as audit_views
 
 # Project URL patterns
 urlpatterns = [
+    # Admin
     path('home/', dashboard_views.home, name='home'),
     path('control/', dashboard_views.control, name='control'),
 
-
+    # Auth
     path('', user_views.login_view, name='login'),
-    path('sign_up/', user_views.register, name='register'),
-    path('create_company/', user_views.create_company, name='create_company'),
+    path('register/', user_views.register_unified, name='register_unified'),
+    path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
+    path('api/lookup-user/',    user_views.lookup_user,    name='lookup_user'),
 
+    # Dashboard - Worker
     path('workday/', user_views.workday, name='workday'),
-    path('calendar/', user_views.calendar, name='calendar'),
-    path('profile/', user_views.profile, name='profile'),
-    path('request_correction/', user_views.request_correction, name='request_correction'),
-    path('absence/', user_views.absence, name='absence'),
+    path('calendar/', dashboard_views.calendar, name='calendar'),
+    path('profile/', dashboard_views.profile, name='profile'),
+    path('request_correction/', dashboard_views.request_correction, name='request_correction'),
+    path('absence/', dashboard_views.absence, name='absence'),
 
+    # Dashboard - Team Management
+    path('entity_info/', dashboard_views.entity_info, name='entity_info'),
+    path('staff/', dashboard_views.staff, name='staff'),
+    path('notes/', dashboard_views.notes, name='notes'),
 
-    path('entity_info/', user_views.entity_info, name='entity_info'),
-    path('staff/', user_views.staff, name='staff'),
-    path('notes/', user_views.notes, name='notes'),
-
-
+    # Time Tracking
     path('timetracking/', timetracking_views.time_entries, name='time_entries'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
 
