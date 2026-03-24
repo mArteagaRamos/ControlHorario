@@ -102,6 +102,21 @@ class LoginForm(AuthenticationForm):
         })
     )
 
+# ── Login con selección de empresa ────────────────────────────────────────────
+
+class CompanySelectLoginForm(forms.Form):
+    company_id = forms.ChoiceField(
+        label='Selecciona empresa',
+        widget=forms.Select(attrs={'class': 'form-control'}),
+    )
+
+    def __init__(self, *args, companies=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if companies:
+            self.fields['company_id'].choices = [
+                (str(m.company.id), m.company.name) for m in companies
+            ]
+
 
 # ── Empresa ───────────────────────────────────────────────────────────────────
 

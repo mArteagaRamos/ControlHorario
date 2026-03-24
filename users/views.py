@@ -9,7 +9,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from uuid import uuid4
 from .forms import (
-    LoginForm, CompanyForm,
+    LoginForm, CompanyForm, CompanySelectLoginForm,
     WorkerCreateForm, WorkerSelectForm,
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
@@ -65,24 +65,75 @@ def ensure_membership(user):
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
-    """Authenticate user credentials and log in users."""
+    form             = LoginForm(request)
+    company_form     = None
+    show_company_selector = False
+
     if request.method == 'POST':
-        form = LoginForm(request, data=request.POST)
-        if form.is_valid():
-            email = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(request, username=email, password=password)
-            if user is not None:
-                auth_login(request, user)
-                messages.success(request, 'Logged in successfully.')
-                return redirect('home')
+        step = request.POST.get('step', 'credentials')
+
+        # ── Paso 1: validar credenciales ───────────────────────────────────────
+        if step == 'credentials':
+            form = LoginForm(request, data=request.POST)
+            if form.is_valid():
+                email    = form.cleaned_data.get('username')
+                password = form.cleaned_data.get('password')
+                user     = authenticate(request, username=email, password=password)
+
+                if user is not None:
+                    memberships = UserCompanyMembership.objects.filter(
+                        user=user
+                    ).select_related('company')
+
+                    if memberships.count() > 1:
+                        # Más de una empresa: mostrar selector
+                        auth_login(request, user)
+                        company_form = CompanySelectLoginForm(companies=memberships)
+                        show_company_selector = True
+                        # Guardamos las credenciales validadas para el paso 2
+                        request.session['pending_company_selection'] = True
+                    else:
+                        # Una sola empresa: login directo
+                        auth_login(request, user)
+                        if memberships.first():
+                            request.session['company_id'] = str(memberships.first().company.id)
+                        messages.success(request, 'Sesión iniciada correctamente.')
+                        return redirect('home')
+                else:
+                    messages.error(request, 'Email o contraseña incorrectos.')
             else:
-                messages.error(request, 'Invalid email or password.')
-        else:
-            messages.error(request, 'Please check the form for errors.')
-    else:
-        form = LoginForm(request)
-    return render(request, 'login/login.html', {'form': form})
+                messages.error(request, 'Revisa los campos del formulario.')
+
+        # ── Paso 2: seleccionar empresa ────────────────────────────────────────
+        elif step == 'select_company':
+            if not request.user.is_authenticated:
+                return redirect('login')
+
+            memberships  = UserCompanyMembership.objects.filter(
+                user=request.user
+            ).select_related('company')
+            company_form = CompanySelectLoginForm(request.POST, companies=memberships)
+
+            if company_form.is_valid():
+                company_id = company_form.cleaned_data['company_id']
+                # Verificar que la empresa pertenece al usuario
+                membership = memberships.filter(company_id=company_id).first()
+                if membership:
+                    request.session['company_id'] = str(company_id)
+                    request.session.pop('pending_company_selection', None)
+                    messages.success(request, 'Sesión iniciada correctamente.')
+                    return redirect('home')
+                else:
+                    messages.error(request, 'Empresa no válida.')
+                    show_company_selector = True
+            else:
+                show_company_selector = True
+
+    return render(request, 'login/login.html', {
+        'form':                   form,
+        'company_form':           company_form,
+        'show_company_selector':  show_company_selector,
+    })
 
 
 # ── AJAX lookup endpoints ──────────────────────────────────────────────────────

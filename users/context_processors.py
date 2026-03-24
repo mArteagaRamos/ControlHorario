@@ -2,7 +2,7 @@
 from .models import UserCompanyMembership
 
 def user_company(request):
-    memberships = []
+    memberships = UserCompanyMembership.objects.none()
 
     if request.user.is_authenticated:
         memberships = UserCompanyMembership.objects.filter(user=request.user).select_related('company')

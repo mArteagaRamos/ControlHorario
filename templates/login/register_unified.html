@@ -11,7 +11,7 @@
 
         <div class="card-header text-center">
           <h4 class="mb-0">
-            {% if is_admin %}Registro de empresa y trabajador
+            {% if is_admin %}Registro de empresa y trabajador 
             {% else %}Añadir trabajador{% endif %}
           </h4>
         </div>
@@ -76,6 +76,7 @@
             </section>
             {% endif %}
 
+            {% if 'manager' in user_roles and is_admin %}
             {# SECCIÓN TRABAJADOR #}
             <section id="section-worker" class="mb-4">
               <h5 class="border-bottom pb-2">
@@ -127,8 +128,8 @@
             </div>
 
           </form>
-        </div>{# /card-body #}
-      </div>{# /card #}
+        </div>
+      </div>
     </div>
   </div>
 </div>
