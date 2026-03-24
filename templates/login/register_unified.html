@@ -1,0 +1,328 @@
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Registro{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow-sm">
+
+        <div class="card-header text-center">
+          <h4 class="mb-0">
+            {% if is_admin %}Registro de empresa y trabajador
+            {% else %}Añadir trabajador{% endif %}
+          </h4>
+        </div>
+
+        <div class="card-body">
+          {% bootstrap_messages %}
+
+          {# TOGGLE EMPRESA (solo ADMIN) — fuera del <form> para no enviarse #}
+          {% if is_admin %}
+          <div class="btn-group mb-4 w-100" role="group">
+            <button type="button" id="btn-company-create"
+                    class="btn {% if company_mode == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+              Registrar empresa
+            </button>
+            <button type="button" id="btn-company-select"
+                    class="btn {% if company_mode == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+              Seleccionar empresa
+            </button>
+          </div>
+          {% endif %}
+
+          <form method="post" action="{% url 'register_unified' %}">
+            {% csrf_token %}
+
+            {# Hidden inputs de estado #}
+            <input type="hidden" name="company_mode"  id="company_mode_input"  value="{{ company_mode }}">
+            <input type="hidden" name="worker_action" id="worker_action_input" value="{{ worker_action }}">
+            {# company_id se rellena vía JS tras el lookup de empresa existente #}
+            <input type="hidden" name="company_id" id="company_id_input" value="">
+
+            {# SECCIÓN EMPRESA (solo ADMIN) #}
+            {% if is_admin %}
+            <section id="section-company" class="mb-4">
+
+              {# ── Flujo SELECCIONAR: buscador por CIF ── #}
+              <div id="company-lookup-block" class="{% if company_mode != 'select' %}d-none{% endif %}">
+                <h5 class="border-bottom pb-2">
+                  <span class="badge bg-primary me-2">1</span>Empresa
+                </h5>
+                <div class="input-group mb-3">
+                  <input type="text" id="cif-lookup-input" class="form-control"
+                         placeholder="Introduce el CIF / NIF de la empresa">
+                  <button type="button" id="btn-lookup-company" class="btn btn-outline-secondary">
+                    Buscar
+                  </button>
+                </div>
+                <div id="company-lookup-feedback" class="form-text mb-2"></div>
+              </div>
+
+              {# ── Formulario de empresa (crear o editar tras lookup) ── #}
+              <div id="company-form-block"
+                   class="{% if company_mode == 'select' %}d-none{% endif %}">
+                <h5 class="border-bottom pb-2">
+                  <span class="badge bg-primary me-2">1</span>
+                  <span id="company-form-title">
+                    {% if company_mode == 'create' %}Datos de la empresa{% else %}Datos de la empresa{% endif %}
+                  </span>
+                </h5>
+                {% bootstrap_form company_form %}
+              </div>
+
+            </section>
+            {% endif %}
+
+            {# SECCIÓN TRABAJADOR #}
+            <section id="section-worker" class="mb-4">
+              <h5 class="border-bottom pb-2">
+                <span class="badge bg-primary me-2">{% if is_admin %}2{% else %}1{% endif %}</span>
+                Trabajador
+              </h5>
+
+              {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
+              <div id="worker-toggle-group"
+                   class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
+                   role="group">
+                <button type="button" id="btn-worker-create"
+                        class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                  Añadir trabajador
+                </button>
+                <button type="button" id="btn-worker-select"
+                        class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                  Seleccionar trabajador
+                </button>
+              </div>
+
+              {# ── Buscador de trabajador existente ── #}
+              <div id="worker-lookup-block"
+                   class="{% if worker_action != 'select' %}d-none{% endif %}">
+                <div class="input-group mb-3">
+                  <input type="text" id="worker-lookup-input" class="form-control"
+                         placeholder="Email del trabajador existente">
+                  <button type="button" id="btn-lookup-worker" class="btn btn-outline-secondary">
+                    Buscar
+                  </button>
+                </div>
+                <div id="worker-lookup-feedback" class="form-text mb-2"></div>
+              </div>
+
+              {# ── Formulario de trabajador (crear o editar) ── #}
+              <div id="worker-form-block">
+                {% if worker_action == 'select' %}
+                  {% bootstrap_form worker_select %}
+                {% else %}
+                  {% bootstrap_form worker_create %}
+                {% endif %}
+              </div>
+
+            </section>
+
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn btn-primary">Guardar registro</button>
+              <a href="{% url 'home' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </div>
+
+          </form>
+        </div>{# /card-body #}
+      </div>{# /card #}
+    </div>
+  </div>
+</div>
+
+<script>
+const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
+const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
+const CSRF_TOKEN         = "{{ csrf_token }}";
+
+// ── Referencias DOM ────────────────────────────────────────────────────────────
+const companyModeInput  = document.getElementById('company_mode_input');
+const workerActionInput = document.getElementById('worker_action_input');
+const companyIdInput    = document.getElementById('company_id_input');
+
+const btnCompanyCreate  = document.getElementById('btn-company-create');
+const btnCompanySelect  = document.getElementById('btn-company-select');
+const companyLookupBlock = document.getElementById('company-lookup-block');
+const companyFormBlock  = document.getElementById('company-form-block');
+
+const workerToggleGroup = document.getElementById('worker-toggle-group');
+const btnWorkerCreate   = document.getElementById('btn-worker-create');
+const btnWorkerSelect   = document.getElementById('btn-worker-select');
+const workerLookupBlock = document.getElementById('worker-lookup-block');
+
+// ── Toggle empresa ─────────────────────────────────────────────────────────────
+function setCompanyMode(mode) {
+  companyModeInput.value = mode;
+  const isCreate = mode === 'create';
+
+  // Botones
+  btnCompanyCreate?.classList.toggle('btn-primary',         isCreate);
+  btnCompanyCreate?.classList.toggle('btn-outline-primary', !isCreate);
+  btnCompanySelect?.classList.toggle('btn-primary',         !isCreate);
+  btnCompanySelect?.classList.toggle('btn-outline-primary', isCreate);
+
+  // Bloques
+  companyLookupBlock?.classList.toggle('d-none', isCreate);
+  companyFormBlock?.classList.toggle('d-none', !isCreate);
+
+  // En modo 'create' ocultamos los toggles de trabajador (formulario directo)
+  workerToggleGroup?.classList.toggle('d-none', isCreate);
+  
+  if (isCreate) setWorkerAction('create');
+
+  // Clean forms and lookups when toggling
+  clearFormBlock('company-form-block');
+  clearFormBlock('worker-form-block');
+  clearFormBlock('worker-lookup-block');
+  document.getElementById('cif-lookup-input').value          = '';
+  document.getElementById('company-lookup-feedback').textContent = '';
+  document.getElementById('worker-lookup-feedback').textContent  = '';
+  document.getElementById('company_id_input').value          = '';
+  companyFormBlock?.classList.toggle('d-none', mode !== 'create');
+}
+
+btnCompanyCreate?.addEventListener('click', () => setCompanyMode('create'));
+btnCompanySelect?.addEventListener('click', () => setCompanyMode('select'));
+
+// ── Toggle trabajador ──────────────────────────────────────────────────────────
+function setWorkerAction(action) {
+  workerActionInput.value = action;
+  const isCreate = action === 'create';
+
+  btnWorkerCreate?.classList.toggle('btn-primary',         isCreate);
+  btnWorkerCreate?.classList.toggle('btn-outline-primary', !isCreate);
+  btnWorkerSelect?.classList.toggle('btn-primary',         !isCreate);
+  btnWorkerSelect?.classList.toggle('btn-outline-primary', isCreate);
+
+  workerLookupBlock?.classList.toggle('d-none', isCreate);
+
+  // Clean worker form and lookup when toggling
+  clearFormBlock('worker-form-block');
+  clearFormBlock('worker-lookup-block');
+  document.getElementById('worker-lookup-input').value          = '';
+  document.getElementById('worker-lookup-feedback').textContent = '';
+}
+
+btnWorkerCreate?.addEventListener('click', () => setWorkerAction('create'));
+btnWorkerSelect?.addEventListener('click', () => setWorkerAction('select'));
+
+// ── Lookup empresa por CIF ─────────────────────────────────────────────────────
+document.getElementById('btn-lookup-company')?.addEventListener('click', async () => {
+  const taxId   = document.getElementById('cif-lookup-input').value.trim();
+  const feedback = document.getElementById('company-lookup-feedback');
+
+  if (!taxId) {
+    feedback.textContent = 'Introduce un CIF / NIF.';
+    feedback.className = 'form-text text-danger';
+    return;
+  }
+
+  try {
+    const res  = await fetch(`${LOOKUP_COMPANY_URL}?tax_id=${encodeURIComponent(taxId)}`);
+    const data = await res.json();
+
+    if (data.found) {
+      // Rellenar formulario con datos existentes
+      document.getElementById('id_tax_id').value     = data.tax_id    || '';
+      document.getElementById('id_name').value       = data.name      || '';
+      document.getElementById('id_legal_name').value = data.legal_name || '';
+      companyIdInput.value = data.id;
+      companyFormBlock.classList.remove('d-none');
+      feedback.textContent = 'Empresa encontrada. Puedes editar sus datos.';
+      feedback.className = 'form-text text-success';
+    } else {
+      feedback.textContent = 'No existe ninguna empresa con ese CIF.';
+      feedback.className = 'form-text text-danger';
+      companyFormBlock.classList.add('d-none');
+      companyIdInput.value = '';
+    }
+  } catch {
+    feedback.textContent = 'Error al buscar la empresa.';
+    feedback.className = 'form-text text-danger';
+  }
+});
+
+// ── Lookup trabajador por email ────────────────────────────────────────────────
+document.getElementById('btn-lookup-worker')?.addEventListener('click', async () => {
+  const email     = document.getElementById('worker-lookup-input').value.trim();
+  const companyId = document.getElementById('company_id_input').value.trim(); // ← añadir
+  const feedback  = document.getElementById('worker-lookup-feedback');
+
+  if (!email) {
+    feedback.textContent = 'Introduce un email.';
+    feedback.className = 'form-text text-danger';
+    return;
+  }
+
+  // Validar que se ha seleccionado empresa antes
+  if (!companyId) {
+    feedback.textContent = 'Primero busca y selecciona una empresa.';
+    feedback.className = 'form-text text-warning';
+    return;
+  }
+
+  try {
+    const res  = await fetch(
+      `${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&company_id=${encodeURIComponent(companyId)}` // ← añadir company_id
+    );
+    const data = await res.json();
+
+    const fields = {
+      'id_email':    data.email    || email,
+      'id_username': data.username || '',
+      'id_surname':  data.surname  || '',
+      'id_status':   data.status   || '',
+    };
+
+    for (const [id, value] of Object.entries(fields)) {
+      const el = document.getElementById(id);
+      if (el) el.value = value;
+    }
+
+    if (data.found) {
+      feedback.textContent = 'Trabajador encontrado.';
+      feedback.className = 'form-text text-success';
+    } else {
+      feedback.textContent = 'No existe ningún trabajador con ese email en esta empresa.';
+      feedback.className = 'form-text text-danger';
+    }
+  } catch {
+    feedback.textContent = 'Error al buscar el trabajador.';
+    feedback.className = 'form-text text-danger';
+  }
+});
+
+// Limpiar feedback al escribir un nuevo CIF
+document.getElementById('cif-lookup-input')?.addEventListener('input', () => {
+  document.getElementById('company-lookup-feedback').textContent = '';
+  document.getElementById('company_id_input').value = '';
+  companyFormBlock?.classList.add('d-none');
+  clearFormBlock('company-form-block');
+  clearFormBlock('worker-form-block');
+  clearFormBlock('worker-lookup-block');
+});
+
+// Limpiar feedback al escribir un nuevo email de trabajador
+document.getElementById('worker-lookup-input')?.addEventListener('input', () => {
+  document.getElementById('worker-lookup-feedback').textContent = '';
+  clearFormBlock('worker-form-block');
+});
+
+// ── Limpiar campos de un bloque ────────────────────────────────────────────────
+function clearFormBlock(blockId) {
+  const block = document.getElementById(blockId);
+  if (!block) return;
+
+  block.querySelectorAll('input:not([type="hidden"]), select, textarea').forEach(el => {
+    if (el.type === 'checkbox' || el.type === 'radio') {
+      el.checked = false;
+    } else {
+      el.value = '';
+    }
+  });
+}
+</script>
+{% endblock %}
