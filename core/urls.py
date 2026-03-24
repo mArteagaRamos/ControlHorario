@@ -21,6 +21,7 @@ urlpatterns = [
     # Manager Panel URLs 
     path('manager_logs/', audit_views.manager_logs, name='manager_logs'),  
     path('manager_logs/exportar_logs/', audit_views.exportar_logs, name='exportar_logs'),
-    path('manager_incidents/', audit_views.manager_incidents, name='manager_incidents'),
+    path('manager_logs/resolver/', audit_views.resolver_incidencia, name='resolver_incidencia'),
+    path('editar-registro/', audit_views.editar_registro, name='editar_registro'),
     path('manager_employee/', audit_views.manager_employee, name='manager_employee'),
 ]

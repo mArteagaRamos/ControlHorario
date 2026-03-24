@@ -262,8 +262,18 @@ def user_panel(request):
             new_clock_out = request.POST.get('new_clock_out')
             reason = request.POST.get('reason', '').strip()
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
+            
             if entry and reason:
-                CorrectionRequests.objects.create(id=uuid4(), time_entry=entry, requester=user, reason=reason, status='pending')
+                # Ahora SÍ guardamos las horas nuevas
+                CorrectionRequests.objects.create(
+                    id=uuid4(), 
+                    time_entry=entry, 
+                    requester=user, 
+                    reason=reason, 
+                    new_clock_in=new_clock_in if new_clock_in else None,  # <- Añadido
+                    new_clock_out=new_clock_out if new_clock_out else None, # <- Añadido
+                    status='pending'
+                )
                 messages.success(request, 'Solicitud de corrección enviada.')
             else:
                 messages.error(request, 'Datos incompletos para la solicitud de corrección.')
@@ -292,8 +302,9 @@ def user_panel(request):
     for r in requests:
         request_rows.append({
             'date': r.request_date.date() if r.request_date else None,
-            'new_clock_in': r.time_entry.clock_in if r.time_entry else None,
-            'new_clock_out': r.time_entry.clock_out if r.time_entry else None,
+            # Ahora enviamos las horas que están guardadas en la petición (CorrectionRequests)
+            'new_clock_in': r.new_clock_in,   # <- Actualizado
+            'new_clock_out': r.new_clock_out, # <- Actualizado
             'reason': r.reason,
             'status': r.status,
         })
