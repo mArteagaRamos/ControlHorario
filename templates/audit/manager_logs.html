@@ -1,0 +1,322 @@
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+{% block title %}Manager Panel{% endblock %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+    /* Contenedor con altura limitada y scroll */
+    .table-scroll-container {
+        max-height: 500px; 
+        overflow-y: auto;
+    }
+
+    /* Fijar la cabecera para que no se pierda al bajar */
+    .table-scroll-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa; /* Color de fondo de table-light */
+    }
+
+    /* Estética del scrollbar para que no sea feo */
+    .table-scroll-container::-webkit-scrollbar {
+        width: 8px;
+    }
+    .table-scroll-container::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold mb-0">Panel de Administración</h2>
+        <button type="submit" form="exportForm" class="btn btn-success d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+        </button>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form method="GET" id="filtro-form" class="row g-3 mb-4 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label text-muted">Empleado</label>
+                    <select name="empleado" id="empleado-select" class="form-select">
+                        <option value=""></option> {% for emp in empleados %}
+                            <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
+                                {{ emp.username }} {{ emp.surname }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label text-muted">Fecha de registro</label>
+                    <input type="date" name="fecha" class="form-control auto-submit" value="{{ request.GET.fecha }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-muted">Hora Desde</label>
+                    <input type="time" name="desde" class="form-control auto-submit" value="{{ request.GET.desde }}">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-muted">Hora Hasta</label>
+                    <input type="time" name="hasta" class="form-control auto-submit" value="{{ request.GET.hasta }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label d-none d-md-block">&nbsp;</label>
+                    
+                    <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
+                            <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
+                        </div>
+                        <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                            <input class="form-check-input ms-0 mt-0 auto-submit" type="checkbox" role="switch" name="solo_incidencias" id="solo_incidencias" value="true" style="width: 2.5em; height: 1.25em; cursor: pointer;" {% if request.GET.solo_incidencias %}checked{% endif %}>
+                        </div>
+                    </label>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mb-3 mt-5">
+        <h5 class="fw-bold text-secondary">Historial General de Entradas</h5>
+    </div>
+    
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="table-responsive table-scroll-container">
+            <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
+                {% csrf_token %}
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" class="form-check-input me-2"> 
+                                Empleado
+                            </th>
+                            <th>Fecha</th>
+                            <th>Entrada / Salida</th>
+                            <th>Total Horas</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for registro in registros %}
+                        <tr {% if registro.status == 'corrected' and registro.id|stringformat:"s" not in fichajes_con_incidencia %}class="table-light"{% endif %}>
+                            <td>
+                                <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
+                                {{ registro.user.username }} {{ registro.user.surname }}
+                            </td>
+                            <td>{{ registro.date|date:"d/m/Y" }}</td>
+                            <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
+                            <td class="fw-bold text-primary">
+                                {{ registro.horas_formateadas }}
+                            </td>
+                            <td>
+                                {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
+                                    <span class="badge bg-danger">Incidencia</span>
+                                {% elif registro.status == 'corrected' %}
+                                    <span class="badge bg-info text-dark">Corregido</span>
+                                {% else %}
+                                    <span class="badge bg-success">Confirmado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
+                                        {% for incidencia in incidencias %}
+                                            {% if incidencia.time_entry.id == registro.id %}
+                                                <button type="button" class="btn btn-sm btn-danger"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalResolver"
+                                                    data-id="{{ incidencia.id }}"
+                                                    data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
+                                                    data-motivo="{{ incidencia.reason }}"
+                                                    data-old-in="{{ registro.clock_in|time:'H:i' }}"
+                                                    data-old-out="{{ registro.clock_out|time:'H:i'|default:'--:--' }}"
+                                                    data-new-in="{{ incidencia.new_clock_in|time:'H:i'|default:'--:--' }}"
+                                                    data-new-out="{{ incidencia.new_clock_out|time:'H:i'|default:'--:--' }}">
+                                                    <i class="bi bi-wrench" style="pointer-events: none;"></i> Resolver
+                                                </button>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-primary {% if registro.status == 'corrected' %}disabled{% endif %}"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalEditar"
+                                            data-entry-id="{{ registro.id }}"
+                                            data-in="{{ registro.clock_in|time:'H:i' }}"
+                                            data-out="{{ registro.clock_out|time:'H:i'|default:'' }}">
+                                            <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalResolver" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-circle me-2"></i> Resolver Incidencia</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p><strong>Empleado:</strong> <span id="modalEmpleado" class="text-primary fw-semibold"></span></p>
+                <div class="bg-light p-3 rounded mb-4">
+                    <strong>Motivo de la solicitud:</strong>
+                    <p id="modalMotivo" class="mb-0 mt-1 text-muted fst-italic"></p>
+                </div>
+                <div class="row text-center mb-3">
+                    <div class="col-md-6 border-end">
+                        <h6 class="fw-bold text-secondary">Horas Actuales Registradas</h6>
+                        <div class="d-flex justify-content-center gap-4 mt-2">
+                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-secondary fs-6" id="modalOldIn"></span></div>
+                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-secondary fs-6" id="modalOldOut"></span></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-success">Horas Solicitadas</h6>
+                        <div class="d-flex justify-content-center gap-4 mt-2">
+                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-success fs-6" id="modalNewIn"></span></div>
+                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-success fs-6" id="modalNewOut"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center bg-light">
+                <form id="resolverForm" method="POST" action="{% url 'resolver_incidencia' %}"> 
+                    {% csrf_token %}
+                    <input type="hidden" name="incidencia_id" id="incidenciaIdInput">
+                    <button type="submit" name="accion" value="denegar" class="btn btn-outline-danger px-4">Denegar</button>
+                    <button type="submit" name="accion" value="aceptar" class="btn btn-success px-4 fw-bold">Aceptar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditar" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Modificar Entrada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'editar_registro' %}"> 
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <input type="hidden" name="registro_id" id="editRegistroId">
+                    
+                    <div class="mb-3">
+                        <label for="editClockIn" class="form-label text-muted fw-semibold small">HORA DE ENTRADA</label>
+                        <input type="time" class="form-control" id="editClockIn" name="clock_in" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editClockOut" class="form-label text-muted fw-semibold small">HORA DE SALIDA</label>
+                        <input type="time" class="form-control" id="editClockOut" name="clock_out">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- TOM SELECT (Buscador de empleados) ---
+    if (typeof TomSelect !== 'undefined') {
+        new TomSelect("#empleado-select", {
+            placeholder: "Todos los empleados", 
+            allowEmptyOption: true,
+            plugins: ['clear_button'], 
+            onChange: function(value) {
+                document.getElementById('filtro-form').submit();
+            }
+        });
+    }
+
+    // --- AUTO SUBMIT (Filtros de fecha, hora e incidencias) ---
+    document.querySelectorAll('.auto-submit').forEach(input => {
+        input.addEventListener('change', function() {
+            document.getElementById('filtro-form').submit();
+        });
+    });
+
+    // --- CHECKBOXES MULTIPLES ---
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            let checkboxes = document.querySelectorAll('.select-row');
+            checkboxes.forEach(cb => cb.checked = this.checked);
+        });
+    }
+
+    // --- MODAL RESOLVER INCIDENCIA ---
+    const resolverModal = document.getElementById('modalResolver');
+    if (resolverModal) {
+        resolverModal.addEventListener('show.bs.modal', function(event) {
+            let button = event.relatedTarget.closest('button');
+            
+            document.getElementById('incidenciaIdInput').value = button.getAttribute('data-id');
+            document.getElementById('modalEmpleado').textContent = button.getAttribute('data-empleado');
+            document.getElementById('modalMotivo').textContent = button.getAttribute('data-motivo') || "No se especificó un motivo.";
+            document.getElementById('modalOldIn').textContent = button.getAttribute('data-old-in');
+            document.getElementById('modalOldOut').textContent = button.getAttribute('data-old-out');
+            document.getElementById('modalNewIn').textContent = button.getAttribute('data-new-in');
+            document.getElementById('modalNewOut').textContent = button.getAttribute('data-new-out');
+        });
+    }
+
+    // --- MODAL EDITAR ---
+    const editarModal = document.getElementById('modalEditar');
+    if (editarModal) {
+        editarModal.addEventListener('show.bs.modal', function(event) {
+            let button = event.relatedTarget.closest('button');
+            let timeOut = button.getAttribute('data-out');
+            
+            document.getElementById('editRegistroId').value = button.getAttribute('data-entry-id');
+            document.getElementById('editClockIn').value = button.getAttribute('data-in');
+            document.getElementById('editClockOut').value = (timeOut && timeOut !== '--:--') ? timeOut : '';
+        });
+    }
+});
+// Limpiar la URL visualmente para que no se vean los parámetros
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.pathname);
+    }
+
+    document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('select-row') || e.target.id === 'selectAll') {
+        const seleccionados = document.querySelectorAll('.select-row:checked').length;
+        const btnExportar = document.querySelector('button[form="exportForm"]');
+        
+        if (seleccionados > 0) {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
+            btnExportar.disabled = false;
+        } else {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+        }
+    }
+});
+</script>
+{% endblock %}
