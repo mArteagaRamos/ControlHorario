@@ -5,6 +5,7 @@ from django.urls import path
 from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
+from audit import views as audit_views
 
 # Project URL patterns
 urlpatterns = [
@@ -33,4 +34,12 @@ urlpatterns = [
     # Time Tracking
     path('timetracking/', timetracking_views.time_entries, name='time_entries'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
+
+
+    # Manager Panel URLs 
+    path('manager_logs/', audit_views.manager_logs, name='manager_logs'),  
+    path('manager_logs/exportar_logs/', audit_views.exportar_logs, name='exportar_logs'),
+    path('manager_logs/resolver/', audit_views.resolver_incidencia, name='resolver_incidencia'),
+    path('editar-registro/', audit_views.editar_registro, name='editar_registro'),
+    path('manager_employee/', audit_views.manager_employee, name='manager_employee'),
 ]

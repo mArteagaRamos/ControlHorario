@@ -465,19 +465,25 @@ def workday(request):
         elif action == 'request_correction':
             entry_id = request.POST.get('entry_id')
             reason = request.POST.get('reason', '').strip()
-
-            entry = TimeEntries.objects.filter(
-                id=entry_id,
-                user=user,
-                company=company
-            ).first()
-
+            #new_clock_in_str = request.POST.get('new_clock_in')
+            #new_clock_out_str = request.POST.get('new_clock_out')
+            entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
+            
             if entry and reason:
+                # Convertimos los strings del formulario a objetos datetime si existen
+         #       from django.utils.dateparse import parse_datetime
+                # Si el formulario envía solo la hora (HH:MM), deberás combinarlo con la fecha del registro original
+                # Suponiendo que el input es datetime-local o que ya envías el string completo:
+         #       new_in = parse_datetime(f"{entry.date} {new_clock_in_str}") if new_clock_in_str else None
+        #        new_out = parse_datetime(f"{entry.date} {new_clock_out_str}") if new_clock_out_str else None
+                # Ahora SÍ guardamos las horas nuevas
                 CorrectionRequests.objects.create(
-                    id=uuid4(),
-                    time_entry=entry,
-                    requester=user,
-                    reason=reason,
+                    id=uuid4(), 
+                    time_entry=entry, 
+                    requester=user, 
+                    reason=reason, 
+              #      new_clock_in=new_in,  
+             #       new_clock_out=new_out,
                     status='pending'
                 )
                 messages.success(request, 'Solicitud de corrección enviada.')

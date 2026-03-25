@@ -15,7 +15,7 @@
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'css/workday.css' %}">
+    <link rel="stylesheet" href="{% static 'css/user_panel.css' %}">
 </head>
 <body>
 
@@ -196,14 +196,14 @@
                 </div>
             </li>
 
-        {% if is_admin or current_role == 'manager' %}
-            <li>
-                <a href={% url 'register_unified' %} class="nav-link text-white">
-                    <i class="bi bi-pencil-square me-2"></i>
-                    Dar de alta 
-                </a>
-            </li>
-        {% endif %}
+            {% if is_admin or current_role == 'manager' %}
+                <li>
+                    <a href={% url 'register_unified' %} class="nav-link text-white">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Dar de alta 
+                    </a>
+                </li>
+            {% endif %}
         </ul>
 
         <hr>
