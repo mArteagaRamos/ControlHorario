@@ -227,6 +227,11 @@ def register_unified(request):
         Solo ve el apartado de trabajador de su empresa.
     """
     is_admin = request.user.is_admin
+    current_role = request.role
+
+    if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
+        messages.error(request, 'No tienes permisos para acceder a esta página.')
+        return redirect('home')
 
     # Valores de toggle por defecto
     company_mode  = 'create'
@@ -358,6 +363,7 @@ def register_unified(request):
 
     return render(request, 'login/register_unified.html', {
         'is_admin':     is_admin,
+        'current_role':  current_role,
         'company_form': company_form,
         'worker_create': worker_create,
         'worker_select': worker_select,

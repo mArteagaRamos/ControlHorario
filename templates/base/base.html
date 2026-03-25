@@ -196,9 +196,9 @@
                 </div>
             </li>
 
-        {% if 'manager' in user_roles and is_admin %}
+        {% if is_admin or current_role == 'manager' %}
             <li>
-                <a href={% url 'time_entries' %} class="nav-link text-white">
+                <a href={% url 'register_unified' %} class="nav-link text-white">
                     <i class="bi bi-pencil-square me-2"></i>
                     Dar de alta 
                 </a>

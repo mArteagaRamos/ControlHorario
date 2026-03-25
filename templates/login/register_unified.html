@@ -76,51 +76,52 @@
             </section>
             {% endif %}
 
-            {% if 'manager' in user_roles and is_admin %}
             {# SECCIÓN TRABAJADOR #}
-            <section id="section-worker" class="mb-4">
-              <h5 class="border-bottom pb-2">
-                <span class="badge bg-primary me-2">{% if is_admin %}2{% else %}1{% endif %}</span>
-                Trabajador
-              </h5>
+            {% if is_admin or current_role == 'manager' %}
+              <section id="section-worker" class="mb-4">
+                <h5 class="border-bottom pb-2">
+                  <span class="badge bg-primary me-2">{% if is_admin %}2{% else %}1{% endif %}</span>
+                  Trabajador
+                </h5>
 
-              {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
-              <div id="worker-toggle-group"
-                   class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
-                   role="group">
-                <button type="button" id="btn-worker-create"
-                        class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                  Añadir trabajador
-                </button>
-                <button type="button" id="btn-worker-select"
-                        class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                  Seleccionar trabajador
-                </button>
-              </div>
-
-              {# ── Buscador de trabajador existente ── #}
-              <div id="worker-lookup-block"
-                   class="{% if worker_action != 'select' %}d-none{% endif %}">
-                <div class="input-group mb-3">
-                  <input type="text" id="worker-lookup-input" class="form-control"
-                         placeholder="Email del trabajador existente">
-                  <button type="button" id="btn-lookup-worker" class="btn btn-outline-secondary">
-                    Buscar
+                {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
+                <div id="worker-toggle-group"
+                    class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
+                    role="group">
+                  <button type="button" id="btn-worker-create"
+                          class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    Añadir trabajador
+                  </button>
+                  <button type="button" id="btn-worker-select"
+                          class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    Seleccionar trabajador
                   </button>
                 </div>
-                <div id="worker-lookup-feedback" class="form-text mb-2"></div>
-              </div>
 
-              {# ── Formulario de trabajador (crear o editar) ── #}
-              <div id="worker-form-block">
-                {% if worker_action == 'select' %}
-                  {% bootstrap_form worker_select %}
-                {% else %}
-                  {% bootstrap_form worker_create %}
-                {% endif %}
-              </div>
+                {# ── Buscador de trabajador existente ── #}
+                <div id="worker-lookup-block"
+                    class="{% if worker_action != 'select' %}d-none{% endif %}">
+                  <div class="input-group mb-3">
+                    <input type="text" id="worker-lookup-input" class="form-control"
+                          placeholder="Email del trabajador existente">
+                    <button type="button" id="btn-lookup-worker" class="btn btn-outline-secondary">
+                      Buscar
+                    </button>
+                  </div>
+                  <div id="worker-lookup-feedback" class="form-text mb-2"></div>
+                </div>
 
-            </section>
+                {# ── Formulario de trabajador (crear o editar) ── #}
+                <div id="worker-form-block">
+                  {% if worker_action == 'select' %}
+                    {% bootstrap_form worker_select %}
+                  {% else %}
+                    {% bootstrap_form worker_create %}
+                  {% endif %}
+                </div>
+
+              </section>
+            {% endif %}
 
             <div class="d-grid gap-2 mt-4">
               <button type="submit" class="btn btn-primary">Guardar registro</button>
