@@ -4,6 +4,7 @@
 
 {% block content %}
 <style>
+    /* Tus estilos anteriores... */
     .table-scroll-container {
         max-height: 500px; 
         overflow-y: auto;
@@ -14,16 +15,66 @@
         z-index: 10;
         background-color: #f8f9fa;
     }
-    .table-scroll-container::-webkit-scrollbar { width: 8px; }
+    .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
     .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+    /* --- NUEVO: MAGIA RESPONSIVE PARA MÓVILES --- */
+    @media (max-width: 767px) {
+        /* Quitamos el forzado de una sola línea en móviles */
+        .text-nowrap { white-space: normal !important; }
+        
+        /* Ocultamos la cabecera tradicional de la tabla */
+        #tablaEmpleados thead { display: none; }
+        
+        /* Convertimos cada fila en una "tarjeta" */
+        #tablaEmpleados tbody tr.empleado-row {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            padding: 0.5rem;
+            background-color: #fff;
+        }
+
+        /* Convertimos cada celda en una fila de la tarjeta */
+        #tablaEmpleados tbody tr.empleado-row td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f8f9fa;
+            padding: 0.75rem 0.5rem;
+            text-align: right;
+        }
+        
+        /* Quitamos el borde a la última celda */
+        #tablaEmpleados tbody tr.empleado-row td:last-child {
+            border-bottom: none;
+        }
+
+        /* Insertamos el texto de la cabecera usando el atributo data-label */
+        #tablaEmpleados tbody tr.empleado-row td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #6c757d;
+            text-align: left;
+            margin-right: 1rem;
+        }
+
+        /* Ajustamos los botones en móvil para que no se apelotonen */
+        .acciones-movil {
+            justify-content: flex-end !important;
+            width: 100%;
+        }
+    }
 </style>
 
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
         <h2 class="h4 fw-bold mb-0">Directorio de Empleados</h2>
         
         {% if is_manager %}
-        <button type="button" class="btn btn-success d-flex align-items-center gap-2" onclick="location.href='{% url "register_unified" %}'">
+        <button type="button" class="btn btn-success d-flex align-items-center gap-2 align-self-start align-self-sm-auto" onclick="location.href='{% url "register_unified" %}'">
             <i class="bi bi-person-plus-fill"></i> Añadir Empleado
         </button>
         {% endif %}
@@ -32,27 +83,27 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <div class="row g-3 align-items-end" id="filtros-container">
-                <div class="col-md-4">
-                    <label class="form-label text-muted">Search by Name or Email</label>
+                <div class="col-12 col-md-4">
+                    <label class="form-label text-muted small mb-1">Buscar por Nombre o Email</label>
                     <input type="text" id="filtroBusqueda" class="form-control" placeholder="Ej: Juan Pérez">
                 </div>
                 
-                <div class="col-md-3">
-                    <label class="form-label text-muted">Role in the company</label>
+                <div class="col-12 col-md-4 col-lg-3">
+                    <label class="form-label text-muted small mb-1">Rol en la empresa</label>
                     <select id="filtroRol" class="form-select">
-                        <option value="">All roles</option>
+                        <option value="">Todos los roles</option>
                         <option value="manager">Manager</option>
-                        <option value="employee">Employee</option>
+                        <option value="employee">Empleado</option>
                     </select>
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label text-muted">Status</label>
+                <div class="col-12 col-md-4 col-lg-3">
+                    <label class="form-label text-muted small mb-1">Status</label>
                     <select id="filtroEstado" class="form-select">
-                        <option value="">All statuses</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                        <option value="suspended">Suspended</option>
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activo</option>
+                        <option value="inactive">Inactivo</option>
+                        <option value="suspended">Suspendido</option>
                     </select>
                 </div>
             </div>
@@ -61,15 +112,16 @@
 
     <div class="card shadow-sm border-0 mb-5">
         <div class="table-responsive table-scroll-container">
-            <table class="table table-hover align-middle" id="tablaEmpleados">
+            <table class="table table-hover align-middle text-nowrap" id="tablaEmpleados">
                 <thead class="table-light">
                     <tr>
-                        <th>Employee</th>
+                        <th>Empleado</th>
                         <th>Email</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Join Date</th>
-                        {% if is_manager %}<th class="text-end">Actions</th>{% endif %}
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Fecha de Ingreso</th>
+                        <th>Último Acceso</th> 
+                        {% if is_manager %}<th class="text-end">Acciones</th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -77,31 +129,39 @@
                     <tr class="empleado-row" 
                         data-rol="{{ membership.role }}" 
                         data-estado="{{ membership.user.status }}">
-                        <td>
-                            <div class="fw-bold nombre-empleado">{{ membership.user.username }} {{ membership.user.surname }}</div>
+                        <td data-label="Empleado">
+                            <div class="fw-bold nombre-empleado text-start">{{ membership.user.username }} {{ membership.user.surname }}</div>
                         </td>
-                        <td class="email-empleado">{{ membership.user.email }}</td>
-                        <td>
+                        <td data-label="Email" class="email-empleado">{{ membership.user.email }}</td>
+                        <td data-label="Rol">
                             {% if membership.role == 'manager' %}
                                 <span class="badge bg-primary">Manager</span>
                             {% else %}
-                                <span class="badge bg-secondary">Employee</span>
+                                <span class="badge bg-secondary">Empleado</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td data-label="Estado">
                             {% if membership.user.status == 'active' %}
-                                <span class="badge bg-success">Active</span>
+                                <span class="badge bg-success">Activo</span>
                             {% elif membership.user.status == 'suspended' %}
-                                <span class="badge bg-danger">Suspended</span>
+                                <span class="badge bg-danger">Suspendido</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark">Inactive</span>
+                                <span class="badge bg-warning text-dark">Inactivo</span>
                             {% endif %}
                         </td>
-                        <td>{{ membership.joined_at|date:"d/m/Y" }}</td>
+                        <td data-label="Ingreso">{{ membership.joined_at|date:"d/m/Y" }}</td>
+                        
+                        <td data-label="Último Acceso">
+                            {% if membership.user.last_login %}
+                                {{ membership.user.last_login|date:"d/m/Y H:i" }}
+                            {% else %}
+                                <span class="text-muted fst-italic">Nunca</span>
+                            {% endif %}
+                        </td>
                         
                         {% if is_manager %}
-                        <td class="text-end">
-                            <div class="d-flex justify-content-end gap-2">
+                        <td data-label="Acciones">
+                            <div class="d-flex acciones-movil gap-2">
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                     data-bs-toggle="modal" data-bs-target="#modalEditar"
                                     data-id="{{ membership.user.id }}"
@@ -125,11 +185,11 @@
                     </tr>
                     {% empty %}
                     <tr id="no-results-server">
-                        <td colspan="6" class="text-center py-4 text-muted">No hay empleados registrados en tu empresa.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay empleados registrados en tu empresa.</td>
                     </tr>
                     {% endfor %}
                     <tr id="no-results-js" style="display: none;">
-                        <td colspan="6" class="text-center py-4 text-muted">No se encontraron empleados con estos filtros.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">No se encontraron empleados con estos filtros.</td>
                     </tr>
                 </tbody>
             </table>
@@ -140,9 +200,9 @@
 {% if is_manager %}
 
 <div class="modal fade" id="modalEditar" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
+            <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">Editar Empleado</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -151,36 +211,38 @@
                 <div class="modal-body">
                     <input type="hidden" name="user_id" id="editUserId">
                     
-                    <div class="mb-3">
-                        <label class="form-label">Nombre</label>
-                        <input type="text" name="username" id="editNombre" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Apellidos</label>
-                        <input type="text" name="surname" id="editApellidos" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Email (No editable)</label>
-                        <input type="email" id="editEmail" class="form-control" disabled>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Rol en la Empresa</label>
-                        <select name="role" id="editRol" class="form-select" required>
-                            <option value="employee">Empleado</option>
-                            <option value="manager">Manager</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Estado de la cuenta</label>
-                        <select name="status" id="editEstado" class="form-select" required>
-                            <option value="active">Activo</option>
-                            <option value="inactive">Inactivo</option>
-                            <option value="suspended">Suspendido</option>
-                        </select>
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Nombre</label>
+                            <input type="text" name="username" id="editNombre" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Apellidos</label>
+                            <input type="text" name="surname" id="editApellidos" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted mb-1">Email (No editable)</label>
+                            <input type="email" id="editEmail" class="form-control bg-light" disabled>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Rol en la Empresa</label>
+                            <select name="role" id="editRol" class="form-select" required>
+                                <option value="employee">Empleado</option>
+                                <option value="manager">Manager</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Estado de la cuenta</label>
+                            <select name="status" id="editEstado" class="form-select" required>
+                                <option value="active">Activo</option>
+                                <option value="inactive">Inactivo</option>
+                                <option value="suspended">Suspendido</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 </div>
             </form>
@@ -189,7 +251,7 @@
 </div>
 
 <div class="modal fade" id="modalEliminar" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold">Eliminar Empleado</h5>
@@ -197,14 +259,15 @@
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body text-center p-4">
                     <input type="hidden" name="user_id" id="deleteUserId">
-                    <p>¿Estás seguro de que deseas eliminar a <strong id="deleteNombre"></strong> de la empresa?</p>
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block"></i>
+                    <p class="fs-5">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
                     <p class="text-muted small mb-0">Esta acción desvinculará al empleado, pero mantendrá el historial de sus fichajes por motivos legales.</p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+                <div class="modal-footer bg-light justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4">Sí, eliminar</button>
                 </div>
             </form>
         </div>
