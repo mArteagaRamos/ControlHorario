@@ -20,7 +20,7 @@ def manager_or_admin_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         # Si ni siquiera está logueado, fuera
         if not request.user.is_authenticated:
-            return HttpResponseForbidden("Debes iniciar sesión.")
+            return render(request, 'error/sin_loguear.html', status=401)
 
         is_admin = request.user.is_admin
         is_manager = UserCompanyMembership.objects.filter(
@@ -31,7 +31,7 @@ def manager_or_admin_required(view_func):
         if is_admin or is_manager:
             return view_func(request, *args, **kwargs)
         else:
-            return HttpResponseForbidden("No tienes permisos para acceder a esta página.")
+            return render(request, 'error/sin_permisos.html', status=403)
             
     return _wrapped_view
 
