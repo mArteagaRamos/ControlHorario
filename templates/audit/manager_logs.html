@@ -201,6 +201,12 @@
                 <form id="resolverForm" method="POST" action="{% url 'resolver_incidencia' %}"> 
                     {% csrf_token %}
                     <input type="hidden" name="incidencia_id" id="incidenciaIdInput">
+
+                    <div class="mb-3 text-start">
+                        <label for="nota_resolucion" class="form-label small fw-bold text-muted">Nota de resolución (Opcional):</label>
+                        <textarea name="nota_resolucion" class="form-control form-control-sm" rows="2" placeholder="Ej: Se acepta tras revisar cámaras..."></textarea>
+                    </div>
+
                     <button type="submit" name="accion" value="denegar" class="btn btn-outline-danger px-4">Denegar</button>
                     <button type="submit" name="accion" value="aceptar" class="btn btn-success px-4 fw-bold">Aceptar Cambios</button>
                 </form>

@@ -1,6 +1,8 @@
 # ---------- Backend Views: audit/views.py ----------
 
 import csv
+from functools import wraps
+from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
@@ -10,8 +12,30 @@ from django.db.models import OuterRef, Subquery
 import uuid
 from django.utils import timezone
 from datetime import datetime
+from django.http import HttpResponseForbidden
 
-@login_required
+# Decorador para verificar que el usuario es manager o admin antes de acceder a ciertas vistas
+def manager_or_admin_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        # Si ni siquiera está logueado, fuera
+        if not request.user.is_authenticated:
+            return HttpResponseForbidden("Debes iniciar sesión.")
+
+        is_admin = request.user.is_admin
+        is_manager = UserCompanyMembership.objects.filter(
+            user=request.user, 
+            role=UserCompanyMembership.RoleChoices.MANAGER
+        ).exists()
+
+        if is_admin or is_manager:
+            return view_func(request, *args, **kwargs)
+        else:
+            return HttpResponseForbidden("No tienes permisos para acceder a esta página.")
+            
+    return _wrapped_view
+
+@manager_or_admin_required
 def manager_logs(request):
     # 1. Obtener la empresa del manager
     membership = UserCompanyMembership.objects.filter(
@@ -87,13 +111,21 @@ def manager_logs(request):
     }
     return render(request, 'audit/manager_logs.html', context)  
 
-@login_required
+@manager_or_admin_required
 def resolver_incidencia(request):
     if request.method == 'POST':
         incidencia_id = request.POST.get('incidencia_id')
         accion = request.POST.get('accion') 
+        # Capturamos la nota que viene del formulario del modal
+        nota_resolucion = request.POST.get('nota_resolucion', '') 
+
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
         ficha_original = incidencia.time_entry 
+
+        # --- ASIGNACIÓN DE CAMPOS DE AUDITORÍA ---
+        incidencia.approver = request.user          # Guarda quién lo hace
+        incidencia.approval_date = timezone.now()    # Guarda cuándo lo hace
+        incidencia.correction_note = nota_resolucion # Guarda el porqué (la nota)
 
         if accion == 'aceptar':
             # 1. Marcamos el original como 'corrected'
@@ -103,11 +135,10 @@ def resolver_incidencia(request):
             # --- CÁLCULO DE SEGUNDOS ---
             segundos = 0
             if incidencia.new_clock_in and incidencia.new_clock_out:
-                # La resta de dos datetimes devuelve un objeto timedelta
                 delta = incidencia.new_clock_out - incidencia.new_clock_in
                 segundos = int(delta.total_seconds())
 
-            # 2. Creamos el nuevo registro
+            # 2. Creamos el nuevo registro definitivo
             TimeEntries.objects.create(
                 id=uuid.uuid4(),
                 user=ficha_original.user,
@@ -116,19 +147,26 @@ def resolver_incidencia(request):
                 clock_in=incidencia.new_clock_in,
                 clock_out=incidencia.new_clock_out,
                 status=TimeEntries.EntryStatus.CONFIRMED,
-                notes=f"Corregido desde incidencia {incidencia_id}",
-                total_seconds=max(0, segundos) # Guardamos los segundos calculados
+                notes=f"Aceptado por {request.user.username}. Motivo: {incidencia.reason}",
+                total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
         
         elif accion == 'denegar':
             incidencia.status = 'rejected'
 
+        # Guardamos todos los cambios (incluyendo approver, date y note)
         incidencia.save()
+        
         return redirect('manager_logs')
+        
     return HttpResponse("Método no permitido.")
 
 def exportar_logs(request):
+    
+    if not request.usercompanymembership.role == UserCompanyMembership.RoleChoices.MANAGER or not request.user.is_admin == 'True':
+        return HttpResponse("No tienes permisos para acceder a esta página.")
+    
     if request.method == 'POST':
         registros_ids = request.POST.getlist('registro_id')
 
@@ -173,8 +211,8 @@ def exportar_logs(request):
     
     return HttpResponse("Método no permitido.")
 
-@login_required
-def editar_registro(request):
+@manager_or_admin_required
+def editar_registro(request):   
     if request.method == 'POST':
         registro_id = request.POST.get('registro_id')
         registro_original = get_object_or_404(TimeEntries, id=registro_id)
@@ -214,7 +252,7 @@ def editar_registro(request):
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
 
-   
+@manager_or_admin_required
 def manager_employee(request):
     employees = Users.objects  # Obtener todos los empleados
     return render(request, 'audit/manager_employee.html', {'employees': employees})
