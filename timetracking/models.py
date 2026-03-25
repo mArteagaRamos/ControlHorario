@@ -23,6 +23,16 @@ class TimeEntries(models.Model):
     notes = models.TextField(blank=True, null=True)
     total_seconds = models.IntegerField(default=0)
 
+    # Cambiar formato y calculo (llamar a este metodo)
+    @property
+    def total_seconds_display(self):
+        if not self.total_seconds:
+            return '--'
+        h = self.total_seconds // 3600
+        m = (self.total_seconds % 3600) // 60
+        s = self.total_seconds % 60
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
     class Meta:
         managed = False
         db_table = 'time_entries'

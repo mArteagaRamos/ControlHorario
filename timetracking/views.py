@@ -220,8 +220,51 @@ def time_entries(request):
     entry_ids = [entry.id for entry in page_obj.object_list]
     events = TimeEntryEvent.objects.filter(time_entry__id__in=entry_ids).order_by('time_entry_id', 'timestamp')
 
+    active_entry = TimeEntries.objects.filter(
+        user=user,
+        status=TimeEntries.EntryStatus.ONGOING,
+        clock_out__isnull=True
+    ).order_by('-clock_in').first()
+
+    last_event = None
+    if active_entry:
+        last_event = TimeEntryEvent.objects.filter(
+            time_entry=active_entry
+        ).order_by('-timestamp').first()
+
+    is_paused = (
+        last_event is not None and
+        last_event.event_type == TimeEntryEvent.EventType.PAUSE_START
+    )
+    
+    pause_seconds = 0
+    paused_elapsed = 0
+
+    if active_entry:
+        events_list = TimeEntryEvent.objects.filter(time_entry=active_entry).order_by('timestamp')
+        pause_start = None
+        for ev in events_list:
+                if ev.event_type == TimeEntryEvent.EventType.PAUSE_START:
+                    pause_start = ev.timestamp
+                elif ev.event_type == TimeEntryEvent.EventType.PAUSE_END and pause_start:
+                    pause_seconds += int((ev.timestamp - pause_start).total_seconds())
+                    pause_start = None
+
+        if is_paused:
+            clock_in = active_entry.clock_in
+            if timezone.is_naive(clock_in):
+                clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
+            elapsed = int((timezone.now() - clock_in).total_seconds())
+            paused_elapsed = max(0, elapsed - pause_seconds)
+
+            
     return render(request, 'timetracking/time_entries.html', {
         'time_entries': page_obj,
         'page_obj': page_obj,
         'events': events,
+        'active_entry': active_entry,
+        'is_paused': is_paused,
+        'pause_seconds': pause_seconds,
+        'paused_elapsed': paused_elapsed,
+
     })
