@@ -116,10 +116,33 @@
                   {% if worker_action == 'select' %}
                     {% bootstrap_form worker_select %}
                   {% else %}
-                    {% bootstrap_form worker_create %}
+                    {# Renderizamos campo a campo para insertar el botón en 'password' #}
+                    {% bootstrap_field worker_create.username %}
+                    {% bootstrap_field worker_create.surname %}
+                    {% bootstrap_field worker_create.email %}
+                    {% bootstrap_field worker_create.status %}
+                    {% bootstrap_field worker_create.role %}
+
+                    <div class="mb-3">
+                      <label for="id_password" class="form-label">Contraseña temporal</label>
+                      <div class="input-group">
+                        <input type="text"
+                              id="id_password"
+                              name="password"
+                              class="form-control font-monospace"
+                              placeholder="Haz clic en 'Generar'"
+                              readonly>
+                        <button type="button" id="btn-gen-password" class="btn btn-outline-secondary">
+                          <i class="bi bi-arrow-clockwise"></i> Generar
+                        </button>
+                      </div>
+                      <div class="form-text text-muted">
+                        La contraseña se enviará al trabajador por email.
+                      </div>
+                    </div>
                   {% endif %}
                 </div>
-
+              
               </section>
             {% endif %}
 
@@ -326,5 +349,44 @@ function clearFormBlock(blockId) {
     }
   });
 }
+
+// ── Generador de contraseña temporal ──────────────────────────────────────────
+function generatePassword(length = 12) {
+  const upper  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower  = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const special = '!@#$%&*?';
+  const all = upper + lower + digits + special;
+
+  // Garantizamos al menos uno de cada tipo
+  let password = [
+    upper[Math.floor(Math.random()  * upper.length)],
+    lower[Math.floor(Math.random()  * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+  ];
+
+  for (let i = 4; i < length; i++) {
+    password.push(all[Math.floor(Math.random() * all.length)]);
+  }
+
+  // Mezclar el array
+  return password.sort(() => Math.random() - 0.5).join('');
+}
+
+document.getElementById('btn-gen-password')?.addEventListener('click', () => {
+  const input = document.getElementById('id_password');
+  if (input) {
+    input.value = generatePassword();
+  }
+});
+
+// Generar automáticamente al cargar si estamos en modo 'create'
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('id_password');
+  if (input && !input.value) {
+    input.value = generatePassword();
+  }
+});
 </script>
 {% endblock %}
