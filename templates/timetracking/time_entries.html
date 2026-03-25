@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load django_bootstrap5 %}
+{% load tz %}
 
 {% block title %}Timer{% endblock %}
 
@@ -8,33 +9,63 @@
   <link rel="stylesheet" href="{% static 'css/time_entries.css' %}">
 {% endblock %}
 
-  <div class="timer" id="timerDisplay">00:00:00</div>
-  <input type="hidden" id="csrfToken" value="{{ csrf_token }}" />
+  <div id="active-data"
+    data-has-active="{% if active_entry %}true{% else %}false{% endif %}"
+    data-start-time="{{ active_entry.clock_in|date:'c' }}"
+    data-is-paused="{{ is_paused|yesno:'true,false' }}"
+    data-paused-elapsed="{{ paused_elapsed}}"
+    data-pause-seconds="{{ pause_seconds }}"
+  >
 
-  <div id="buttonGroup" class="btn-entries">
-    <button class="btn-entry btn-primary" id="clockInBtn">Clock In</button>
   </div>
 
-  {% if messages %}
-    <div class="messages">
-      {% for msg in messages %}
-        <div>{{ msg }}</div>
-      {% endfor %}
+  <div class="timer-section text-center">
+    <div class="timer" id="timerDisplay">00:00:00</div>
+    <div id="buttonGroup" class="btn-entries mt-3">
+        {% if not active_entry %}
+            <button class="btn btn-lg btn-primary" onclick="postAction('clock_in')">Clock In</button>
+        {% else %}
+            <button class="btn btn-lg btn-danger" onclick="postAction('clock_out')">Clock Out</button>
+            
+            {% if is_paused %}
+                <button class="btn btn-lg btn-success" onclick="postAction('pause_end')">Resume</button>
+            {% else %}
+                <button class="btn btn-lg btn-secondary" onclick="postAction('pause_start')">Pause</button>
+            {% endif %}
+        {% endif %}
     </div>
-  {% endif %}
+  </div>
+
+  <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
 
   <div >
     <h3>Últimos Fichajes</h3>
     <table style="width: 100%; border-collapse: collapse;">
-      <thead></th><th>Fecha</th><th>Entrada</th><th>Salida</th><th>Estado</th><th>Horas</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Entrada</th>
+          <th>Salida</th>
+          <th>Estado</th>
+          <th>Horas</th>
+        </tr>
+      </thead>
       <tbody>
       {% for e in time_entries %}
         <tr style="border-top: 1px solid #ddd;">
           <td>{{ e.clock_in|date:"d/m/Y" }}</td>
           <td>{{ e.clock_in|time:"H:i" }}</td>
           <td>{% if e.clock_out %}{{ e.clock_out|time:"H:i" }}{% else %}--{% endif %}</td>
-          <td>{{ e.status }}</td>
-          <td>{{ e.total_seconds|default:'--' }}</td>
+          <td>
+            {% if not e.clock_out %}
+                <span class="badge {% if is_paused %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    {% if is_paused %}PAUSED{% else %}ONGOING{% endif %}
+                </span>
+            {% else %}
+                <span class="badge bg-secondary">{{ e.status }}</span>
+            {% endif %}
+          </td>
+          <td>{{ e.total_seconds_display|default:'--' }}</td>
         </tr>
       {% empty %}
         <tr><td colspan="5">No time entries yet</td></tr>
@@ -45,116 +76,52 @@
 
   <script>
     const timerDisplay = document.getElementById('timerDisplay');
-    const buttonGroup = document.getElementById('buttonGroup');
-    const clockInBtn = document.getElementById('clockInBtn');
+    const dataEl = document.getElementById('active-data');
 
-    let timerInterval = null;
-    let startTime = null;
-    let paused = false;
-    let pauseStart = null;
-    let totalPausedMs = 0;
+    //Variables de estado del timer (backend)
+    const hasActive = dataEl.dataset.hasActive === 'true';
+    const isPaused = dataEl.dataset.isPaused === 'true';
+    const startTimeStr = dataEl.dataset.startTime;
+    const pauseSecs = parseInt(dataEl.dataset.pauseSeconds || '0');
+    const pausedElapsed = parseInt(dataEl.dataset.pausedElapsed || '0');
 
-    function formatTime(ms) {
-      const totalSec = Math.floor(ms / 1000);
-      const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-      const s = String(totalSec % 60).padStart(2, '0');
-      return `${h}:${m}:${s}`;
+
+  function formatTime(seconds) {
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  if (hasActive) {
+    if (isPaused) {
+        timerDisplay.textContent = formatTime(pausedElapsed);
+    } else {
+        const start = new Date(startTimeStr).getTime();
+        const update = () => {
+            const elapsed = Math.floor((Date.now() - start) / 1000) - pauseSecs;
+            timerDisplay.textContent = formatTime(elapsed);
+        };
+        update();
+        setInterval(update, 1000);
     }
+  }
 
-    function updateTimer() {
-      if (!startTime || paused) return;
-      const elapsed = Date.now() - startTime - totalPausedMs;
-      timerDisplay.textContent = formatTime(elapsed);
-    }
-
-    function startTicker() {
-      timerInterval = setInterval(updateTimer, 500);
-    }
-
-    function stopTicker() {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
 
     async function postAction(action) {
-      const csrfToken = document.getElementById('csrfToken').value;
-      const data = new URLSearchParams({action});
-
-      const res = await fetch(window.location.href, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-CSRFToken': csrfToken,
-        },
-        body: data.toString(),
-      });
-
-      return res.ok;
+        const res = await fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.getElementById('csrfToken').value,
+            },
+            body: new URLSearchParams({action}).toString(),
+        });
+        if (res.ok) window.location.reload(); 
     }
 
-    function switchToClockOutPauseUI() {
-      buttonGroup.innerHTML = `
-        <button class="btn-entry btn-danger" id="clockOutBtn">Clock Out</button>
-        <button class="btn-entry btn-secondary" id="pauseBtn">Pause</button>
-      `;
-      document.getElementById('clockOutBtn').addEventListener('click', onClockOut);
-      document.getElementById('pauseBtn').addEventListener('click', onPauseToggle);
-    }
 
-    async function onClockOut() {
-      stopTicker();
-      const finalDuration = Date.now() - startTime - totalPausedMs;
-      timerDisplay.textContent = formatTime(finalDuration);
 
-      const success = await postAction('clock_out');
-      if (!success) {
-        alert('Error al enviar clock-out.');
-        return;
-      }
-
-      // Reset visual and internal timer state after clock out
-      startTime = null;
-      paused = false;
-      pauseStart = null;
-      totalPausedMs = 0;
-      timerDisplay.textContent = '00:00:00';
-
-      // Force refresh 
-      window.location.reload();
-    }
-
-    async function onPauseToggle() {
-      const btn = document.getElementById('pauseBtn');
-      if (!paused) {
-        paused = true;
-        pauseStart = Date.now();
-        btn.textContent = 'Resume';
-        await postAction('pause_start');
-      } else {
-        paused = false;
-        totalPausedMs += (Date.now() - pauseStart);
-        pauseStart = null;
-        btn.textContent = 'Pause';
-        await postAction('pause_end');
-      }
-    }
-
-    async function onClockIn() {
-      await postAction('clock_in');
-
-      if (!startTime) {
-        startTime = Date.now();
-      }
-      paused = false;
-      pauseStart = null;
-      totalPausedMs = 0;
-      timerDisplay.textContent = '00:00:00';
-      startTicker();
-      switchToClockOutPauseUI();
-    }
-
-    clockInBtn.addEventListener('click', onClockIn);
   </script>
 
 {% endblock %}
