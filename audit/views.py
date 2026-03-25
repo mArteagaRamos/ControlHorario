@@ -16,6 +16,12 @@ from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 
+
+def combine_local_date_time(date_value, time_value):
+    naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
+    return timezone.make_aware(naive_dt, timezone.get_current_timezone())
+
+
 # Decorador para verificar que el usuario es manager o admin antes de acceder a ciertas vistas
 def manager_or_admin_required(view_func):
     @wraps(view_func)
@@ -227,14 +233,18 @@ def editar_registro(request):
 
         # 2. Construimos los datetimes para el nuevo registro
         # Usamos la fecha del registro original y le pegamos la nueva hora
-        new_in_str = f"{registro_original.date} {hora_entrada}"
-        new_in = datetime.strptime(new_in_str, '%Y-%m-%d %H:%M')
+        try:
+            new_in = combine_local_date_time(registro_original.date, hora_entrada)
+        except ValueError:
+            return HttpResponse("Hora de entrada no válida.", status=400)
         
         new_out = None
         segundos = 0
         if hora_salida:
-            new_out_str = f"{registro_original.date} {hora_salida}"
-            new_out = datetime.strptime(new_out_str, '%Y-%m-%d %H:%M')
+            try:
+                new_out = combine_local_date_time(registro_original.date, hora_salida)
+            except ValueError:
+                return HttpResponse("Hora de salida no válida.", status=400)
             # Calcular segundos
             delta = new_out - new_in
             segundos = int(delta.total_seconds())
@@ -337,6 +347,4 @@ def delete_employee(request):
     membership.delete()
 
     return redirect('manager_employee')
-
-
 

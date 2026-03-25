@@ -106,8 +106,8 @@
                         {% for r in request_rows %}
                         <tr>
                             <td>{{ r.date }}</td>
-                            <td>{{ r.new_clock_in|default:'--' }}</td>
-                            <td>{{ r.new_clock_out|default:'--' }}</td>
+                            <td>{% if r.new_clock_in %}{{ r.new_clock_in|date:"H:i" }}{% else %}--{% endif %}</td>
+                            <td>{% if r.new_clock_out %}{{ r.new_clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ r.reason }}</td>
                             <td>
                                 {% if r.status == 'pending' %}

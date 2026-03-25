@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
+from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from uuid import uuid4
 from .forms import (
@@ -35,6 +36,30 @@ def compute_worked_seconds(entry):
                 pause_seconds += int((pause_end - pause_start).total_seconds())
             pause_start = None
     return max(0, total - pause_seconds)
+
+
+def parse_local_datetime(value):
+    if not value:
+        return None
+
+    parsed = parse_datetime(value)
+    if parsed is None:
+        return None
+
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
+
+    return parsed
+
+
+def get_display_date(value):
+    if not value:
+        return None
+
+    if timezone.is_naive(value):
+        return value.date()
+
+    return timezone.localtime(value).date()
 
 
 def get_or_create_demo_user():
@@ -531,10 +556,12 @@ def workday(request):
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
             
             if entry and reason:
-                from django.utils.dateparse import parse_datetime
-                
-                new_in = parse_datetime(new_clock_in_str) if new_clock_in_str else None
-                new_out = parse_datetime(new_clock_out_str) if new_clock_out_str else None
+                new_in = parse_local_datetime(new_clock_in_str)
+                new_out = parse_local_datetime(new_clock_out_str)
+
+                if (new_clock_in_str and new_in is None) or (new_clock_out_str and new_out is None):
+                    messages.error(request, 'El formato de fecha y hora no es válido.')
+                    return redirect('workday')
                 
                 CorrectionRequests.objects.create(
                     id=uuid4(), 
@@ -577,10 +604,16 @@ def workday(request):
 
     request_rows = []
     for r in correction_requests:
+        request_date = get_display_date(r.request_date)
+        if r.new_clock_in:
+            request_date = get_display_date(r.new_clock_in)
+        elif r.new_clock_out:
+            request_date = get_display_date(r.new_clock_out)
+
         request_rows.append({
-            'date':          r.request_date.date() if r.request_date else None,
-            'new_clock_in':  r.time_entry.clock_in if r.time_entry else None,
-            'new_clock_out': r.time_entry.clock_out if r.time_entry else None,
+            'date':          request_date,
+            'new_clock_in':  r.new_clock_in,
+            'new_clock_out': r.new_clock_out,
             'reason':        r.reason,
             'status':        r.status,
         })
