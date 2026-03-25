@@ -115,5 +115,5 @@ class CorrectionRequests(models.Model):
     correction_note = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'correction_requests'

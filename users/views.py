@@ -149,7 +149,7 @@ def login_view(request):
                             memberships.first().company.id
                         )
                     messages.success(request, 'Contraseña actualizada. ¡Bienvenido!')
-                    return redirect('home')
+                    return redirect('home_timetracking')
             else:
                 messages.error(
                     request, 'Revisa los requisitos de la contraseña.'
@@ -283,7 +283,7 @@ def register_unified(request):
 
     if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
         messages.error(request, 'No tienes permisos para acceder a esta página.')
-        return redirect('home')
+        return redirect('home_timetracking')
 
     # Valores de toggle por defecto
     company_mode  = 'create'
