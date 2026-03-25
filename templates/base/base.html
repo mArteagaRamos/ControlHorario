@@ -61,7 +61,7 @@
             {% else %}
                 <!-- SIN DROPDOWN -->
                 <a class="navbar-brand d-flex align-items-center gap-2 text-white text-decoration-none"
-                href="{% url 'workday' %}">
+                href="{% url 'home_timetracking' %}">
 
                     <img src="{% static 'img/icon_clock.png' %}" height="40">
 
@@ -113,7 +113,7 @@
             </li>
 
             <li>
-                <a href={% url 'time_entries' %} class="nav-link text-white">
+                <a href={% url 'home_timetracking' %} class="nav-link text-white">
                     <i class="bi bi-pencil-square me-2"></i>
                     Registrar actividad
                 </a>
@@ -197,7 +197,7 @@
             </li>
 
             <li>
-                <a href={% url 'time_entries' %} class="nav-link text-white">
+                <a href={% url 'home_timetracking' %} class="nav-link text-white">
                     <i class="bi bi-pencil-square me-2"></i>
                     Dar de alta 
                 </a>

@@ -98,7 +98,7 @@ def login_view(request):
                         if memberships.first():
                             request.session['company_id'] = str(memberships.first().company.id)
                         messages.success(request, 'Sesión iniciada correctamente.')
-                        return redirect('home')
+                        return redirect('home_timetracking')
                 else:
                     messages.error(request, 'Email o contraseña incorrectos.')
             else:
@@ -122,7 +122,7 @@ def login_view(request):
                     request.session['company_id'] = str(company_id)
                     request.session.pop('pending_company_selection', None)
                     messages.success(request, 'Sesión iniciada correctamente.')
-                    return redirect('home')
+                    return redirect('home_timetracking')
                 else:
                     messages.error(request, 'Empresa no válida.')
                     show_company_selector = True
@@ -351,7 +351,7 @@ def register_unified(request):
                 )
 
             messages.success(request, 'Registro completado correctamente.')
-            return redirect('home')
+            return redirect('home_timetracking')
 
         for error in errors:
             messages.error(request, error)
@@ -375,13 +375,13 @@ def workday(request):
 
     if not user:
         messages.error(request, 'Usuario no encontrado en el sistema.')
-        return redirect('home')
+        return redirect('home_timetracking')
 
     company = request.company
 
     if not company:
         messages.error(request, 'No tienes empresa asignada.')
-        return redirect('home')
+        return redirect('home_timetracking')
 
     if request.method == 'POST':
         action = request.POST.get('action')

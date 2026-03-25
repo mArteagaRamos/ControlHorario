@@ -1,6 +1,5 @@
 from uuid import uuid4
 
-
 from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
@@ -50,6 +49,7 @@ def compute_worked_seconds(entry):
     return max(0, total - pause_seconds)
 
 
+# AUTO-CLOSE ENTRIES BASED ON COMPANY SETTINGS/POLICY
 
 def auto_close_entry_if_expired(entry, company):
     settings = CompanySettings.objects.filter(company=company).first()
@@ -91,23 +91,25 @@ def auto_close_entry_if_expired(entry, company):
 
 @login_required
 def time_entries(request):
+
     # Get the authenticated user
     django_user = request.user
     user = Users.objects.filter(email=django_user.email).first()
     
     if not user:
         messages.error(request, 'Usuario no encontrado en el sistema.')
-        return redirect('home')
+        return redirect('home_timetracking')
 
     membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
     if not membership:
         messages.error(request, 'No tienes una membresía activa en ninguna empresa.')
-        return redirect('home')
+        return redirect('home_timetracking')
 
     company = membership.company  
 
 
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
+
     active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
     if active_entry and auto_close_entry_if_expired(active_entry, company):
         messages.info(request, 'An overdue active entry was auto-closed based on company policy.')
@@ -211,7 +213,7 @@ def time_entries(request):
         else:
             messages.error(request, 'Acción desconocida.')
 
-        return redirect('time_entries')
+        return redirect('home_timetracking')
 
     entries = TimeEntries.objects.filter(user=user).order_by('-date', '-clock_in')
     paginator = Paginator(entries, 10)
@@ -254,11 +256,22 @@ def time_entries(request):
             clock_in = active_entry.clock_in
             if timezone.is_naive(clock_in):
                 clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
-            elapsed = int((timezone.now() - clock_in).total_seconds())
-            paused_elapsed = max(0, elapsed - pause_seconds)
-
             
-    return render(request, 'timetracking/time_entries.html', {
+            current_pause_start = TimeEntryEvent.objects.filter(
+                time_entry=active_entry,
+                event_type=TimeEntryEvent.EventType.PAUSE_START
+            ).order_by('-timestamp').first()
+
+            # Timer freezes at pause start time for display purposes
+
+            frozen_at = current_pause_start.timestamp
+            if timezone.is_naive(frozen_at):
+                frozen_at = timezone.make_aware(frozen_at, timezone.get_current_timezone())
+
+            elapsed = int((frozen_at - clock_in).total_seconds())
+            paused_elapsed = max(0, elapsed - pause_seconds)
+            
+    return render(request, 'dashboard/home_timetracking.html', {
         'time_entries': page_obj,
         'page_obj': page_obj,
         'events': events,

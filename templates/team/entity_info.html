@@ -1,4 +1,185 @@
 {% extends 'base/base.html' %}
-{% load django_bootstrap5 %}
+{% load static %}
 
-{% block title %}Info{% endblock %}
+{% block title %}Información de Empresa{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+  {# ── Header ── #}
+  <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+    <div>
+      <h4 class="mb-0 fw-semibold">{{ company.name }}</h4>
+      <small class="text-muted">Información de la empresa</small>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {% if user_role == 'manager' %}
+        <span class="badge text-bg-primary">Manager</span>
+        <button id="editToggleBtn" class="btn btn-sm btn-dark" onclick="toggleEdit()">
+          Editar
+        </button>
+      {% else %}
+        <span class="badge text-bg-secondary">Empleado</span>
+      {% endif %}
+    </div>
+  </div>
+
+    {# ── Card: Datos generales ── #}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Datos generales</div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-md-6">
+            <label class="form-label text-muted small mb-1">Nombre comercial</label>
+            <div class="view-mode">{{ company.name }}</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="text" name="name" value="{{ company.name }}" required>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label text-muted small mb-1">Razón social</label>
+            <div class="view-mode">{{ company.legal_name }}</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="text" name="legal_name" value="{{ company.legal_name }}" required>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label text-muted small mb-1">CIF / NIF</label>
+            <div class="view-mode">{{ company.tax_id|default:"—" }}</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="text" name="tax_id" value="{{ company.tax_id|default:'' }}" maxlength="20">
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="card-footer text-muted small d-flex gap-3">
+        <span>Creada: {{ company.created_at|date:"d M Y" }}</span>
+        <span>Actualizada: {{ company.updated_at|date:"d M Y" }}</span>
+      </div>
+    </div>
+
+    {# ── Card: Configuración de jornada ── #}
+    {% if settings %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Configuración de jornada</div>
+      <div class="card-body">
+        <div class="row g-3">
+
+          <div class="col-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Inicio jornada</label>
+            <div class="view-mode">{{ settings.work_start|time:"H:i" }}</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="time" name="work_start" value="{{ settings.work_start|time:'H:i' }}" required>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Fin jornada</label>
+            <div class="view-mode">{{ settings.work_end|time:"H:i" }}</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="time" name="work_end" value="{{ settings.work_end|time:'H:i' }}" required>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Tolerancia máx.</label>
+            <div class="view-mode">{% widthratio settings.max_tolerance.total_seconds 60 1 %} min</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="number" name="max_tolerance_minutes"
+                value="{% widthratio settings.max_tolerance.total_seconds 60 1 %}"
+                min="0" max="120">
+            </div>
+          </div>
+
+          <div class="col-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Cierre automático</label>
+            <div class="view-mode">{{ settings.auto_close_hours }} h</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="number" name="auto_close_hours"
+                value="{{ settings.auto_close_hours }}" min="1" max="24">
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label text-muted small mb-1">Días de descanso</label>
+            <div class="view-mode">
+              {% for d in settings.weekend_days %}
+                <span class="badge text-bg-warning me-1">
+                  {% if d == 0 %}Domingo{% elif d == 1 %}Lunes{% elif d == 2 %}Martes
+                  {% elif d == 3 %}Miércoles{% elif d == 4 %}Jueves{% elif d == 5 %}Viernes
+                  {% elif d == 6 %}Sábado{% endif %}
+                </span>
+              {% empty %}
+                <span class="text-muted">—</span>
+              {% endfor %}
+            </div>
+            <div class="edit-mode d-none">
+              <div class="d-flex flex-wrap gap-2 mt-1">
+                {% for day_val, day_name in weekday_choices %}
+                  <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" name="weekend_days"
+                      value="{{ day_val }}" id="day_{{ day_val }}"
+                      {% if day_val in settings.weekend_days %}checked{% endif %}>
+                    <label class="form-check-label small" for="day_{{ day_val }}">{{ day_name }}</label>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label text-muted small mb-1">Festivos</label>
+            <div class="view-mode">
+              {% for h in settings.holidays %}
+                <span class="badge text-bg-info me-1">{{ h|date:"d M Y" }}</span>
+              {% empty %}
+                <span class="text-muted">—</span>
+              {% endfor %}
+            </div>
+            <div class="edit-mode d-none">
+              <textarea class="form-control form-control-sm" name="holidays_text" rows="2"
+                placeholder="YYYY-MM-DD, YYYY-MM-DD, ...">{% for h in settings.holidays %}{{ h|date:"Y-m-d" }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
+              <div class="form-text">Fechas separadas por comas en formato AAAA-MM-DD</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Save bar ── #}
+    {% if user_role == 'manager' %}
+    <div class="edit-mode d-none d-flex justify-content-end gap-2">
+      <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
+      <button type="submit" class="btn btn-sm btn-success">Guardar cambios</button>
+    </div>
+    {% endif %}
+
+  {% if user_role == 'manager' %}
+  </form>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if user_role == 'manager' %}
+<script>
+  let editing = false;
+  function toggleEdit() {
+    editing = !editing;
+    document.querySelectorAll('.view-mode').forEach(el => el.classList.toggle('d-none', editing));
+    document.querySelectorAll('.edit-mode').forEach(el => el.classList.toggle('d-none', !editing));
+    const btn = document.getElementById('editToggleBtn');
+    btn.textContent = editing ? 'Cancelar' : 'Editar';
+    btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
+  }
+</script>
+{% endif %}
+{% endblock %}
+

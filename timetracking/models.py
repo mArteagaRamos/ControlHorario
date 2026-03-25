@@ -16,14 +16,14 @@ class TimeEntries(models.Model):
     id = models.UUIDField(primary_key=True)
     user = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='user_id')
     company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
-    date = models.DateField(default=timezone.now)
+    date = models.DateField(default= timezone.now)
     clock_in = models.DateTimeField()
     clock_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
     notes = models.TextField(blank=True, null=True)
     total_seconds = models.IntegerField(default=0)
 
-    # Cambiar formato y calculo (llamar a este metodo)
+    # Calculate total seconds when showing the entry
     @property
     def total_seconds_display(self):
         if not self.total_seconds:
