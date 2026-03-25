@@ -196,12 +196,14 @@
                 </div>
             </li>
 
-            <li>
-                <a href={% url 'home_timetracking' %} class="nav-link text-white">
-                    <i class="bi bi-pencil-square me-2"></i>
-                    Dar de alta 
-                </a>
-            </li>
+            {% if is_admin or current_role == 'manager' %}
+                <li>
+                    <a href={% url 'register_unified' %} class="nav-link text-white">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Dar de alta 
+                    </a>
+                </li>
+            {% endif %}
         </ul>
 
         <hr>

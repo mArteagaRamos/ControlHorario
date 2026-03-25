@@ -31,6 +31,7 @@ class Users(AbstractBaseUser):
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
+    flag = models.BooleanField(default=False)
 
     objects = UsersManager()
 
@@ -114,5 +115,5 @@ class CorrectionRequests(models.Model):
     correction_note = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = True
+        managed = False
         db_table = 'correction_requests'

@@ -1,4 +1,6 @@
 from django import forms
+import secrets
+import string
 from django.contrib.auth.forms import AuthenticationForm
 from users.models import Users, Companies, UserCompanyMembership
 
@@ -154,3 +156,52 @@ class WorkerSelectForm(_UserBaseForm):
     La contraseña es opcional: si se deja vacía no se modifica.
     """
     pass
+
+# ── Primer login: establecer contraseña ───────────────────────────────────────
+def generate_temp_password(length=12):
+    """Genera una contraseña temporal aleatoria segura."""
+    alphabet = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+class SetPasswordForm(forms.Form):
+    """
+    Formulario que aparece en el primer login (flag=False).
+    Obliga al usuario a establecer una contraseña definitiva.
+    """
+    new_password = forms.CharField(
+        label='Nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'new-password',
+            'placeholder': 'Mínimo 8 caracteres',
+        }),
+        min_length=8,
+    )
+    confirm_password = forms.CharField(
+        label='Confirmar contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'new-password',
+        }),
+    )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get('new_password', '')
+        p2 = cleaned_data.get('confirm_password', '')
+
+        if p1 != p2:
+            self.add_error('confirm_password', 'Las contraseñas no coinciden.')
+
+        # Validación de complejidad
+        if p1:
+            has_upper  = any(c.isupper() for c in p1)
+            has_lower  = any(c.islower() for c in p1)
+            has_digit  = any(c.isdigit() for c in p1)
+            if not (has_upper and has_lower and has_digit):
+                self.add_error(
+                    'new_password',
+                    'La contraseña debe contener mayúsculas, minúsculas y números.'
+                )
+        return cleaned_data
