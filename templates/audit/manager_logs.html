@@ -7,80 +7,68 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 <style>
-    /* Contenedor con altura limitada y scroll */
     .table-scroll-container {
         max-height: 500px; 
         overflow-y: auto;
     }
-
-    /* Fijar la cabecera para que no se pierda al bajar */
     .table-scroll-container thead {
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #f8f9fa; /* Color de fondo de table-light */
+        background-color: #f8f9fa; 
     }
-
-    /* Estética del scrollbar para que no sea feo */
-    .table-scroll-container::-webkit-scrollbar {
-        width: 8px;
-    }
-    .table-scroll-container::-webkit-scrollbar-thumb {
-        background: #ccc;
-        border-radius: 4px;
-    }
+    .table-scroll-container::-webkit-scrollbar { width: 8px; }
+    .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 </style>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 fw-bold mb-0">Panel de Administración</h2>
-        <button type="submit" form="exportForm" class="btn btn-success d-flex align-items-center gap-2">
+        <button type="submit" form="exportForm" id="btnExportar" class="btn btn-success d-flex align-items-center gap-2">
             <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
         </button>
     </div>
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <form method="GET" id="filtro-form" class="row g-3 mb-4 align-items-end">
+            <div class="row g-3 mb-4 align-items-end" id="filtros-container">
                 <div class="col-md-3">
                     <label class="form-label text-muted">Empleado</label>
-                    <select name="empleado" id="empleado-select" class="form-select">
-                        <option value=""></option> {% for emp in empleados %}
-                            <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
-                                {{ emp.username }} {{ emp.surname }}
-                            </option>
+                    <select id="empleado-select" class="form-select">
+                        <option value=""></option> 
+                        {% for emp in empleados %}
+                            <option value="{{ emp.id }}">{{ emp.username }} {{ emp.surname }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label text-muted">Fecha de registro</label>
-                    <input type="date" name="fecha" class="form-control auto-submit" value="{{ request.GET.fecha }}">
+                    <input type="date" id="filtroFecha" class="form-control js-filter">
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label text-muted">Hora Desde</label>
-                    <input type="time" name="desde" class="form-control auto-submit" value="{{ request.GET.desde }}">
+                    <input type="time" id="filtroDesde" class="form-control js-filter">
                 </div>
 
                 <div class="col-md-2">
                     <label class="form-label text-muted">Hora Hasta</label>
-                    <input type="time" name="hasta" class="form-control auto-submit" value="{{ request.GET.hasta }}">
+                    <input type="time" id="filtroHasta" class="form-control js-filter">
                 </div>
 
                 <div class="col-md-3">
                     <label class="form-label d-none d-md-block">&nbsp;</label>
-                    
                     <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
                         <div class="d-flex align-items-center">
                             <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
                             <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
                         </div>
                         <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
-                            <input class="form-check-input ms-0 mt-0 auto-submit" type="checkbox" role="switch" name="solo_incidencias" id="solo_incidencias" value="true" style="width: 2.5em; height: 1.25em; cursor: pointer;" {% if request.GET.solo_incidencias %}checked{% endif %}>
+                            <input class="form-check-input ms-0 mt-0 js-filter" type="checkbox" role="switch" id="solo_incidencias" style="width: 2.5em; height: 1.25em; cursor: pointer;">
                         </div>
                     </label>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 
@@ -106,9 +94,15 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="tablaRegistros">
                         {% for registro in registros %}
-                        <tr {% if registro.status == 'corrected' and registro.id|stringformat:"s" not in fichajes_con_incidencia %}class="table-light"{% endif %}>
+                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:"s" not in fichajes_con_incidencia %}table-light{% endif %}"
+                            data-empleado-id="{{ registro.user.id }}"
+                            data-fecha="{{ registro.date|date:'Y-m-d' }}"
+                            data-hora-in="{{ registro.clock_in|time:'H:i' }}"
+                            data-hora-out="{{ registro.clock_out|time:'H:i'|default:'' }}"
+                            data-incidencia="{% if registro.id|stringformat:'s' in fichajes_con_incidencia %}true{% else %}false{% endif %}">
+                            
                             <td>
                                 <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
                                 {{ registro.user.username }} {{ registro.user.surname }}
@@ -160,6 +154,9 @@
                             </td>
                         </tr>
                         {% endfor %}
+                        <tr id="no-results-js" style="display: none;">
+                            <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
+                        </tr>
                     </tbody>
                 </table>
             </form>
@@ -249,64 +246,137 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     
-    // --- TOM SELECT (Buscador de empleados) ---
+    // 1. Elementos del DOM para el filtro
+    const inputFecha = document.getElementById('filtroFecha');
+    const inputDesde = document.getElementById('filtroDesde');
+    const inputHasta = document.getElementById('filtroHasta');
+    const checkIncidencia = document.getElementById('solo_incidencias');
+    const filas = document.querySelectorAll('.registro-row');
+    const noResultsJs = document.getElementById('no-results-js');
+    let tomSelectInstance;
+
+    // 2. Función principal de filtrado
+    function filtrarTabla() {
+        const empleadoBuscado = tomSelectInstance ? tomSelectInstance.getValue() : '';
+        const fechaBuscada = inputFecha.value; // Formato YYYY-MM-DD
+        const horaDesde = inputDesde.value;
+        const horaHasta = inputHasta.value;
+        const soloIncidencias = checkIncidencia.checked;
+
+        let filasVisibles = 0;
+
+        filas.forEach(fila => {
+            const empId = fila.getAttribute('data-empleado-id');
+            const fecha = fila.getAttribute('data-fecha'); // Formato YYYY-MM-DD del servidor
+            const horaIn = fila.getAttribute('data-hora-in');
+            const esIncidencia = fila.getAttribute('data-incidencia') === 'true';
+
+            // Comprobaciones
+            const coincideEmpleado = (empleadoBuscado === "") || (empId === empleadoBuscado);
+            const coincideFecha = (fechaBuscada === "") || (fecha === fechaBuscada);
+            
+            // Lógica de horas (comprobamos si la hora de entrada está en el rango)
+            let coincideDesde = true;
+            let coincideHasta = true;
+            if (horaDesde) coincideDesde = horaIn >= horaDesde;
+            if (horaHasta) coincideHasta = horaIn <= horaHasta;
+            const coincideHora = coincideDesde && coincideHasta;
+
+            const coincideIncidencia = (!soloIncidencias) || esIncidencia;
+
+            // Mostrar/Ocultar
+            if (coincideEmpleado && coincideFecha && coincideHora && coincideIncidencia) {
+                fila.style.display = '';
+                filasVisibles++;
+            } else {
+                fila.style.display = 'none';
+                // Si ocultamos la fila, desmarcamos el checkbox para no exportar cosas ocultas
+                const checkbox = fila.querySelector('.select-row');
+                if (checkbox) checkbox.checked = false; 
+            }
+        });
+
+        // Mostrar mensaje de sin resultados
+        if (noResultsJs) {
+            noResultsJs.style.display = (filasVisibles === 0 && filas.length > 0) ? '' : 'none';
+        }
+
+        actualizarBotonExportar();
+    }
+
+    // 3. Inicializar TomSelect y conectarlo al filtro
     if (typeof TomSelect !== 'undefined') {
-        new TomSelect("#empleado-select", {
+        tomSelectInstance = new TomSelect("#empleado-select", {
             placeholder: "Todos los empleados", 
             allowEmptyOption: true,
             plugins: ['clear_button'], 
             onChange: function(value) {
-                document.getElementById('filtro-form').submit();
+                filtrarTabla();
             }
         });
     }
 
-    // --- AUTO SUBMIT (Filtros de fecha, hora e incidencias) ---
-    document.querySelectorAll('.auto-submit').forEach(input => {
-        input.addEventListener('change', function() {
-            document.getElementById('filtro-form').submit();
-        });
+    // 4. Escuchar cambios en el resto de filtros
+    document.querySelectorAll('.js-filter').forEach(input => {
+        input.addEventListener('change', filtrarTabla);
     });
+    // Para las horas, usar input para que reaccione mientras escriben
+    inputDesde.addEventListener('input', filtrarTabla);
+    inputHasta.addEventListener('input', filtrarTabla);
+
 
     // --- CHECKBOXES MULTIPLES ---
     const selectAllCheckbox = document.getElementById('selectAll');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            let checkboxes = document.querySelectorAll('.select-row');
+            // Solo seleccionar las filas que están visibles (no filtradas)
+            let checkboxes = document.querySelectorAll('.registro-row[style=""] .select-row, .registro-row:not([style*="display: none"]) .select-row');
             checkboxes.forEach(cb => cb.checked = this.checked);
+            actualizarBotonExportar();
         });
     }
 
-    // --- MODAL RESOLVER INCIDENCIA ---
+    // Actualizar botón exportar
+    function actualizarBotonExportar() {
+        const seleccionados = document.querySelectorAll('.select-row:checked').length;
+        const btnExportar = document.getElementById('btnExportar');
+        
+        if (seleccionados > 0) {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
+            btnExportar.disabled = false;
+        } else {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+            // Opcional: btnExportar.disabled = true; si quieres que no puedan darle si no hay nada
+        }
+    }
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('select-row')) {
+            actualizarBotonExportar();
+            // Desmarcar "Select All" si desmarcamos uno individual
+            if (!e.target.checked && selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+        }
+    });
+
+    // --- MODALES (Mantener tu lógica igual) ---
     const resolverModal = document.getElementById('modalResolver');
         if (resolverModal) {
             resolverModal.addEventListener('show.bs.modal', function(event) {
-                // Usamos currentTarget o relatedTarget para asegurar que pillamos el botón
                 let button = event.relatedTarget; 
                 
-                // Extraemos la información de los atributos data-*
-                const id = button.getAttribute('data-id');
-                const empleado = button.getAttribute('data-empleado');
-                const motivo = button.getAttribute('data-motivo');
-                const oldIn = button.getAttribute('data-old-in');
-                const oldOut = button.getAttribute('data-old-out');
-                const newIn = button.getAttribute('data-new-in');
-                const newOut = button.getAttribute('data-new-out');
-
-                // Rellenamos el modal
-                document.getElementById('incidenciaIdInput').value = id;
-                document.getElementById('modalEmpleado').textContent = empleado;
-                document.getElementById('modalMotivo').textContent = motivo || "No se especificó un motivo.";
+                document.getElementById('incidenciaIdInput').value = button.getAttribute('data-id');
+                document.getElementById('modalEmpleado').textContent = button.getAttribute('data-empleado');
+                document.getElementById('modalMotivo').textContent = button.getAttribute('data-motivo') || "No se especificó un motivo.";
                 
-                // IMPORTANTE: Rellenar los spans de las horas
-                document.getElementById('modalOldIn').textContent = oldIn;
-                document.getElementById('modalOldOut').textContent = oldOut;
-                document.getElementById('modalNewIn').textContent = newIn;
-                document.getElementById('modalNewOut').textContent = newOut;
+                document.getElementById('modalOldIn').textContent = button.getAttribute('data-old-in');
+                document.getElementById('modalOldOut').textContent = button.getAttribute('data-old-out');
+                document.getElementById('modalNewIn').textContent = button.getAttribute('data-new-in');
+                document.getElementById('modalNewOut').textContent = button.getAttribute('data-new-out');
             });
         }
 
-    // --- MODAL EDITAR ---
     const editarModal = document.getElementById('modalEditar');
     if (editarModal) {
         editarModal.addEventListener('show.bs.modal', function(event) {
@@ -317,24 +387,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('editClockIn').value = button.getAttribute('data-in');
             document.getElementById('editClockOut').value = (timeOut && timeOut !== '--:--') ? timeOut : '';
         });
-    }
-});
-// Limpiar la URL visualmente para que no se vean los parámetros
-    if (window.history.replaceState) {
-        window.history.replaceState(null, null, window.location.pathname);
-    }
-
-    document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('select-row') || e.target.id === 'selectAll') {
-        const seleccionados = document.querySelectorAll('.select-row:checked').length;
-        const btnExportar = document.querySelector('button[form="exportForm"]');
-        
-        if (seleccionados > 0) {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
-            btnExportar.disabled = false;
-        } else {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
-        }
     }
 });
 </script>
