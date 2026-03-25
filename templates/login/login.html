@@ -24,27 +24,42 @@
             <div class="card-body p-4">
                 {% bootstrap_messages %}
 
-                {% if show_company_selector %}
-                {# ── Paso 2: selector de empresa ── #}
-                <form method="post" action="{% url 'login' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="step" value="select_company">
-                    {% bootstrap_form company_form %}
-                    <button type="submit" class="btn btn-primary w-100 mt-2">
-                        Entrar
-                    </button>
-                </form>
+                {% if show_set_password %}
+                    {# ── Paso 1b: primer login, establecer contraseña ── #}
+                    <p class="text-muted small mb-3">
+                        Es tu primer acceso. Por seguridad debes establecer una contraseña personal.
+                    </p>
+                    <form method="post" action="{% url 'login' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="step" value="set_password">
+                        {% bootstrap_form set_password_form %}
+                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                            Guardar contraseña y entrar
+                        </button>
+                    </form>
+
+                {% elif show_company_selector %}
+                    {# ── Paso 2: selector de empresa ── #}
+                    <form method="post" action="{% url 'login' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="step" value="select_company">
+                        {% bootstrap_form company_form %}
+                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                            Entrar
+                        </button>
+                    </form>
 
                 {% else %}
-                {# ── Paso 1: credenciales ── #}
-                <form method="post" action="{% url 'login' %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="step" value="credentials">
-                    {% bootstrap_form form %}
-                    <button type="submit" class="btn btn-primary w-100 mt-2">
-                        Iniciar sesión
-                    </button>
-                </form>
+                    {# ── Paso 1: credenciales ── #}
+                    <form method="post" action="{% url 'login' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="step" value="credentials">
+                        {% bootstrap_form form %}
+                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                            Iniciar sesión
+                        </button>
+                    </form>
+
                 {% endif %}
 
             </div>

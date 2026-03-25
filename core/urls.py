@@ -9,8 +9,10 @@ from audit import views as audit_views
 
 # Project URL patterns
 urlpatterns = [
-    # Admin
+    # Dashboard Home
     path('home/', timetracking_views.time_entries, name='home_timetracking'),
+
+    # Control Panel
     path('control/', dashboard_views.control, name='control'),
 
     # Auth

@@ -77,48 +77,74 @@
             {% endif %}
 
             {# SECCIÓN TRABAJADOR #}
-            <section id="section-worker" class="mb-4">
+            {% if is_admin or current_role == 'manager' %}
+              <section id="section-worker" class="mb-4">
                 <h5 class="border-bottom pb-2">
-                    <span class="badge bg-primary me-2">{% if is_admin and user_role %}2{% else %}1{% endif %}</span>
-                    Trabajador
+                  <span class="badge bg-primary me-2">{% if is_admin %}2{% else %}1{% endif %}</span>
+                  Trabajador
                 </h5>
 
                 {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
                 <div id="worker-toggle-group"
                     class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
                     role="group">
-                    <button type="button" id="btn-worker-create"
-                            class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                  <button type="button" id="btn-worker-create"
+                          class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                     Añadir trabajador
-                    </button>
-                    <button type="button" id="btn-worker-select"
-                            class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                  </button>
+                  <button type="button" id="btn-worker-select"
+                          class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
                     Seleccionar trabajador
-                    </button>
+                  </button>
                 </div>
 
                 {# ── Buscador de trabajador existente ── #}
                 <div id="worker-lookup-block"
                     class="{% if worker_action != 'select' %}d-none{% endif %}">
-                    <div class="input-group mb-3">
+                  <div class="input-group mb-3">
                     <input type="text" id="worker-lookup-input" class="form-control"
-                            placeholder="Email del trabajador existente">
+                          placeholder="Email del trabajador existente">
                     <button type="button" id="btn-lookup-worker" class="btn btn-outline-secondary">
-                        Buscar
+                      Buscar
                     </button>
-                    </div>
-                    <div id="worker-lookup-feedback" class="form-text mb-2"></div>
+                  </div>
+                  <div id="worker-lookup-feedback" class="form-text mb-2"></div>
                 </div>
 
                 {# ── Formulario de trabajador (crear o editar) ── #}
                 <div id="worker-form-block">
-                    {% if worker_action == 'select' %}
+                  {% if worker_action == 'select' %}
                     {% bootstrap_form worker_select %}
-                    {% else %}
-                    {% bootstrap_form worker_create %}
-                    {% endif %}
+                  {% else %}
+                    {# Renderizamos campo a campo para insertar el botón en 'password' #}
+                    {% bootstrap_field worker_create.username %}
+                    {% bootstrap_field worker_create.surname %}
+                    {% bootstrap_field worker_create.email %}
+                    {% bootstrap_field worker_create.status %}
+                    {% bootstrap_field worker_create.role %}
+
+                    <div class="mb-3">
+                      <label for="id_password" class="form-label">Contraseña temporal</label>
+                      <div class="input-group">
+                        <input type="text"
+                              id="id_password"
+                              name="password"
+                              class="form-control font-monospace"
+                              placeholder="Haz clic en 'Generar'"
+                              readonly>
+                        <button type="button" id="btn-gen-password" class="btn btn-outline-secondary">
+                          <i class="bi bi-arrow-clockwise"></i> Generar
+                        </button>
+                      </div>
+                      <div class="form-text text-muted">
+                        La contraseña se enviará al trabajador por email.
+                      </div>
+                    </div>
+                  {% endif %}
                 </div>
-            </section>
+              
+              </section>
+            {% endif %}
 
             <div class="d-grid gap-2 mt-4">
               <button type="submit" class="btn btn-primary">Guardar registro</button>
@@ -323,5 +349,44 @@ function clearFormBlock(blockId) {
     }
   });
 }
+
+// ── Generador de contraseña temporal ──────────────────────────────────────────
+function generatePassword(length = 12) {
+  const upper  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower  = 'abcdefghijklmnopqrstuvwxyz';
+  const digits = '0123456789';
+  const special = '!@#$%&*?';
+  const all = upper + lower + digits + special;
+
+  // Garantizamos al menos uno de cada tipo
+  let password = [
+    upper[Math.floor(Math.random()  * upper.length)],
+    lower[Math.floor(Math.random()  * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    special[Math.floor(Math.random() * special.length)],
+  ];
+
+  for (let i = 4; i < length; i++) {
+    password.push(all[Math.floor(Math.random() * all.length)]);
+  }
+
+  // Mezclar el array
+  return password.sort(() => Math.random() - 0.5).join('');
+}
+
+document.getElementById('btn-gen-password')?.addEventListener('click', () => {
+  const input = document.getElementById('id_password');
+  if (input) {
+    input.value = generatePassword();
+  }
+});
+
+// Generar automáticamente al cargar si estamos en modo 'create'
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('id_password');
+  if (input && !input.value) {
+    input.value = generatePassword();
+  }
+});
 </script>
 {% endblock %}

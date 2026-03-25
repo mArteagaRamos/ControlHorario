@@ -10,7 +10,7 @@ from django.utils import timezone
 from uuid import uuid4
 from .forms import (
     LoginForm, CompanyForm, CompanySelectLoginForm,
-    WorkerCreateForm, WorkerSelectForm,
+    WorkerCreateForm, WorkerSelectForm, SetPasswordForm
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
@@ -65,14 +65,16 @@ def ensure_membership(user):
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
-    form             = LoginForm(request)
-    company_form     = None
+    form = LoginForm(request)
+    company_form = None
     show_company_selector = False
+    set_password_form = None
+    show_set_password = False
 
     if request.method == 'POST':
         step = request.POST.get('step', 'credentials')
 
-        # ── Paso 1: validar credenciales ───────────────────────────────────────
+        # ── Paso 1: credenciales ───────────────────────────────────────────────
         if step == 'credentials':
             form = LoginForm(request, data=request.POST)
             if form.is_valid():
@@ -81,28 +83,77 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    memberships = UserCompanyMembership.objects.filter(
-                        user=user
-                    ).select_related('company')
-
-                    if memberships.count() > 1:
-                        # Más de una empresa: mostrar selector
+                    # ── Primer login: flag=False → forzar cambio de contraseña ──
+                    if not user.flag:
                         auth_login(request, user)
-                        company_form = CompanySelectLoginForm(companies=memberships)
-                        show_company_selector = True
-                        # Guardamos las credenciales validadas para el paso 2
-                        request.session['pending_company_selection'] = True
+                        set_password_form  = SetPasswordForm()
+                        show_set_password  = True
                     else:
-                        # Una sola empresa: login directo
-                        auth_login(request, user)
-                        if memberships.first():
-                            request.session['company_id'] = str(memberships.first().company.id)
-                        messages.success(request, 'Sesión iniciada correctamente.')
-                        return redirect('home_timetracking')
+                        memberships = UserCompanyMembership.objects.filter(
+                            user=user
+                        ).select_related('company')
+
+                        if memberships.count() > 1:
+                            auth_login(request, user)
+                            company_form = CompanySelectLoginForm(companies=memberships)
+                            show_company_selector = True
+                            request.session['pending_company_selection'] = True
+                        else:
+                            auth_login(request, user)
+                            if memberships.first():
+                                request.session['company_id'] = str(
+                                    memberships.first().company.id
+                                )
+                            messages.success(request, 'Sesión iniciada correctamente.')
+                            return redirect('home_timetracking')
                 else:
                     messages.error(request, 'Email o contraseña incorrectos.')
             else:
                 messages.error(request, 'Revisa los campos del formulario.')
+
+        # ── Paso 1b: establecer contraseña definitiva ──────────────────────────
+        elif step == 'set_password':
+            if not request.user.is_authenticated:
+                return redirect('login')
+
+            set_password_form = SetPasswordForm(request.POST)
+            show_set_password = True
+
+            if set_password_form.is_valid():
+                new_password = set_password_form.cleaned_data['new_password']
+                user = request.user
+                user.set_password(new_password)
+                user.flag = True
+                user.save(update_fields=['password', 'flag'])
+
+                # Re-autenticar con la nueva contraseña
+                updated_user = authenticate(
+                    request, username=user.email, password=new_password
+                )
+                if updated_user:
+                    auth_login(request, updated_user)
+
+                memberships = UserCompanyMembership.objects.filter(
+                    user=user
+                ).select_related('company')
+
+                if memberships.count() > 1:
+                    company_form = CompanySelectLoginForm(companies=memberships)
+                    show_company_selector = True
+                    show_set_password = False
+                    set_password_form = None
+                    request.session['pending_company_selection'] = True
+                else:
+                    if memberships.first():
+                        request.session['company_id'] = str(
+                            memberships.first().company.id
+                        )
+                    messages.success(request, 'Contraseña actualizada. ¡Bienvenido!')
+                    return redirect('home')
+            else:
+                messages.error(
+                    request, 'Revisa los requisitos de la contraseña.'
+                )
 
         # ── Paso 2: seleccionar empresa ────────────────────────────────────────
         elif step == 'select_company':
@@ -116,7 +167,6 @@ def login_view(request):
 
             if company_form.is_valid():
                 company_id = company_form.cleaned_data['company_id']
-                # Verificar que la empresa pertenece al usuario
                 membership = memberships.filter(company_id=company_id).first()
                 if membership:
                     request.session['company_id'] = str(company_id)
@@ -130,9 +180,11 @@ def login_view(request):
                 show_company_selector = True
 
     return render(request, 'login/login.html', {
-        'form':                   form,
-        'company_form':           company_form,
-        'show_company_selector':  show_company_selector,
+        'form':                  form,
+        'company_form':          company_form,
+        'show_company_selector': show_company_selector,
+        'set_password_form':     set_password_form,
+        'show_set_password':     show_set_password,
     })
 
 
@@ -227,6 +279,11 @@ def register_unified(request):
         Solo ve el apartado de trabajador de su empresa.
     """
     is_admin = request.user.is_admin
+    current_role = request.role
+
+    if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
+        messages.error(request, 'No tienes permisos para acceder a esta página.')
+        return redirect('home')
 
     # Valores de toggle por defecto
     company_mode  = 'create'
@@ -319,12 +376,19 @@ def register_unified(request):
 
             if active_form.is_valid():
                 worker_user = active_form.save(commit=False)
-                if not worker_user.pk:
+                is_new_user = not worker_user.pk
+
+                if is_new_user:
                     worker_user.id = uuid4()
+
                 worker_user.is_admin = False
                 password = active_form.cleaned_data.get('password')
+
                 if password:
                     worker_user.set_password(password)
+                    if is_new_user:
+                        worker_user.flag = False  
+                
                 worker_user.save()
             else:
                 errors.append('Corrige los datos del trabajador.')
@@ -358,6 +422,7 @@ def register_unified(request):
 
     return render(request, 'login/register_unified.html', {
         'is_admin':     is_admin,
+        'current_role':  current_role,
         'company_form': company_form,
         'worker_create': worker_create,
         'worker_select': worker_select,
