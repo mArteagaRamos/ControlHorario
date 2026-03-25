@@ -10,7 +10,7 @@ from django.utils import timezone
 from uuid import uuid4
 from .forms import (
     LoginForm, CompanyForm, CompanySelectLoginForm,
-    WorkerCreateForm, WorkerSelectForm, SetPasswordForm
+    WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
@@ -65,16 +65,16 @@ def ensure_membership(user):
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
-    form = LoginForm(request)
-    company_form = None
+    form                  = LoginForm(request)
+    company_form          = None
     show_company_selector = False
-    set_password_form = None
-    show_set_password = False
+    set_password_form     = None
+    show_set_password     = False
 
     if request.method == 'POST':
         step = request.POST.get('step', 'credentials')
 
-        # ── Paso 1: credenciales ───────────────────────────────────────────────
+        # ── Paso 1: validar credenciales ───────────────────────────────────────
         if step == 'credentials':
             form = LoginForm(request, data=request.POST)
             if form.is_valid():
@@ -83,11 +83,11 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    # ── Primer login: flag=False → forzar cambio de contraseña ──
+                    # Primer login: flag=False → forzar cambio de contraseña
                     if not user.flag:
                         auth_login(request, user)
-                        set_password_form  = SetPasswordForm()
-                        show_set_password  = True
+                        set_password_form = SetPasswordForm()
+                        show_set_password = True
                     else:
                         memberships = UserCompanyMembership.objects.filter(
                             user=user
@@ -121,7 +121,7 @@ def login_view(request):
 
             if set_password_form.is_valid():
                 new_password = set_password_form.cleaned_data['new_password']
-                user = request.user
+                user         = request.user
                 user.set_password(new_password)
                 user.flag = True
                 user.save(update_fields=['password', 'flag'])
@@ -138,10 +138,10 @@ def login_view(request):
                 ).select_related('company')
 
                 if memberships.count() > 1:
-                    company_form = CompanySelectLoginForm(companies=memberships)
+                    company_form          = CompanySelectLoginForm(companies=memberships)
                     show_company_selector = True
-                    show_set_password = False
-                    set_password_form = None
+                    show_set_password     = False
+                    set_password_form     = None
                     request.session['pending_company_selection'] = True
                 else:
                     if memberships.first():
@@ -151,9 +151,7 @@ def login_view(request):
                     messages.success(request, 'Contraseña actualizada. ¡Bienvenido!')
                     return redirect('home')
             else:
-                messages.error(
-                    request, 'Revisa los requisitos de la contraseña.'
-                )
+                messages.error(request, 'Revisa los requisitos de la contraseña.')
 
         # ── Paso 2: seleccionar empresa ────────────────────────────────────────
         elif step == 'select_company':
@@ -192,11 +190,6 @@ def login_view(request):
 
 @login_required
 def lookup_company(request):
-    """
-    GET /api/lookup-company/?tax_id=XXX
-    Devuelve los datos de una empresa por CIF para prellenar el formulario.
-    Solo accesible por ADMIN.
-    """
     if not request.user.is_admin:
         return JsonResponse({'error': 'Sin permisos'}, status=403)
 
@@ -225,7 +218,6 @@ def lookup_user(request):
     if not email:
         return JsonResponse({'error': 'Email requerido'}, status=400)
 
-    # Filtramos primero por empresa si se proporciona
     if company_id:
         membership = UserCompanyMembership.objects.filter(
             user__email__iexact=email,
@@ -237,7 +229,6 @@ def lookup_user(request):
 
         user = membership.user
     else:
-        # Manager: filtramos por su empresa de sesión
         company = getattr(request, 'company', None)
         if company:
             membership = UserCompanyMembership.objects.filter(
@@ -263,33 +254,16 @@ def lookup_user(request):
 
 @login_required
 def register_unified(request):
-    """
-    Vista unificada de registro.
-
-    ADMIN — flujo 'Registrar empresa' (company_mode = 'create'):
-        Muestra form de empresa + form de trabajador apilados.
-        Si el CIF o email ya existen en db, se relacionan silenciosamente
-        sin mostrar datos al usuario (política de privacidad).
-
-    ADMIN — flujo 'Seleccionar empresa' (company_mode = 'select'):
-        Carga datos de empresa por CIF vía AJAX y permite editarlos.
-        Muestra toggles Seleccionar/Añadir trabajador.
-
-    Manager:
-        Solo ve el apartado de trabajador de su empresa.
-    """
-    is_admin = request.user.is_admin
+    is_admin     = request.user.is_admin
     current_role = request.role
 
     if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
         messages.error(request, 'No tienes permisos para acceder a esta página.')
         return redirect('home')
 
-    # Valores de toggle por defecto
     company_mode  = 'create'
     worker_action = 'create'
 
-    # Forms vacíos por defecto
     company_form  = CompanyForm()
     worker_create = WorkerCreateForm()
     worker_select = WorkerSelectForm()
@@ -310,12 +284,13 @@ def register_unified(request):
         # ── 1. Resolver empresa ────────────────────────────────────────────────
         if is_admin:
             if company_mode == 'create':
-                # Intentamos guardar/actualizar por CIF
-                tax_id = request.POST.get('tax_id', '').strip()
-                existing_company = Companies.objects.filter(tax_id__iexact=tax_id).first() if tax_id else None
+                tax_id           = request.POST.get('tax_id', '').strip()
+                existing_company = (
+                    Companies.objects.filter(tax_id__iexact=tax_id).first()
+                    if tax_id else None
+                )
 
                 if existing_company:
-                    # Ya existe: actualizamos datos silenciosamente
                     if company_form.is_valid():
                         for field in ['name', 'legal_name', 'tax_id']:
                             value = company_form.cleaned_data.get(field)
@@ -327,10 +302,9 @@ def register_unified(request):
                     else:
                         errors.append('Corrige los datos de la empresa.')
                 else:
-                    # Nueva empresa
                     if company_form.is_valid():
-                        company_obj = company_form.save(commit=False)
-                        company_obj.id = uuid4()
+                        company_obj            = company_form.save(commit=False)
+                        company_obj.id         = uuid4()
                         company_obj.created_at = timezone.now()
                         company_obj.updated_at = timezone.now()
                         company_obj.save()
@@ -338,71 +312,79 @@ def register_unified(request):
                     else:
                         errors.append('Corrige los datos de la empresa.')
 
-            else:  # select
-                company_id = request.POST.get('company_id', '').strip()
+            else:  # company_mode == 'select'
+                company_id  = request.POST.get('company_id', '').strip()
                 company_obj = Companies.objects.filter(id=company_id).first()
 
                 if company_obj:
-                    # Re-bind con instancia para hacer UPDATE limpio
                     company_form = CompanyForm(request.POST, instance=company_obj)
                     if company_form.is_valid():
-                        company_obj = company_form.save(commit=False)
+                        company_obj            = company_form.save(commit=False)
                         company_obj.updated_at = timezone.now()
                         company_obj.save()
-                    # Si el form no es válido no bloqueamos — los datos originales siguen intactos
                 else:
                     errors.append('No se encontró la empresa. Busca de nuevo por CIF.')
 
         else:
-            # Manager: empresa = la suya desde sesión
             company_obj = request.company
 
-        # ── 2. Resolver trabajador ─────────────────────────────────────────────────────
+        # ── 2. Resolver trabajador ─────────────────────────────────────────────
         if not errors:
-            email = request.POST.get('email', '').strip()
-            existing_user = Users.objects.filter(email__iexact=email).first() if email else None
+            email         = request.POST.get('email', '').strip()
+            existing_user = (
+                Users.objects.filter(email__iexact=email).first()
+                if email else None
+            )
+            worker_role = request.POST.get(
+                'role', UserCompanyMembership.RoleChoices.EMPLOYEE
+            )
 
-            if worker_action == 'select' and existing_user:
-                # Modo edición: re-bind del form CON la instancia existente
-                active_form = WorkerSelectForm(request.POST, instance=existing_user)
-            elif worker_action == 'create' and existing_user:
-                # El usuario ya existe aunque estemos en modo 'crear': lo actualizamos
-                active_form = WorkerCreateForm(request.POST, instance=existing_user)
+            if existing_user:
+                # ── Usuario existente ──────────────────────────────────────────
+                # Actualizamos datos básicos (nombre, apellidos, estado, rol)
+                # pero NO tocamos contraseña ni flag (política de privacidad).
+                active_form = (
+                    WorkerSelectForm(request.POST, instance=existing_user)
+                    if worker_action == 'select'
+                    else WorkerCreateForm(request.POST, instance=existing_user)
+                )
+                if active_form.is_valid():
+                    worker_user          = active_form.save(commit=False)
+                    worker_user.is_admin = False
+                    # Guardamos sin tocar password ni flag
+                    worker_user.save(update_fields=['username', 'surname', 'status'])
+                else:
+                    errors.append('Corrige los datos del trabajador.')
+
             else:
-                # Usuario nuevo
-                active_form = worker_create
+                # ── Usuario nuevo ──────────────────────────────────────────────
+                # La contraseña temporal llega en el campo 'password' (TextInput,
+                # no PasswordInput, así que Django NO la descarta en el POST).
+                # Se hashea con set_password() y se guarda en users.password_hash.
+                # flag=False para forzar el cambio en el primer login.
+                if worker_create.is_valid():
+                    worker_user          = worker_create.save(commit=False)
+                    worker_user.id       = uuid4()
+                    worker_user.is_admin = False
+                    worker_user.flag     = False
 
-            worker_role = request.POST.get('role', UserCompanyMembership.RoleChoices.EMPLOYEE)
+                    temp_password = worker_create.cleaned_data.get('password', '')
+                    if temp_password:
+                        worker_user.set_password(temp_password)
 
-            if active_form.is_valid():
-                worker_user = active_form.save(commit=False)
-                is_new_user = not worker_user.pk
-
-                if is_new_user:
-                    worker_user.id = uuid4()
-
-                worker_user.is_admin = False
-                password = active_form.cleaned_data.get('password')
-
-                if password:
-                    worker_user.set_password(password)
-                    if is_new_user:
-                        worker_user.flag = False  
-                
-                worker_user.save()
-            else:
-                errors.append('Corrige los datos del trabajador.')
+                    worker_user.save()
+                else:
+                    errors.append('Corrige los datos del trabajador.')
 
         # ── 3. Crear/actualizar membership ─────────────────────────────────────
         if not errors and worker_user and company_obj:
-            role = worker_role or UserCompanyMembership.RoleChoices.EMPLOYEE
+            role       = worker_role or UserCompanyMembership.RoleChoices.EMPLOYEE
             membership = UserCompanyMembership.objects.filter(
                 user=worker_user,
                 company=company_obj,
             ).first()
 
             if membership:
-                # Ya existe la relación: actualizamos el rol si cambió
                 if role and membership.role != role:
                     membership.role = role
                     membership.save(update_fields=['role'])
@@ -421,12 +403,12 @@ def register_unified(request):
             messages.error(request, error)
 
     return render(request, 'login/register_unified.html', {
-        'is_admin':     is_admin,
+        'is_admin':      is_admin,
         'current_role':  current_role,
-        'company_form': company_form,
+        'company_form':  company_form,
         'worker_create': worker_create,
         'worker_select': worker_select,
-        'company_mode': company_mode,
+        'company_mode':  company_mode,
         'worker_action': worker_action,
     })
 
@@ -435,7 +417,6 @@ def register_unified(request):
 
 @login_required
 def workday(request):
-
     user = Users.objects.filter(email=request.user.email).first()
 
     if not user:
@@ -484,7 +465,7 @@ def workday(request):
                 messages.error(request, 'No hay entrada activa para hacer clock-out.')
             else:
                 active_entry.clock_out = timezone.now()
-                active_entry.status = TimeEntries.EntryStatus.CONFIRMED
+                active_entry.status    = TimeEntries.EntryStatus.CONFIRMED
                 active_entry.save(update_fields=['clock_out', 'status'])
                 TimeEntryEvent.objects.create(
                     id=uuid4(),
@@ -523,26 +504,15 @@ def workday(request):
 
         elif action == 'request_correction':
             entry_id = request.POST.get('entry_id')
-            reason = request.POST.get('reason', '').strip()
-            #new_clock_in_str = request.POST.get('new_clock_in')
-            #new_clock_out_str = request.POST.get('new_clock_out')
-            entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
-            
+            reason   = request.POST.get('reason', '').strip()
+            entry    = TimeEntries.objects.filter(id=entry_id, user=user).first()
+
             if entry and reason:
-                # Convertimos los strings del formulario a objetos datetime si existen
-         #       from django.utils.dateparse import parse_datetime
-                # Si el formulario envía solo la hora (HH:MM), deberás combinarlo con la fecha del registro original
-                # Suponiendo que el input es datetime-local o que ya envías el string completo:
-         #       new_in = parse_datetime(f"{entry.date} {new_clock_in_str}") if new_clock_in_str else None
-        #        new_out = parse_datetime(f"{entry.date} {new_clock_out_str}") if new_clock_out_str else None
-                # Ahora SÍ guardamos las horas nuevas
                 CorrectionRequests.objects.create(
-                    id=uuid4(), 
-                    time_entry=entry, 
-                    requester=user, 
-                    reason=reason, 
-              #      new_clock_in=new_in,  
-             #       new_clock_out=new_out,
+                    id=uuid4(),
+                    time_entry=entry,
+                    requester=user,
+                    reason=reason,
                     status='pending'
                 )
                 messages.success(request, 'Solicitud de corrección enviada.')
@@ -552,7 +522,6 @@ def workday(request):
         return redirect('workday')
 
     # ── Datos para la plantilla ────────────────────────────────────────────────
-
     entries = TimeEntries.objects.filter(
         user=user,
         company=company
@@ -566,8 +535,8 @@ def workday(request):
     entry_rows = []
     for e in entries:
         worked_seconds = compute_worked_seconds(e)
-        hours = worked_seconds // 3600
-        minutes = (worked_seconds % 3600) // 60
+        hours          = worked_seconds // 3600
+        minutes        = (worked_seconds % 3600) // 60
         entry_rows.append({
             'id':        e.id,
             'date':      e.date,
@@ -581,7 +550,7 @@ def workday(request):
     for r in correction_requests:
         request_rows.append({
             'date':          r.request_date.date() if r.request_date else None,
-            'new_clock_in':  r.time_entry.clock_in if r.time_entry else None,
+            'new_clock_in':  r.time_entry.clock_in  if r.time_entry else None,
             'new_clock_out': r.time_entry.clock_out if r.time_entry else None,
             'reason':        r.reason,
             'status':        r.status,
