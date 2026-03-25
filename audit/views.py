@@ -13,6 +13,8 @@ import uuid
 from django.utils import timezone
 from datetime import datetime
 from django.http import HttpResponseForbidden
+from django.db.models import Q
+from django.views.decorators.http import require_POST
 
 # Decorador para verificar que el usuario es manager o admin antes de acceder a ciertas vistas
 def manager_or_admin_required(view_func):
@@ -35,6 +37,7 @@ def manager_or_admin_required(view_func):
             
     return _wrapped_view
 
+# Vista principal del manager para ver los logs de fichajes de su empresa, con filtros e incidencias
 @manager_or_admin_required
 def manager_logs(request):
     # 1. Obtener la empresa del manager
@@ -111,6 +114,7 @@ def manager_logs(request):
     }
     return render(request, 'audit/manager_logs.html', context)  
 
+# Vista para que el manager acepte o deniegue una incidencia, con su nota de resolución
 @manager_or_admin_required
 def resolver_incidencia(request):
     if request.method == 'POST':
@@ -162,11 +166,9 @@ def resolver_incidencia(request):
         
     return HttpResponse("Método no permitido.")
 
+# Vista para exportar los logs filtrados a CSV, con formato compatible con Excel y con los segundos formateados
 def exportar_logs(request):
-    
-    if not request.usercompanymembership.role == UserCompanyMembership.RoleChoices.MANAGER or not request.user.is_admin == 'True':
-        return HttpResponse("No tienes permisos para acceder a esta página.")
-    
+
     if request.method == 'POST':
         registros_ids = request.POST.getlist('registro_id')
 
@@ -209,8 +211,7 @@ def exportar_logs(request):
 
     return response
     
-    return HttpResponse("Método no permitido.")
-
+# Vista para que el manager edite manualmente un registro (en caso de incidencia o error), creando un nuevo registro corregido y anulando el original    
 @manager_or_admin_required
 def editar_registro(request):   
     if request.method == 'POST':
@@ -252,10 +253,90 @@ def editar_registro(request):
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
 
-@manager_or_admin_required
+
+@login_required # Cambiamos manager_or_admin_required por login_required normal
 def manager_employee(request):
-    employees = Users.objects  # Obtener todos los empleados
-    return render(request, 'audit/manager_employee.html', {'employees': employees})
+    # 1. Obtener la membresía del usuario actual (sea manager o empleado)
+    user_membership = UserCompanyMembership.objects.filter(user=request.user).first()
+
+    if not user_membership:
+        return HttpResponseForbidden("No estás asignado a ninguna empresa.")
+
+    company = user_membership.company
+    
+    # Comprobamos si es manager o admin para pasarlo a la plantilla
+    is_manager = (user_membership.role == UserCompanyMembership.RoleChoices.MANAGER) or request.user.is_admin
+
+    # 2. Obtener TODAS las membresías (empleados) de esa empresa
+    memberships = UserCompanyMembership.objects.filter(
+        company=company
+    ).select_related('user').order_by('-joined_at')
+
+    # Ya no filtramos aquí, lo haremos en el navegador con JavaScript
+
+    return render(request, 'audit/manager_employee.html', {
+        'memberships': memberships,
+        'is_manager': is_manager
+    })
+
+@manager_or_admin_required
+@require_POST
+def edit_employee(request):
+    # 1. Obtener la empresa del manager actual
+    membership_manager = UserCompanyMembership.objects.filter(
+        user=request.user, 
+        role=UserCompanyMembership.RoleChoices.MANAGER
+    ).first()
+    company = membership_manager.company
+
+    # 2. Recoger datos del formulario
+    user_id = request.POST.get('user_id')
+    username = request.POST.get('username')
+    surname = request.POST.get('surname')
+    role = request.POST.get('role')
+    status = request.POST.get('status')
+
+    # 3. Validar que el empleado pertenece a la empresa del manager
+    membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
+    user = membership.user
+
+    # 4. Actualizar datos del usuario
+    user.username = username
+    user.surname = surname
+    user.status = status
+    user.save()
+
+    # 5. Actualizar rol en la empresa
+    membership.role = role
+    membership.save()
+
+    return redirect('manager_employee')
+
+@manager_or_admin_required
+@require_POST
+def delete_employee(request):
+    # 1. Obtener la empresa del manager actual
+    membership_manager = UserCompanyMembership.objects.filter(
+        user=request.user, 
+        role=UserCompanyMembership.RoleChoices.MANAGER
+    ).first()
+    company = membership_manager.company
+
+    # 2. Recoger el ID del usuario a eliminar
+    user_id = request.POST.get('user_id')
+
+    # 3. Buscar la vinculación (membership) y eliminarla
+    # Con esto "desvinculamos" al usuario de la empresa sin borrar sus fichajes históricos ni su cuenta global
+    membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
+    
+    # Evitar que un manager se elimine a sí mismo por error
+    if user_id == str(request.user.id):
+        # Aquí podrías usar messages.error(request, "No puedes eliminarte a ti mismo")
+        return redirect('manager_employee')
+
+    membership.delete()
+
+    return redirect('manager_employee')
 
 
 
