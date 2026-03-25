@@ -32,9 +32,8 @@ AUTH_USER_MODEL = 'users.Users'
 
 #Redirections
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'home'
+LOGIN_REDIRECT_URL = 'home_timetracking'
 LOGOUT_REDIRECT_URL = 'login'
-TIME_TRACKING_URL = 'timetracker'
 
 #Messages
 from django.contrib.messages import constants as messages

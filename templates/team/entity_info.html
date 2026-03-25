@@ -24,13 +24,6 @@
     </div>
   </div>
 
-  {# ── Django messages ── #}
-  {% for message in messages %}
-    <div class="alert alert-{% if message.tags == 'success' %}success{% else %}danger{% endif %} alert-dismissible fade show py-2" role="alert">
-      {{ message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-  {% endfor %}
     {# ── Card: Datos generales ── #}
     <div class="card mb-3">
       <div class="card-header fw-semibold">Datos generales</div>
