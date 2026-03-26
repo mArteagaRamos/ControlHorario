@@ -1,3 +1,5 @@
+from datetime import timedelta
+from urllib import request
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -44,14 +46,19 @@ def request_correction(request):
 
 @login_required
 def entity_info(request):
-    company = getattr(request.user, 'company', None)
+    company_id = request.session.get('company_id')
+    if not company_id:
+        messages.error(request, 'No tienes empresa asignada.')
+        return redirect('home_timetracking')
+
+    company = Companies.objects.filter(id=company_id).first()
     if not company:
-        messages.error(request, "No estás asociado a ninguna empresa.")
-        return redirect('home_tracking')
+        messages.error(request, 'Empresa no encontrada.')
+        return redirect('home_timetracking')
     
     membership = UserCompanyMembership.objects.filter(
-        user=request.user, 
-        company=company
+    user=request.user, 
+    company=company
     ).first()
 
     user_role = membership.role if membership else None
