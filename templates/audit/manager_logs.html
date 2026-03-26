@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
             actualizarBotonExportar();
             
             // Actualizamos la URL en el navegador (por si recargan la página)
-            window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+            // window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         })
         .catch(error => {
             console.error('Error:', error);
