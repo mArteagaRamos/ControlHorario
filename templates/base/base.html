@@ -105,12 +105,14 @@
 
         <ul class="nav nav-pills flex-column mb-auto">
 
-            <li>
-                <a href={% url 'control' %} class="nav-link text-white">
-                    <i class="bi bi-pencil-square me-2"></i>
-                    Panel de control
-                </a>
-            </li>
+            {% if is_admin or current_role == 'manager' %}
+                <li>
+                    <a href={% url 'manager_logs' %} class="nav-link text-white">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Panel de control
+                    </a>
+                </li>
+            {% endif %}
 
             <li>
                 <a href={% url 'home_timetracking' %} class="nav-link text-white">
@@ -178,7 +180,7 @@
                 <div class="collapse" id="submenuEquipo">
                     <ul class="nav flex-column ms-3 mt-1 small">
                         <li class="nav-item">
-                            <a class="nav-link text-white-50" href={% url 'staff' %}>
+                            <a class="nav-link text-white-50" href={% url 'manager_employee' %}>
                                 <i class="bi bi-play-circle me-2"></i>Personal
                             </a>
                         </li>
