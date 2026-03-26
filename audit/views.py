@@ -15,7 +15,7 @@ from datetime import datetime
 from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.views.decorators.http import require_POST
-
+from django.core.paginator import Paginator
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -67,17 +67,15 @@ def manager_logs(request):
         company=company
     ).values('role')[:1]
 
-    # --- CHANGE: We move incidents up here so we can use their IDs as a filter ---
     incidencias = CorrectionRequests.objects.filter(
         time_entry__company=company, 
         status='pending'
     ).select_related('time_entry', 'requester').order_by('-request_date')
 
-    # For the red dot in the table and for filtering, we extract the IDs
     fichajes_con_incidencia = incidencias.values_list('time_entry_id', flat=True)
     fichajes_con_incidencia_str = [str(uid) for uid in fichajes_con_incidencia]
 
-    # 4. Get the clock-ins (TimeEntries) and inject the role into them
+    # 4. Get the clock-ins
     registros = TimeEntries.objects.filter(
         company=company
     ).exclude(
@@ -86,7 +84,7 @@ def manager_logs(request):
         rol_empleado=Subquery(rol_subquery)
     ).select_related('user').order_by('-date', '-clock_in')
 
-    # 5. Apply Filters if they exist in the GET request
+    # 5. Apply Filters
     empleado_id = request.GET.get('empleado')
     fecha = request.GET.get('fecha')
     desde = request.GET.get('desde')
@@ -101,22 +99,33 @@ def manager_logs(request):
         registros = registros.filter(clock_in__time__gte=desde)
     if hasta:
         registros = registros.filter(clock_out__time__lte=hasta) 
-    
-    # NEW FILTER: We only keep those whose ID is in the incidents list
-    if solo_incidencias == 'true' or solo_incidencias == 'on':
+    if solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
-    # 6. Format seconds to "Xh Ym" so it looks nice in the table
-    for r in registros:
+    # 6. PAGINACIÓN: Solo 20 registros por página
+    paginator = Paginator(registros, 20)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    # 7. Formatear segundos SOLO para los 20 registros que se van a mostrar
+    for r in page_obj:
         horas = r.total_seconds // 3600
         minutos = (r.total_seconds % 3600) // 60
         r.horas_formateadas = f"{horas}h {minutos}m" if r.total_seconds > 0 else "--"
 
     context = {
-        'registros': registros,
+        'page_obj': page_obj, # Enviamos la página en lugar de todos los registros
         'empleados': empleados,
         'incidencias': incidencias,
         'fichajes_con_incidencia': fichajes_con_incidencia_str,
+        # Pasamos los filtros actuales para que el HTML los recuerde
+        'current_filters': {
+            'empleado': empleado_id or '',
+            'fecha': fecha or '',
+            'desde': desde or '',
+            'hasta': hasta or '',
+            'solo_incidencias': solo_incidencias or '',
+        }
     }
     return render(request, 'audit/manager_logs.html', context)  
 

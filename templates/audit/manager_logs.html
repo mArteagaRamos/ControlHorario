@@ -24,51 +24,56 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 fw-bold mb-0">Panel de Administración</h2>
-        <button type="submit" form="exportForm" id="btnExportar" class="btn btn-success d-flex align-items-center gap-2">
+        <button type="submit" form="exportForm" id="btnExportar" class="btn btn-success d-flex align-items-center gap-2" disabled>
             <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
         </button>
     </div>
 
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
-            <div class="row g-3 mb-4 align-items-end" id="filtros-container">
-                <div class="col-md-3">
-                    <label class="form-label text-muted">Empleado</label>
-                    <select id="empleado-select" class="form-select">
-                        <option value=""></option> 
-                        {% for emp in empleados %}
-                            <option value="{{ emp.id }}">{{ emp.username }} {{ emp.surname }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label text-muted">Fecha de registro</label>
-                    <input type="date" id="filtroFecha" class="form-control js-filter">
-                </div>
+            <form id="filterForm" onsubmit="event.preventDefault();">
+                <div class="row g-3 mb-4 align-items-end" id="filtros-container">
+                    <div class="col-md-3">
+                        <label class="form-label text-muted">Empleado</label>
+                        <select id="empleado-select" name="empleado" class="form-select">
+                            <option value=""></option> 
+                            {% for emp in empleados %}
+                                <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ emp.username }} {{ emp.surname }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label class="form-label text-muted">Fecha de registro</label>
+                        <input type="date" id="filtroFecha" name="fecha" value="{{ request.GET.fecha }}" class="form-control js-filter">
+                    </div>
 
-                <div class="col-md-2">
-                    <label class="form-label text-muted">Hora Desde</label>
-                    <input type="time" id="filtroDesde" class="form-control js-filter">
-                </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted">Hora Desde</label>
+                        <input type="time" id="filtroDesde" name="hora_desde" value="{{ request.GET.hora_desde }}" class="form-control js-filter">
+                    </div>
 
-                <div class="col-md-2">
-                    <label class="form-label text-muted">Hora Hasta</label>
-                    <input type="time" id="filtroHasta" class="form-control js-filter">
-                </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-muted">Hora Hasta</label>
+                        <input type="time" id="filtroHasta" name="hora_hasta" value="{{ request.GET.hora_hasta }}" class="form-control js-filter">
+                    </div>
 
-                <div class="col-md-3">
-                    <label class="form-label d-none d-md-block">&nbsp;</label>
-                    <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
-                        <div class="d-flex align-items-center">
-                            <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
-                            <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
-                        </div>
-                        <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
-                            <input class="form-check-input ms-0 mt-0 js-filter" type="checkbox" role="switch" id="solo_incidencias" style="width: 2.5em; height: 1.25em; cursor: pointer;">
-                        </div>
-                    </label>
+                    <div class="col-md-3">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
+                                <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
+                            </div>
+                            <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                                <input class="form-check-input ms-0 mt-0 js-filter" type="checkbox" role="switch" id="solo_incidencias" name="solo_incidencias" value="true" {% if request.GET.solo_incidencias %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                            </div>
+                        </label>
+                    </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -76,11 +81,11 @@
         <h5 class="fw-bold text-secondary">Historial General de Entradas</h5>
     </div>
     
-    <div class="card shadow-sm border-0 mb-5">
-        <div class="table-responsive table-scroll-container">
+    <div id="resultados-actualizables" class="card shadow-sm border-0 mb-5">
+        <div class="table-responsive table-scroll-container" style="transition: opacity 0.2s ease;">
             <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
                 {% csrf_token %}
-                <table class="table table-hover align-middle">
+                <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
                             <th>
@@ -95,14 +100,8 @@
                         </tr>
                     </thead>
                     <tbody id="tablaRegistros">
-                        {% for registro in registros %}
-                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:"s" not in fichajes_con_incidencia %}table-light{% endif %}"
-                            data-empleado-id="{{ registro.user.id }}"
-                            data-fecha="{{ registro.date|date:'Y-m-d' }}"
-                            data-hora-in="{{ registro.clock_in|time:'H:i' }}"
-                            data-hora-out="{{ registro.clock_out|time:'H:i'|default:'' }}"
-                            data-incidencia="{% if registro.id|stringformat:'s' in fichajes_con_incidencia %}true{% else %}false{% endif %}">
-                            
+                        {% for registro in page_obj %}
+                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}">
                             <td>
                                 <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
                                 {{ registro.user.username }} {{ registro.user.surname }}
@@ -153,14 +152,35 @@
                                 </div>
                             </td>
                         </tr>
-                        {% endfor %}
-                        <tr id="no-results-js" style="display: none;">
+                        {% empty %}
+                        <tr>
                             <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </form>
         </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer bg-white border-0 py-3">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><button class="page-link" onclick="cambiarPagina(1)">Primera</button></li>
+                        <li class="page-item"><button class="page-link" onclick="cambiarPagina({{ page_obj.previous_page_number }})">Anterior</button></li>
+                    {% endif %}
+                    
+                    <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><button class="page-link" onclick="cambiarPagina({{ page_obj.next_page_number }})">Siguiente</button></li>
+                        <li class="page-item"><button class="page-link" onclick="cambiarPagina({{ page_obj.paginator.num_pages }})">Última</button></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -245,131 +265,125 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    const contenedor = document.getElementById('resultados-actualizables');
     
-    // 1. Elementos del DOM para el filtro
-    const inputFecha = document.getElementById('filtroFecha');
-    const inputDesde = document.getElementById('filtroDesde');
-    const inputHasta = document.getElementById('filtroHasta');
-    const checkIncidencia = document.getElementById('solo_incidencias');
-    const filas = document.querySelectorAll('.registro-row');
-    const noResultsJs = document.getElementById('no-results-js');
-    let tomSelectInstance;
+    // --- FUNCIÓN PRINCIPAL FETCH ---
+    window.fetchResultados = function(page = 1) {
+        // Efecto visual de carga
+        const tabla = contenedor.querySelector('.table-scroll-container');
+        if(tabla) tabla.style.opacity = '0.4';
+        contenedor.style.pointerEvents = 'none';
 
-    // 2. Función principal de filtrado
-    function filtrarTabla() {
-        const empleadoBuscado = tomSelectInstance ? tomSelectInstance.getValue() : '';
-        const fechaBuscada = inputFecha.value; 
-        const horaDesde = inputDesde.value;
-        const horaHasta = inputHasta.value;
-        const soloIncidencias = checkIncidencia.checked;
+        // Recopilamos todos los datos del formulario de filtros
+        const formData = new FormData(filterForm);
+        const params = new URLSearchParams(formData);
+        params.set('page', page);
 
-        let filasVisibles = 0;
-
-        filas.forEach(fila => {
-            const empId = fila.getAttribute('data-empleado-id');
-            const fecha = fila.getAttribute('data-fecha'); 
-            const horaIn = fila.getAttribute('data-hora-in');
-            const esIncidencia = fila.getAttribute('data-incidencia') === 'true';
-
-            const coincideEmpleado = (empleadoBuscado === "") || (empId === empleadoBuscado);
-            const coincideFecha = (fechaBuscada === "") || (fecha === fechaBuscada);
+        // Hacemos la petición silenciosa al servidor
+        fetch(`${window.location.pathname}?${params.toString()}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.text())
+        .then(html => {
+            // Extraemos solo la tabla y paginación del nuevo HTML recibido
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const nuevoContenido = doc.getElementById('resultados-actualizables');
             
-            let coincideDesde = true;
-            let coincideHasta = true;
-            if (horaDesde) coincideDesde = horaIn >= horaDesde;
-            if (horaHasta) coincideHasta = horaIn <= horaHasta;
-            const coincideHora = coincideDesde && coincideHasta;
-
-            const coincideIncidencia = (!soloIncidencias) || esIncidencia;
-
-            if (coincideEmpleado && coincideFecha && coincideHora && coincideIncidencia) {
-                fila.style.display = '';
-                filasVisibles++;
-            } else {
-                fila.style.display = 'none';
-                const checkbox = fila.querySelector('.select-row');
-                if (checkbox) checkbox.checked = false; 
+            if (nuevoContenido) {
+                contenedor.innerHTML = nuevoContenido.innerHTML;
             }
+
+            // Quitamos efecto de carga y actualizamos botones
+            contenedor.style.pointerEvents = 'auto';
+            actualizarBotonExportar();
+            
+            // Actualizamos la URL en el navegador (por si recargan la página)
+            window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if(tabla) tabla.style.opacity = '1';
+            contenedor.style.pointerEvents = 'auto';
         });
+    };
 
-        if (noResultsJs) {
-            noResultsJs.style.display = (filasVisibles === 0 && filas.length > 0) ? '' : 'none';
-        }
-
-        actualizarBotonExportar();
-    }
+    // --- EVENTOS DE LOS FILTROS ---
+    let tomSelectInit = false; // Flag para evitar llamadas dobles al inicio
 
     if (typeof TomSelect !== 'undefined') {
-        tomSelectInstance = new TomSelect("#empleado-select", {
+        new TomSelect("#empleado-select", {
             placeholder: "Todos los empleados", 
             allowEmptyOption: true,
             plugins: ['clear_button'], 
-            onChange: function(value) {
-                filtrarTabla();
+            onChange: function() {
+                if (tomSelectInit) fetchResultados(1);
             }
         });
+        tomSelectInit = true; // Activar después de inicializar
     }
 
+    // Escuchar cambios en inputs de fecha, hora e incidencias
     document.querySelectorAll('.js-filter').forEach(input => {
-        input.addEventListener('change', filtrarTabla);
+        input.addEventListener('change', () => fetchResultados(1));
     });
-    inputDesde.addEventListener('input', filtrarTabla);
-    inputHasta.addEventListener('input', filtrarTabla);
 
-    const selectAllCheckbox = document.getElementById('selectAll');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            let checkboxes = document.querySelectorAll('.registro-row[style=""] .select-row, .registro-row:not([style*="display: none"]) .select-row');
-            checkboxes.forEach(cb => cb.checked = this.checked);
-            actualizarBotonExportar();
-        });
-    }
+    // --- FUNCIÓN DE PAGINACIÓN ---
+    window.cambiarPagina = function(numeroPagina) {
+        fetchResultados(numeroPagina);
+    };
 
-    function actualizarBotonExportar() {
+    // --- LOGICA DE CHECKBOXES Y EXPORTACIÓN ---
+    window.actualizarBotonExportar = function() {
         const seleccionados = document.querySelectorAll('.select-row:checked').length;
         const btnExportar = document.getElementById('btnExportar');
-        
+        if (!btnExportar) return;
+
         if (seleccionados > 0) {
             btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
             btnExportar.disabled = false;
         } else {
             btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+            btnExportar.disabled = true;
         }
-    }
+    };
 
+    // Usamos delegación de eventos porque los checkboxes se reemplazan dinámicamente
     document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('select-row')) {
+        if (e.target.id === 'selectAll') {
+            document.querySelectorAll('.select-row').forEach(cb => cb.checked = e.target.checked);
             actualizarBotonExportar();
+        } 
+        else if (e.target.classList.contains('select-row')) {
+            actualizarBotonExportar();
+            const selectAllCheckbox = document.getElementById('selectAll');
             if (!e.target.checked && selectAllCheckbox) {
                 selectAllCheckbox.checked = false;
             }
         }
     });
 
-    // --- MODALES ---
+    // --- EVENTOS DE MODALES (Delegación para elementos dinámicos) ---
     const resolverModal = document.getElementById('modalResolver');
-        if (resolverModal) {
-            resolverModal.addEventListener('show.bs.modal', function(event) {
-                let button = event.relatedTarget; 
-                
-                document.getElementById('incidenciaIdInput').value = button.getAttribute('data-id');
-                document.getElementById('modalEmpleado').textContent = button.getAttribute('data-empleado');
-                document.getElementById('modalMotivo').textContent = button.getAttribute('data-motivo') || "No se especificó un motivo.";
-                
-                document.getElementById('modalOldIn').textContent = button.getAttribute('data-old-in');
-                document.getElementById('modalOldOut').textContent = button.getAttribute('data-old-out');
-                document.getElementById('modalNewIn').textContent = button.getAttribute('data-new-in');
-                document.getElementById('modalNewOut').textContent = button.getAttribute('data-new-out');
-            });
-        }
+    if (resolverModal) {
+        resolverModal.addEventListener('show.bs.modal', function(event) {
+            let button = event.relatedTarget; 
+            document.getElementById('incidenciaIdInput').value = button.getAttribute('data-id');
+            document.getElementById('modalEmpleado').textContent = button.getAttribute('data-empleado');
+            document.getElementById('modalMotivo').textContent = button.getAttribute('data-motivo') || "No se especificó un motivo.";
+            document.getElementById('modalOldIn').textContent = button.getAttribute('data-old-in');
+            document.getElementById('modalOldOut').textContent = button.getAttribute('data-old-out');
+            document.getElementById('modalNewIn').textContent = button.getAttribute('data-new-in');
+            document.getElementById('modalNewOut').textContent = button.getAttribute('data-new-out');
+        });
+    }
 
     const editarModal = document.getElementById('modalEditar');
     if (editarModal) {
         editarModal.addEventListener('show.bs.modal', function(event) {
             let button = event.relatedTarget.closest('button');
-            
             document.getElementById('editRegistroId').value = button.getAttribute('data-entry-id');
-            // CAMBIO: Asignamos directamente la fecha y hora completa
             document.getElementById('editClockIn').value = button.getAttribute('data-in');
             document.getElementById('editClockOut').value = button.getAttribute('data-out') || '';
         });
