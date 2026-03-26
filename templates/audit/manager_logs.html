@@ -132,10 +132,10 @@
                                                     data-id="{{ incidencia.id }}"
                                                     data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
                                                     data-motivo="{{ incidencia.reason }}"
-                                                    data-old-in="{{ registro.clock_in|time:'H:i' }}"
-                                                    data-old-out="{{ registro.clock_out|time:'H:i'|default:'--:--' }}"
-                                                    data-new-in="{{ incidencia.new_clock_in|time:'H:i'|default:'--:--' }}"
-                                                    data-new-out="{{ incidencia.new_clock_out|time:'H:i'|default:'--:--' }}">
+                                                    data-old-in="{{ registro.clock_in|date:'d/m/Y H:i' }}"
+                                                    data-old-out="{% if registro.clock_out %}{{ registro.clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                    data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                    data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}">
                                                     <i class="bi bi-wrench"></i> Resolver
                                                 </button>
                                             {% endif %}
@@ -145,8 +145,8 @@
                                             data-bs-toggle="modal" 
                                             data-bs-target="#modalEditar"
                                             data-entry-id="{{ registro.id }}"
-                                            data-in="{{ registro.clock_in|time:'H:i' }}"
-                                            data-out="{{ registro.clock_out|time:'H:i'|default:'' }}">
+                                            data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
+                                            data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
                                             <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
                                         </button>
                                     {% endif %}
@@ -179,17 +179,17 @@
                 </div>
                 <div class="row text-center mb-3">
                     <div class="col-md-6 border-end">
-                        <h6 class="fw-bold text-secondary">Horas Actuales Registradas</h6>
-                        <div class="d-flex justify-content-center gap-4 mt-2">
-                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-secondary fs-6" id="modalOldIn"></span></div>
-                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-secondary fs-6" id="modalOldOut"></span></div>
+                        <h6 class="fw-bold text-secondary">Registros Actuales</h6>
+                        <div class="d-flex flex-column gap-3 mt-3">
+                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-secondary fs-6 w-75" id="modalOldIn"></span></div>
+                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-secondary fs-6 w-75" id="modalOldOut"></span></div>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <h6 class="fw-bold text-success">Horas Solicitadas</h6>
-                        <div class="d-flex justify-content-center gap-4 mt-2">
-                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-success fs-6" id="modalNewIn"></span></div>
-                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-success fs-6" id="modalNewOut"></span></div>
+                        <h6 class="fw-bold text-success">Registros Solicitados</h6>
+                        <div class="d-flex flex-column gap-3 mt-3">
+                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-success fs-6 w-75" id="modalNewIn"></span></div>
+                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-success fs-6 w-75" id="modalNewOut"></span></div>
                         </div>
                     </div>
                 </div>
@@ -199,7 +199,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="incidencia_id" id="incidenciaIdInput">
 
-                    <div class="mb-3 text-start">
+                    <div class="mb-3 text-start w-100">
                         <label for="nota_resolucion" class="form-label small fw-bold text-muted">Nota de resolución (Opcional):</label>
                         <textarea name="nota_resolucion" class="form-control form-control-sm" rows="2" placeholder="Ej: Se acepta tras revisar cámaras..."></textarea>
                     </div>
@@ -225,13 +225,13 @@
                     <input type="hidden" name="registro_id" id="editRegistroId">
                     
                     <div class="mb-3">
-                        <label for="editClockIn" class="form-label text-muted fw-semibold small">HORA DE ENTRADA</label>
-                        <input type="time" class="form-control" id="editClockIn" name="clock_in" required>
+                        <label for="editClockIn" class="form-label text-muted fw-semibold small">FECHA Y HORA DE ENTRADA</label>
+                        <input type="datetime-local" class="form-control" id="editClockIn" name="clock_in" required>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="editClockOut" class="form-label text-muted fw-semibold small">HORA DE SALIDA</label>
-                        <input type="time" class="form-control" id="editClockOut" name="clock_out">
+                        <label for="editClockOut" class="form-label text-muted fw-semibold small">FECHA Y HORA DE SALIDA</label>
+                        <input type="datetime-local" class="form-control" id="editClockOut" name="clock_out">
                     </div>
                 </div>
                 <div class="modal-footer bg-light justify-content-between">
@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 2. Función principal de filtrado
     function filtrarTabla() {
         const empleadoBuscado = tomSelectInstance ? tomSelectInstance.getValue() : '';
-        const fechaBuscada = inputFecha.value; // Formato YYYY-MM-DD
+        const fechaBuscada = inputFecha.value; 
         const horaDesde = inputDesde.value;
         const horaHasta = inputHasta.value;
         const soloIncidencias = checkIncidencia.checked;
@@ -267,15 +267,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         filas.forEach(fila => {
             const empId = fila.getAttribute('data-empleado-id');
-            const fecha = fila.getAttribute('data-fecha'); // Formato YYYY-MM-DD del servidor
+            const fecha = fila.getAttribute('data-fecha'); 
             const horaIn = fila.getAttribute('data-hora-in');
             const esIncidencia = fila.getAttribute('data-incidencia') === 'true';
 
-            // Comprobaciones
             const coincideEmpleado = (empleadoBuscado === "") || (empId === empleadoBuscado);
             const coincideFecha = (fechaBuscada === "") || (fecha === fechaBuscada);
             
-            // Lógica de horas (comprobamos si la hora de entrada está en el rango)
             let coincideDesde = true;
             let coincideHasta = true;
             if (horaDesde) coincideDesde = horaIn >= horaDesde;
@@ -284,19 +282,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const coincideIncidencia = (!soloIncidencias) || esIncidencia;
 
-            // Mostrar/Ocultar
             if (coincideEmpleado && coincideFecha && coincideHora && coincideIncidencia) {
                 fila.style.display = '';
                 filasVisibles++;
             } else {
                 fila.style.display = 'none';
-                // Si ocultamos la fila, desmarcamos el checkbox para no exportar cosas ocultas
                 const checkbox = fila.querySelector('.select-row');
                 if (checkbox) checkbox.checked = false; 
             }
         });
 
-        // Mostrar mensaje de sin resultados
         if (noResultsJs) {
             noResultsJs.style.display = (filasVisibles === 0 && filas.length > 0) ? '' : 'none';
         }
@@ -304,7 +299,6 @@ document.addEventListener('DOMContentLoaded', function() {
         actualizarBotonExportar();
     }
 
-    // 3. Inicializar TomSelect y conectarlo al filtro
     if (typeof TomSelect !== 'undefined') {
         tomSelectInstance = new TomSelect("#empleado-select", {
             placeholder: "Todos los empleados", 
@@ -316,27 +310,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 4. Escuchar cambios en el resto de filtros
     document.querySelectorAll('.js-filter').forEach(input => {
         input.addEventListener('change', filtrarTabla);
     });
-    // Para las horas, usar input para que reaccione mientras escriben
     inputDesde.addEventListener('input', filtrarTabla);
     inputHasta.addEventListener('input', filtrarTabla);
 
-
-    // --- CHECKBOXES MULTIPLES ---
     const selectAllCheckbox = document.getElementById('selectAll');
     if (selectAllCheckbox) {
         selectAllCheckbox.addEventListener('change', function() {
-            // Solo seleccionar las filas que están visibles (no filtradas)
             let checkboxes = document.querySelectorAll('.registro-row[style=""] .select-row, .registro-row:not([style*="display: none"]) .select-row');
             checkboxes.forEach(cb => cb.checked = this.checked);
             actualizarBotonExportar();
         });
     }
 
-    // Actualizar botón exportar
     function actualizarBotonExportar() {
         const seleccionados = document.querySelectorAll('.select-row:checked').length;
         const btnExportar = document.getElementById('btnExportar');
@@ -346,21 +334,19 @@ document.addEventListener('DOMContentLoaded', function() {
             btnExportar.disabled = false;
         } else {
             btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
-            // Opcional: btnExportar.disabled = true; si quieres que no puedan darle si no hay nada
         }
     }
 
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('select-row')) {
             actualizarBotonExportar();
-            // Desmarcar "Select All" si desmarcamos uno individual
             if (!e.target.checked && selectAllCheckbox) {
                 selectAllCheckbox.checked = false;
             }
         }
     });
 
-    // --- MODALES (Mantener tu lógica igual) ---
+    // --- MODALES ---
     const resolverModal = document.getElementById('modalResolver');
         if (resolverModal) {
             resolverModal.addEventListener('show.bs.modal', function(event) {
@@ -381,11 +367,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (editarModal) {
         editarModal.addEventListener('show.bs.modal', function(event) {
             let button = event.relatedTarget.closest('button');
-            let timeOut = button.getAttribute('data-out');
             
             document.getElementById('editRegistroId').value = button.getAttribute('data-entry-id');
+            // CAMBIO: Asignamos directamente la fecha y hora completa
             document.getElementById('editClockIn').value = button.getAttribute('data-in');
-            document.getElementById('editClockOut').value = (timeOut && timeOut !== '--:--') ? timeOut : '';
+            document.getElementById('editClockOut').value = button.getAttribute('data-out') || '';
         });
     }
 });

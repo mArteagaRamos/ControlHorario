@@ -224,17 +224,17 @@ def editar_registro(request):
         registro_id = request.POST.get('registro_id')
         registro_original = get_object_or_404(TimeEntries, id=registro_id)
 
-        hora_entrada = request.POST.get('clock_in')
+        hora_entrada = request.POST.get('clock_in') # Ahora recibe algo como "YYYY-MM-DDTHH:MM"
         hora_salida = request.POST.get('clock_out')
 
         # 1. Void the current one
         registro_original.status = TimeEntries.EntryStatus.CORRECTED
         registro_original.save()
 
-        # 2. Build datetimes for the new record
-        # We use the original record's date and attach the new time
+        # 2. Parsear los datetimes que vienen del nuevo input datetime-local
         try:
-            new_in = combine_local_date_time(registro_original.date, hora_entrada)
+            naive_in = datetime.strptime(hora_entrada, '%Y-%m-%dT%H:%M')
+            new_in = timezone.make_aware(naive_in, timezone.get_current_timezone())
         except ValueError:
             return HttpResponse("Hora de entrada no válida.", status=400)
         
@@ -242,9 +242,11 @@ def editar_registro(request):
         segundos = 0
         if hora_salida:
             try:
-                new_out = combine_local_date_time(registro_original.date, hora_salida)
+                naive_out = datetime.strptime(hora_salida, '%Y-%m-%dT%H:%M')
+                new_out = timezone.make_aware(naive_out, timezone.get_current_timezone())
             except ValueError:
                 return HttpResponse("Hora de salida no válida.", status=400)
+            
             # Calculate seconds for the new record
             delta = new_out - new_in
             segundos = int(delta.total_seconds())
@@ -253,12 +255,12 @@ def editar_registro(request):
             id=uuid.uuid4(),
             user=registro_original.user,
             company=registro_original.company,
-            date=registro_original.date,
+            date=registro_original.date, # Mantenemos la fecha lógica original del turno
             clock_in=new_in,
             clock_out=new_out,
             status=TimeEntries.EntryStatus.CONFIRMED,
             notes="Editado manualmente por el manager",
-            total_seconds=max(0, segundos) # Save thhe calculated seconds
+            total_seconds=max(0, segundos) # Save the calculated seconds
         )
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")

@@ -503,7 +503,7 @@ def workday(request):
     entries = TimeEntries.objects.filter(
         user=user,
         company=company
-    ).order_by('-date', '-clock_in')[:20]
+    ).exclude(status=TimeEntries.EntryStatus.CORRECTED).order_by('-date', '-clock_in')[:20]
 
     correction_requests = CorrectionRequests.objects.filter(
         requester=user,
