@@ -15,30 +15,23 @@
     <!-- FILTER -->
     <div class="card mb-4 shadow-sm border-0">
         <div class="card-body">
-
             <div class="d-flex flex-wrap align-items-end gap-3">
-
                 <div>
                     <label class="form-label small text-muted">Desde:</label>
                     <input type="date" class="form-control">
                 </div>
-
                 <div>
                     <label class="form-label small text-muted">Hasta:</label>
                     <input type="date" class="form-control">
                 </div>
-
                 <div>
-                    <button class="btn btn-primary mt-2">
-                        Buscar
-                    </button>
+                    <button class="btn btn-primary mt-2">Buscar</button>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <!-- TABLE TIMITRACKING-->
+    <!-- TABLA FICHAJES -->
     <div class="card shadow-sm border-0">
         <div class="card-body">
 
@@ -48,7 +41,6 @@
 
             <div class="table-responsive">
                 <table class="table align-middle">
-
                     <thead class="table-light">
                         <tr>
                             <th>Fecha</th>
@@ -58,7 +50,6 @@
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
-
                     <tbody>
                         {% for entry in entry_rows %}
                         <tr>
@@ -67,7 +58,12 @@
                             <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ entry.worked }}</td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#modalCorreccion" data-entry-id="{{ entry.id }}">Editar Entrada</button>
+                                <button class="btn btn-sm btn-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#modalCorreccion"
+                                        data-entry-id="{{ entry.id }}">
+                                    Editar Entrada
+                                </button>
                             </td>
                         </tr>
                         {% empty %}
@@ -76,28 +72,26 @@
                         </tr>
                         {% endfor %}
                     </tbody>
-
                 </table>
             </div>
 
-            <!--  HISTORIAL -->
             <div class="text-center mt-4">
                 <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
             </div>
 
-
-            <!--  TABLA CORRECCIONES -->
-            <h6 class="mb-3 text-primary fw-semibold">
-                Solicitudes  <span class="text-muted">Correcciones</span>
+            <!-- TABLA CORRECCIONES -->
+            <h6 class="mb-3 mt-4 text-primary fw-semibold">
+                Solicitudes <span class="text-muted">Correcciones</span>
             </h6>
 
             <div class="table-responsive mt-3">
                 <table class="table align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Fecha</th>
-                            <th>Entrada</th>
-                            <th>Salida</th>
+                            <th>Fecha fichaje</th>
+                            <th>Fecha solicitud</th>
+                            <th>Nueva Entrada</th>
+                            <th>Nueva Salida</th>
                             <th>Motivo</th>
                             <th>Respuesta Administrador</th>
                             <th>Estado</th>
@@ -106,7 +100,8 @@
                     <tbody>
                         {% for r in request_rows %}
                         <tr>
-                            <td>{{ r.date }}</td>
+                            <td>{{ r.entry_date }}</td>
+                            <td>{{ r.request_date }}</td>
                             <td>{% if r.new_clock_in %}{{ r.new_clock_in|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{% if r.new_clock_out %}{{ r.new_clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ r.reason }}</td>
@@ -130,13 +125,14 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" class="text-center">No hay solicitudes de corrección.</td></tr>
+                        <tr>
+                            <td colspan="7" class="text-center">No hay solicitudes de corrección.</td>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <!--  HISTORIAL -->
             <div class="text-center mt-4">
                 <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
             </div>
@@ -144,8 +140,7 @@
         </div>
     </div>
 
-
-    <!--  MODAL CORRECCIÓN -->
+    <!-- MODAL CORRECCIÓN -->
     <div class="modal fade" id="modalCorreccion" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -156,11 +151,10 @@
                 </div>
 
                 <div class="modal-body">
-                    <form 
+                    <form
                         id="correctionForm"
                         hx-post="{% url 'workday' %}"
-                        hx-target="body"
-                        hx-swap="beforeend"
+                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
                     >
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_correction">
@@ -168,47 +162,71 @@
 
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Entrada:</label>
-                            <input type="datetime-local" name="new_clock_in" class="form-control">
+                            <input type="datetime-local" name="new_clock_in"
+                                   class="form-control" required>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Salida:</label>
-                            <input type="datetime-local" name="new_clock_out" class="form-control">
+                            <input type="datetime-local" name="new_clock_out"
+                                   class="form-control" required>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label">Motivo de la Corrección:</label>
                             <textarea name="reason" class="form-control" rows="3"
-                            placeholder="Ej: Olvidé fichar la salida..."></textarea>
+                                      placeholder="Ej: Olvidé fichar la salida..."
+                                      required></textarea>
                         </div>
+
+                        <div id="correctionFeedback" class="alert alert-danger d-none" role="alert"></div>
+
                     </form>
                 </div>
 
                 <div class="modal-footer justify-content-center">
-                    <button form="correctionForm" type="submit" class="btn btn-primary px-4">Enviar Solicitud</button>
+                    <button form="correctionForm" type="submit" class="btn btn-primary px-4">
+                        Enviar Solicitud
+                    </button>
                 </div>
+
             </div>
         </div>
     </div>
+
 </div>
 
 <script>
-    var correctionModal = document.getElementById('modalCorreccion');
-    correctionModal.addEventListener('show.bs.modal', function(event) {
-        var button = event.relatedTarget;
-        var entryId = button.getAttribute('data-entry-id');
+    // ── Pasar el entry_id al modal cuando se abre ──────────────────────────────
+    document.getElementById('modalCorreccion').addEventListener('show.bs.modal', function (event) {
+        const entryId = event.relatedTarget.getAttribute('data-entry-id');
         document.getElementById('entry_id').value = entryId;
+
+        // Limpiar feedback anterior al abrir el modal
+        const feedback = document.getElementById('correctionFeedback');
+        feedback.textContent = '';
+        feedback.classList.add('d-none');
+    });
+
+    // ── Gestionar respuesta HTMX ───────────────────────────────────────────────
+    document.getElementById('correctionForm').addEventListener('htmx:afterRequest', function (evt) {
+        const status   = evt.detail.xhr.status;
+        const feedback = document.getElementById('correctionFeedback');
+
+        if (status === 204) {
+            // Éxito: cerrar modal y recargar la tabla de correcciones
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCorreccion'));
+            modal.hide();
+
+            // Recargamos la página para que la nueva solicitud aparezca en la tabla
+            window.location.reload();
+
+        } else {
+            // Error: mostrar mensaje dentro del modal sin cerrar ni recargar
+            feedback.textContent = evt.detail.xhr.responseText || 'Error al enviar la solicitud.';
+            feedback.classList.remove('d-none');
+        }
     });
 </script>
-
-<script>
-document.body.addEventListener("htmx:afterRequest", function(evt) {
-    if (evt.detail.elt.id === "correctionForm") {
-        var modal = bootstrap.Modal.getInstance(document.getElementById('modalCorreccion'));
-        modal.hide();
-    }
-});
-</script>
-
 
 {% endblock %}
