@@ -1,4 +1,4 @@
-from .models import UserCompanyMembership, Companies
+from .models import UserCompany, Companies
 
 class CompanyMiddleware:
 
@@ -18,14 +18,14 @@ class CompanyMiddleware:
 
             # 1. Si hay empresa en sesión
             if company_id:
-                membership = UserCompanyMembership.objects.filter(
+                membership = UserCompany.objects.filter(
                     user=request.user,
                     company_id=company_id
                 ).select_related('company').first()
 
             # 2. Fallback → primera empresa válida
             if not membership:
-                membership = UserCompanyMembership.objects.filter(
+                membership = UserCompany.objects.filter(
                     user=request.user
                 ).select_related('company').first()
 

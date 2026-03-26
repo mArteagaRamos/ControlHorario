@@ -23,3 +23,21 @@ body {
     color: white;
     border-radius: 0.75rem 0.75rem 0 0;
 }
+
+.toast-custom {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #212529;
+  color: white;
+  padding: 12px 18px;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.toast-custom.show {
+  opacity: 1;
+}
+.hidden {
+  display: none;
+}

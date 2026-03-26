@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from uuid import uuid4
@@ -14,7 +14,7 @@ from .forms import (
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
-from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
+from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -41,24 +41,19 @@ def compute_worked_seconds(entry):
 def parse_local_datetime(value):
     if not value:
         return None
-
     parsed = parse_datetime(value)
     if parsed is None:
         return None
-
     if timezone.is_naive(parsed):
         parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
-
     return parsed
 
 
 def get_display_date(value):
     if not value:
         return None
-
     if timezone.is_naive(value):
         return value.date()
-
     return timezone.localtime(value).date()
 
 
@@ -73,16 +68,16 @@ def get_or_create_demo_user():
 
 
 def ensure_membership(user):
-    membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
+    membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
     if not membership:
         company = Companies.objects.first()
         if not company:
             company = Companies.objects.create(
                 id=uuid4(), name='DemoCorp', legal_name='Demo Corporation'
             )
-        membership = UserCompanyMembership.objects.create(
+        membership = UserCompany.objects.create(
             id=uuid4(), user=user, company=company,
-            role=UserCompanyMembership.RoleChoices.EMPLOYEE
+            role=UserCompany.RoleChoices.EMPLOYEE
         )
     return membership
 
@@ -99,7 +94,7 @@ def login_view(request):
     if request.method == 'POST':
         step = request.POST.get('step', 'credentials')
 
-        # ── Paso 1: validar credenciales ───────────────────────────────────────
+        # ── Paso 1: login ──────────────────────────────────────────────────────
         if step == 'credentials':
             form = LoginForm(request, data=request.POST)
             if form.is_valid():
@@ -108,35 +103,29 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    # Primer login: flag=False → forzar cambio de contraseña
                     if not user.flag:
                         auth_login(request, user)
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
-                        memberships = UserCompanyMembership.objects.filter(
+                        memberships = UserCompany.objects.filter(
                             user=user
                         ).select_related('company')
-
+                        auth_login(request, user)
                         if memberships.count() > 1:
-                            auth_login(request, user)
                             company_form = CompanySelectLoginForm(companies=memberships)
                             show_company_selector = True
                             request.session['pending_company_selection'] = True
                         else:
-                            auth_login(request, user)
                             if memberships.first():
                                 request.session['company_id'] = str(
                                     memberships.first().company.id
                                 )
-                            messages.success(request, 'Sesión iniciada correctamente.')
                             return redirect('home_timetracking')
                 else:
                     messages.error(request, 'Email o contraseña incorrectos.')
-            else:
-                messages.error(request, 'Revisa los campos del formulario.')
 
-        # ── Paso 1b: establecer contraseña definitiva ──────────────────────────
+        # ── Paso 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
             if not request.user.is_authenticated:
                 return redirect('login')
@@ -151,14 +140,13 @@ def login_view(request):
                 user.flag = True
                 user.save(update_fields=['password', 'flag'])
 
-                # Re-autenticar con la nueva contraseña
                 updated_user = authenticate(
                     request, username=user.email, password=new_password
                 )
                 if updated_user:
                     auth_login(request, updated_user)
 
-                memberships = UserCompanyMembership.objects.filter(
+                memberships = UserCompany.objects.filter(
                     user=user
                 ).select_related('company')
 
@@ -173,17 +161,14 @@ def login_view(request):
                         request.session['company_id'] = str(
                             memberships.first().company.id
                         )
-                    messages.success(request, 'Contraseña actualizada. ¡Bienvenido!')
                     return redirect('home_timetracking')
-            else:
-                messages.error(request, 'Revisa los requisitos de la contraseña.')
 
-        # ── Paso 2: seleccionar empresa ────────────────────────────────────────
+        # ── Paso 3: seleccionar empresa ────────────────────────────────────────
         elif step == 'select_company':
             if not request.user.is_authenticated:
                 return redirect('login')
 
-            memberships  = UserCompanyMembership.objects.filter(
+            memberships  = UserCompany.objects.filter(
                 user=request.user
             ).select_related('company')
             company_form = CompanySelectLoginForm(request.POST, companies=memberships)
@@ -194,13 +179,9 @@ def login_view(request):
                 if membership:
                     request.session['company_id'] = str(company_id)
                     request.session.pop('pending_company_selection', None)
-                    messages.success(request, 'Sesión iniciada correctamente.')
                     return redirect('home_timetracking')
-                else:
-                    messages.error(request, 'Empresa no válida.')
-                    show_company_selector = True
-            else:
-                show_company_selector = True
+
+            show_company_selector = True
 
     return render(request, 'login/login.html', {
         'form':                  form,
@@ -244,27 +225,24 @@ def lookup_user(request):
         return JsonResponse({'error': 'Email requerido'}, status=400)
 
     if company_id:
-        membership = UserCompanyMembership.objects.filter(
+        membership = UserCompany.objects.filter(
             user__email__iexact=email,
             company_id=company_id
         ).select_related('user').first()
-
         if not membership:
             return JsonResponse({'found': False})
-
         user = membership.user
     else:
         company = getattr(request, 'company', None)
-        if company:
-            membership = UserCompanyMembership.objects.filter(
-                user__email__iexact=email,
-                company=company
-            ).select_related('user').first()
-            if not membership:
-                return JsonResponse({'found': False})
-            user = membership.user
-        else:
+        if not company:
             return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
+        membership = UserCompany.objects.filter(
+            user__email__iexact=email,
+            company=company
+        ).select_related('user').first()
+        if not membership:
+            return JsonResponse({'found': False})
+        user = membership.user
 
     return JsonResponse({
         'found':    True,
@@ -282,7 +260,7 @@ def register_unified(request):
     is_admin     = request.user.is_admin
     current_role = request.role
 
-    if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
+    if not is_admin and current_role != UserCompany.RoleChoices.MANAGER:
         messages.error(request, 'No tienes permisos para acceder a esta página.')
         return redirect('home_timetracking')
 
@@ -314,7 +292,6 @@ def register_unified(request):
                     Companies.objects.filter(tax_id__iexact=tax_id).first()
                     if tax_id else None
                 )
-
                 if existing_company:
                     if company_form.is_valid():
                         for field in ['name', 'legal_name', 'tax_id']:
@@ -340,7 +317,6 @@ def register_unified(request):
             else:  # company_mode == 'select'
                 company_id  = request.POST.get('company_id', '').strip()
                 company_obj = Companies.objects.filter(id=company_id).first()
-
                 if company_obj:
                     company_form = CompanyForm(request.POST, instance=company_obj)
                     if company_form.is_valid():
@@ -349,7 +325,6 @@ def register_unified(request):
                         company_obj.save()
                 else:
                     errors.append('No se encontró la empresa. Busca de nuevo por CIF.')
-
         else:
             company_obj = request.company
 
@@ -361,13 +336,10 @@ def register_unified(request):
                 if email else None
             )
             worker_role = request.POST.get(
-                'role', UserCompanyMembership.RoleChoices.EMPLOYEE
+                'role', UserCompany.RoleChoices.EMPLOYEE
             )
 
             if existing_user:
-                # ── Usuario existente ──────────────────────────────────────────
-                # Actualizamos datos básicos (nombre, apellidos, estado, rol)
-                # pero NO tocamos contraseña ni flag (política de privacidad).
                 active_form = (
                     WorkerSelectForm(request.POST, instance=existing_user)
                     if worker_action == 'select'
@@ -376,51 +348,40 @@ def register_unified(request):
                 if active_form.is_valid():
                     worker_user          = active_form.save(commit=False)
                     worker_user.is_admin = False
-                    # Guardamos sin tocar password ni flag
                     worker_user.save(update_fields=['username', 'surname', 'status'])
                 else:
                     errors.append('Corrige los datos del trabajador.')
-
             else:
-                # ── Usuario nuevo ──────────────────────────────────────────────
-                # La contraseña temporal llega en el campo 'password' (TextInput,
-                # no PasswordInput, así que Django NO la descarta en el POST).
-                # Se hashea con set_password() y se guarda en users.password_hash.
-                # flag=False para forzar el cambio en el primer login.
                 if worker_create.is_valid():
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
                     worker_user.flag     = False
-
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
                         worker_user.set_password(temp_password)
-
                     worker_user.save()
                 else:
                     errors.append('Corrige los datos del trabajador.')
 
         # ── 3. Crear/actualizar membership ─────────────────────────────────────
         if not errors and worker_user and company_obj:
-            role       = worker_role or UserCompanyMembership.RoleChoices.EMPLOYEE
-            membership = UserCompanyMembership.objects.filter(
+            role       = worker_role or UserCompany.RoleChoices.EMPLOYEE
+            membership = UserCompany.objects.filter(
                 user=worker_user,
                 company=company_obj,
             ).first()
-
             if membership:
                 if role and membership.role != role:
                     membership.role = role
                     membership.save(update_fields=['role'])
             else:
-                UserCompanyMembership.objects.create(
+                UserCompany.objects.create(
                     id=uuid4(),
                     user=worker_user,
                     company=company_obj,
                     role=role,
                 )
-
             messages.success(request, 'Registro completado correctamente.')
             return redirect('home_timetracking')
 
@@ -438,6 +399,21 @@ def register_unified(request):
     })
 
 
+# ── Cambio de empresa ──────────────────────────────────────────────────────────
+
+@login_required
+def switch_company(request, company_id):
+    membership = UserCompany.objects.filter(
+        user=request.user,
+        company_id=company_id
+    ).first()
+    if not membership:
+        messages.error(request, 'No tienes acceso a esta empresa.')
+    else:
+        request.session['company_id'] = str(company_id)
+    return redirect('workday')
+
+
 # ── Panel de usuario ───────────────────────────────────────────────────────────
 
 @login_required
@@ -449,7 +425,6 @@ def workday(request):
         return redirect('home_timetracking')
 
     company = request.company
-
     if not company:
         messages.error(request, 'No tienes empresa asignada.')
         return redirect('home_timetracking')
@@ -457,57 +432,59 @@ def workday(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        # Petición de corrección CORREGIDA
         if action == 'request_correction':
-            entry_id = request.POST.get('entry_id')
-            reason = request.POST.get('reason', '').strip()
-            new_clock_in_str = request.POST.get('new_clock_in')
+            entry_id          = request.POST.get('entry_id')
+            reason            = request.POST.get('reason', '').strip()
+            new_clock_in_str  = request.POST.get('new_clock_in')
             new_clock_out_str = request.POST.get('new_clock_out')
-            
+
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
-            
-            if entry and reason:
-                # ── COMPROBACIÓN DE SEGURIDAD: Evitar duplicados ─────────────────────
-                # Verificamos si ya hay una incidencia en estado 'pending' para este registro
-                incidencia_existente = CorrectionRequests.objects.filter(
-                    time_entry=entry, 
-                    status='pending'
-                ).exists()
 
-                if incidencia_existente:
-                    messages.error(request, 'Ya existe una solicitud de corrección pendiente para este registro.')
-                    return redirect('workday')
-                # ──────────────────────────────────────────────────────────────────────
+            if entry and reason and new_clock_in_str and new_clock_out_str:
+                new_in  = parse_local_datetime(new_clock_in_str)
+                new_out = parse_local_datetime(new_clock_out_str)
 
-                new_in = parse_local_datetime(new_clock_in_str) if new_clock_in_str else None
-                new_out = parse_local_datetime(new_clock_out_str) if new_clock_out_str else None
-
-                if (new_clock_in_str and new_in is None) or (new_clock_out_str and new_out is None):
+                if (new_clock_in_str and new_in is None) or \
+                   (new_clock_out_str and new_out is None):
+                    if request.headers.get('HX-Request'):
+                        return HttpResponse('Formato de fecha no válido.', status=400)
                     messages.error(request, 'El formato de fecha y hora no es válido.')
                     return redirect('workday')
-                
-                CorrectionRequests.objects.create(
-                    id=uuid4(), 
-                    time_entry=entry, 
-                    requester=user, 
-                    reason=reason, 
-                    new_clock_in=new_in,  
-                    new_clock_out=new_out,
-                    status='pending'
-                )
-                messages.success(request, 'Solicitud de corrección enviada.')
 
+                CorrectionRequests.objects.create(
+                    id=uuid4(),
+                    time_entry=entry,
+                    requester=user,
+                    reason=reason,
+                    new_clock_in=new_in,
+                    new_clock_out=new_out,
+                    status='pending',
+                )
+
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(status=204)
+
+                messages.success(request, 'Solicitud de corrección enviada.')
                 return redirect('workday')
 
-    # ── Datos para la plantilla ────────────────────────────────────────────────
+            else:
+                if request.headers.get('HX-Request'):
+                    return HttpResponse('Datos incompletos o inválidos.', status=400)
+                messages.error(request, 'Datos incompletos o inválidos.')
+                return redirect('workday')
+
+        # Fallback: cualquier POST con action no reconocida
+        return redirect('workday')
+
+    # ── GET: construir datos para el template ──────────────────────────────────
     entries = TimeEntries.objects.filter(
         user=user,
-        company=company
-    ).exclude(status=TimeEntries.EntryStatus.CORRECTED).order_by('-date', '-clock_in')[:20]
+        company=company,
+    ).order_by('-date', '-clock_in')[:20]
 
     correction_requests = CorrectionRequests.objects.filter(
         requester=user,
-        time_entry__company=company
+        time_entry__company=company,
     ).order_by('-request_date')[:20]
 
     entry_rows = []
@@ -526,37 +503,17 @@ def workday(request):
 
     request_rows = []
     for r in correction_requests:
-        request_date = get_display_date(r.request_date)
-        if r.new_clock_in:
-            request_date = get_display_date(r.new_clock_in)
-        elif r.new_clock_out:
-            request_date = get_display_date(r.new_clock_out)
-
         request_rows.append({
-            'date':          r.request_date.date() if r.request_date else None,
-            'new_clock_in':  r.time_entry.clock_in  if r.time_entry else None,
-            'new_clock_out': r.time_entry.clock_out if r.time_entry else None,
-            'reason':        r.reason,
+            'entry_date':      r.time_entry.date if r.time_entry else None,
+            'request_date':    r.request_date.date() if r.request_date else None,
+            'new_clock_in':    r.new_clock_in  if hasattr(r, 'new_clock_in')  else None,
+            'new_clock_out':   r.new_clock_out if hasattr(r, 'new_clock_out') else None,
+            'reason':          r.reason,
             'correction_note': r.correction_note,
-            'status':        r.status,
+            'status':          r.status,
         })
 
     return render(request, 'user_panel/workday.html', {
         'entry_rows':   entry_rows,
         'request_rows': request_rows,
     })
-
-
-# ── Cambio de empresa ──────────────────────────────────────────────────────────
-
-@login_required
-def switch_company(request, company_id):
-    membership = UserCompanyMembership.objects.filter(
-        user=request.user,
-        company_id=company_id
-    ).first()
-
-    if membership:
-        request.session['company_id'] = str(company_id)
-
-    return redirect('workday')
