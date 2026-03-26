@@ -154,6 +154,8 @@
 
     {# ── Save bar ── #}
     {% if user_role == 'manager' %}
+    <form method="post" action="{% url 'entity_info' %}">
+      {% csrf_token %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
       <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
       <button type="submit" class="btn btn-sm btn-success">Guardar cambios</button>
