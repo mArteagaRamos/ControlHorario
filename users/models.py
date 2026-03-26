@@ -60,7 +60,7 @@ class Companies(models.Model):
         db_table = 'companies'
 
 
-class UserCompanyMembership(models.Model):
+class UserCompany(models.Model):
     class RoleChoices(models.TextChoices):
         MANAGER = 'manager'
         EMPLOYEE = 'employee'
@@ -73,7 +73,7 @@ class UserCompanyMembership(models.Model):
 
     class Meta:
         managed = False
-        db_table = 'user_company_membership'
+        db_table = 'user_company'
         unique_together = (('user', 'company'),)
 
 

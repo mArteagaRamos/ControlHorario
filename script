@@ -114,3 +114,11 @@ ADD COLUMN IF NOT EXISTS total_seconds INTEGER DEFAULT 0;
 ALTER TABLE correction_requests 
 ADD COLUMN IF NOT EXISTS new_clock_in TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS new_clock_out TIMESTAMPTZ;
+
+ALTER TABLE users
+ADD COLUMN flag BOOLEAN DEFAULT false not null;
+
+ALTER TABLE audit_log 
+RENAME COLUMN actor_id TO user_id;
+
+ALTER TABLE user_company_membership RENAME TO user_company;

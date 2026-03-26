@@ -46,7 +46,7 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
-            name='UserCompanyMembership',
+            name='UserCompany',
             fields=[
                 ('id', models.UUIDField(primary_key=True, serialize=False)),
                 ('role', models.CharField(choices=[('manager', 'Manager'), ('employee', 'Employee')], default='employee', max_length=20)),
