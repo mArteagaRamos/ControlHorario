@@ -148,21 +148,30 @@
                 </div>
 
                 <div class="modal-body">
-                    <form id="correctionForm" method="post">
+                    <form 
+                        id="correctionForm"
+                        hx-post="{% url 'workday' %}"
+                        hx-target="body"
+                        hx-swap="beforeend"
+                    >
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_correction">
                         <input type="hidden" name="entry_id" id="entry_id">
+
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Entrada:</label>
                             <input type="datetime-local" name="new_clock_in" class="form-control">
                         </div>
+
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Salida:</label>
                             <input type="datetime-local" name="new_clock_out" class="form-control">
                         </div>
+
                         <div class="mb-3">
                             <label class="form-label">Motivo de la Corrección:</label>
-                            <textarea name="reason" class="form-control" rows="3" placeholder="Ej: Olvidé fichar la salida..."></textarea>
+                            <textarea name="reason" class="form-control" rows="3"
+                            placeholder="Ej: Olvidé fichar la salida..."></textarea>
                         </div>
                     </form>
                 </div>
@@ -170,7 +179,6 @@
                 <div class="modal-footer justify-content-center">
                     <button form="correctionForm" type="submit" class="btn btn-primary px-4">Enviar Solicitud</button>
                 </div>
-
             </div>
         </div>
     </div>
@@ -184,5 +192,15 @@
         document.getElementById('entry_id').value = entryId;
     });
 </script>
+
+<script>
+document.body.addEventListener("htmx:afterRequest", function(evt) {
+    if (evt.detail.elt.id === "correctionForm") {
+        var modal = bootstrap.Modal.getInstance(document.getElementById('modalCorreccion'));
+        modal.hide();
+    }
+});
+</script>
+
 
 {% endblock %}
