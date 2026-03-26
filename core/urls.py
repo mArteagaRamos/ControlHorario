@@ -34,6 +34,7 @@ urlpatterns = [
     path('staff/', dashboard_views.staff, name='staff'),
     path('notes/', dashboard_views.notes, name='notes'),
 
+
     # Manager Panel URLs 
     # Manager Logs
     path('manager_logs/', audit_views.manager_logs, name='manager_logs'),  
