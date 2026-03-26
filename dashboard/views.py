@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from users.models import Companies, Users, UserCompanyMembership, CompanySettings
+from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 
 
@@ -58,7 +58,7 @@ def entity_info(request):
         messages.error(request, 'Empresa no encontrada.')
         return redirect('home_timetracking')
     
-    membership = UserCompanyMembership.objects.filter(
+    membership = UserCompany.objects.filter(
     user=request.user, 
     company=company
     ).first()
@@ -66,7 +66,7 @@ def entity_info(request):
     # Admin global siempre puede editar, independientemente de su rol en la empresa
     if request.user.is_admin:
         user_role = 'admin'
-    elif membership and membership.role == UserCompanyMembership.RoleChoices.MANAGER:
+    elif membership and membership.role == UserCompany.RoleChoices.MANAGER:
         user_role = 'manager'
     else:
         user_role = 'employee'
