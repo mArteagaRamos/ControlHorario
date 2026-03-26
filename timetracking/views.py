@@ -100,13 +100,10 @@ def time_entries(request):
         messages.error(request, 'Usuario no encontrado en el sistema.')
         return redirect('home_timetracking')
 
-    membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
-    if not membership:
-        messages.error(request, 'No tienes una membresía activa en ninguna empresa.')
+    company = request.company
+    if not company:
+        messages.error(request, 'No tienes una empresa asignada.')
         return redirect('home_timetracking')
-
-    company = membership.company  
-
 
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
 
@@ -215,7 +212,7 @@ def time_entries(request):
 
         return redirect('home_timetracking')
 
-    entries = TimeEntries.objects.filter(user=user).order_by('-date', '-clock_in')
+    entries = TimeEntries.objects.filter(user=user, company=company).order_by('-date', '-clock_in')
     paginator = Paginator(entries, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
