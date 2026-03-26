@@ -5,7 +5,7 @@ import string
 
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
-from users.models import Users, Companies, UserCompanyMembership
+from users.models import Users, Companies, UserCompany
 
 
 # ── Helper: generador de contraseña temporal ──────────────────────────────────
@@ -48,8 +48,8 @@ class _UserBaseForm(forms.ModelForm):
     role = forms.ChoiceField(
         label='Rol',
         choices=[
-            (UserCompanyMembership.RoleChoices.EMPLOYEE, 'Empleado'),
-            (UserCompanyMembership.RoleChoices.MANAGER,  'Manager'),
+            (UserCompany.RoleChoices.EMPLOYEE, 'Empleado'),
+            (UserCompany.RoleChoices.MANAGER,  'Manager'),
         ],
         widget=forms.Select(attrs={'class': 'form-control'}),
         required=False,

@@ -6,7 +6,7 @@ from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
-from users.models import CorrectionRequests, UserCompanyMembership, Users
+from users.models import CorrectionRequests, UserCompany, Users
 from timetracking.models import TimeEntries
 from django.db.models import OuterRef, Subquery
 import uuid
@@ -31,9 +31,9 @@ def manager_or_admin_required(view_func):
             return render(request, 'error/sin_loguear.html', status=401)
 
         is_admin = request.user.is_admin
-        is_manager = UserCompanyMembership.objects.filter(
+        is_manager = UserCompany.objects.filter(
             user=request.user, 
-            role=UserCompanyMembership.RoleChoices.MANAGER
+            role=UserCompany.RoleChoices.MANAGER
         ).exists()
 
         if is_admin or is_manager:
@@ -47,9 +47,9 @@ def manager_or_admin_required(view_func):
 @manager_or_admin_required
 def manager_logs(request):
     # 1. Get the manager's company
-    membership = UserCompanyMembership.objects.filter(
+    membership = UserCompany.objects.filter(
         user=request.user, 
-        role=UserCompanyMembership.RoleChoices.MANAGER
+        role=UserCompany.RoleChoices.MANAGER
     ).first()
 
     if not membership:
@@ -58,11 +58,11 @@ def manager_logs(request):
     company = membership.company
 
     # 2. Get the employees of this company
-    empleados_ids = UserCompanyMembership.objects.filter(company=company).values_list('user_id', flat=True)
+    empleados_ids = UserCompany.objects.filter(company=company).values_list('user_id', flat=True)
     empleados = Users.objects.filter(id__in=empleados_ids)
 
     # 3. Prepare a subquery to get the exact role of each user in THIS company
-    rol_subquery = UserCompanyMembership.objects.filter(
+    rol_subquery = UserCompany.objects.filter(
         user=OuterRef('user'),
         company=company
     ).values('role')[:1]
@@ -269,7 +269,7 @@ def editar_registro(request):
 @login_required 
 def manager_employee(request):
     # 1. Get current user's membership (whether manager or employee)
-    user_membership = UserCompanyMembership.objects.filter(user=request.user).first()
+    user_membership = UserCompany.objects.filter(user=request.user).first()
 
     if not user_membership:
         return HttpResponseForbidden("No estás asignado a ninguna empresa.")
@@ -277,10 +277,10 @@ def manager_employee(request):
     company = user_membership.company
     
     # Check if they are a manager or admin to pass it to the template
-    is_manager = (user_membership.role == UserCompanyMembership.RoleChoices.MANAGER) or request.user.is_admin
+    is_manager = (user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
 
     # 2. Get ALL memberships (employees) for that company
-    memberships = UserCompanyMembership.objects.filter(
+    memberships = UserCompany.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
 
@@ -293,9 +293,9 @@ def manager_employee(request):
 @require_POST
 def edit_employee(request):
     # 1. Get current manager's company
-    membership_manager = UserCompanyMembership.objects.filter(
+    membership_manager = UserCompany.objects.filter(
         user=request.user, 
-        role=UserCompanyMembership.RoleChoices.MANAGER
+        role=UserCompany.RoleChoices.MANAGER
     ).first()
     company = membership_manager.company
 
@@ -307,7 +307,7 @@ def edit_employee(request):
     status = request.POST.get('status')
 
     # 3. Validate that the employee belongs to the manager's company
-    membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
+    membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
     user = membership.user
 
     # 4. Update user data
@@ -326,9 +326,9 @@ def edit_employee(request):
 @require_POST
 def delete_employee(request):
     # 1. Get current manager's company
-    membership_manager = UserCompanyMembership.objects.filter(
+    membership_manager = UserCompany.objects.filter(
         user=request.user, 
-        role=UserCompanyMembership.RoleChoices.MANAGER
+        role=UserCompany.RoleChoices.MANAGER
     ).first()
     company = membership_manager.company
 
@@ -337,7 +337,7 @@ def delete_employee(request):
 
     # 3. Find the membership and delete it
     # With this we "unlink" the user from the company without deleting their historical clock-ins or global account
-    membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
+    membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
     
     # Prevent a manager from accidentally deleting themselves
     if user_id == str(request.user.id):

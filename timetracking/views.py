@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from .models import TimeEntries, TimeEntryEvent
-from users.models import Users, Companies, UserCompanyMembership, CompanySettings
+from users.models import Users, Companies, UserCompany, CompanySettings
 
 
 # CALCULATE WORKED SECONDS 
@@ -100,7 +100,7 @@ def time_entries(request):
         messages.error(request, 'Usuario no encontrado en el sistema.')
         return redirect('home_timetracking')
 
-    membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
+    membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
     if not membership:
         messages.error(request, 'No tienes una membresía activa en ninguna empresa.')
         return redirect('home_timetracking')
