@@ -22,11 +22,11 @@ def combine_local_date_time(date_value, time_value):
     return timezone.make_aware(naive_dt, timezone.get_current_timezone())
 
 
-# Decorador para verificar que el usuario es manager o admin antes de acceder a ciertas vistas
+# Decorator to verify that the user is a manager or admin before accessing certain views
 def manager_or_admin_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        # Si ni siquiera está logueado, fuera
+        # If not even logged in, get out
         if not request.user.is_authenticated:
             return render(request, 'error/sin_loguear.html', status=401)
 
@@ -43,10 +43,10 @@ def manager_or_admin_required(view_func):
             
     return _wrapped_view
 
-# Vista principal del manager para ver los logs de fichajes de su empresa, con filtros e incidencias
+# Main manager view to see the clock-in logs of their company, with filters and incidents
 @manager_or_admin_required
 def manager_logs(request):
-    # 1. Obtener la empresa del manager
+    # 1. Get the manager's company
     membership = UserCompanyMembership.objects.filter(
         user=request.user, 
         role=UserCompanyMembership.RoleChoices.MANAGER
@@ -57,27 +57,27 @@ def manager_logs(request):
 
     company = membership.company
 
-    # 2. Obtener los empleados de esta empresa
+    # 2. Get the employees of this company
     empleados_ids = UserCompanyMembership.objects.filter(company=company).values_list('user_id', flat=True)
     empleados = Users.objects.filter(id__in=empleados_ids)
 
-    # 3. Preparamos una subconsulta para sacar el rol exacto de cada usuario en ESTA empresa
+    # 3. Prepare a subquery to get the exact role of each user in THIS company
     rol_subquery = UserCompanyMembership.objects.filter(
         user=OuterRef('user'),
         company=company
     ).values('role')[:1]
 
-    # --- CAMBIO: Subimos las incidencias aquí arriba para poder usar sus IDs como filtro ---
+    # --- CHANGE: We move incidents up here so we can use their IDs as a filter ---
     incidencias = CorrectionRequests.objects.filter(
         time_entry__company=company, 
         status='pending'
     ).select_related('time_entry', 'requester').order_by('-request_date')
 
-    # Para poner el puntito rojo en la tabla y para filtrar, sacamos las IDs
+    # For the red dot in the table and for filtering, we extract the IDs
     fichajes_con_incidencia = incidencias.values_list('time_entry_id', flat=True)
     fichajes_con_incidencia_str = [str(uid) for uid in fichajes_con_incidencia]
 
-    # 4. Obtener los fichajes (TimeEntries) e inyectarles el rol
+    # 4. Get the clock-ins (TimeEntries) and inject the role into them
     registros = TimeEntries.objects.filter(
         company=company
     ).exclude(
@@ -86,7 +86,7 @@ def manager_logs(request):
         rol_empleado=Subquery(rol_subquery)
     ).select_related('user').order_by('-date', '-clock_in')
 
-    # 5. Aplicar Filtros si existen en el GET
+    # 5. Apply Filters if they exist in the GET request
     empleado_id = request.GET.get('empleado')
     fecha = request.GET.get('fecha')
     desde = request.GET.get('desde')
@@ -102,11 +102,11 @@ def manager_logs(request):
     if hasta:
         registros = registros.filter(clock_out__time__lte=hasta) 
     
-    # NUEVO FILTRO: Solo nos quedamos con los que su ID esté en la lista de incidencias
+    # NEW FILTER: We only keep those whose ID is in the incidents list
     if solo_incidencias == 'true' or solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
-    # 6. Formatear los segundos a "Xh Ym" para que quede bonito en la tabla
+    # 6. Format seconds to "Xh Ym" so it looks nice in the table
     for r in registros:
         horas = r.total_seconds // 3600
         minutos = (r.total_seconds % 3600) // 60
@@ -120,35 +120,35 @@ def manager_logs(request):
     }
     return render(request, 'audit/manager_logs.html', context)  
 
-# Vista para que el manager acepte o deniegue una incidencia, con su nota de resolución
+# View for the manager to accept or deny an incident, with their resolution note
 @manager_or_admin_required
 def resolver_incidencia(request):
     if request.method == 'POST':
         incidencia_id = request.POST.get('incidencia_id')
         accion = request.POST.get('accion') 
-        # Capturamos la nota que viene del formulario del modal
+        # Capture the note coming from the modal form
         nota_resolucion = request.POST.get('nota_resolucion', '') 
 
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
         ficha_original = incidencia.time_entry 
 
-        # --- ASIGNACIÓN DE CAMPOS DE AUDITORÍA ---
-        incidencia.approver = request.user          # Guarda quién lo hace
-        incidencia.approval_date = timezone.now()    # Guarda cuándo lo hace
-        incidencia.correction_note = nota_resolucion # Guarda el porqué (la nota)
+        # --- AUDIT FIELDS ASSIGNMENT ---
+        incidencia.approver = request.user          # Saves who does it
+        incidencia.approval_date = timezone.now()    # Saves when it's done
+        incidencia.correction_note = nota_resolucion # Saves the reason (the note)
 
         if accion == 'aceptar':
-            # 1. Marcamos el original como 'corrected'
+            # 1. Mark the original as 'corrected'
             ficha_original.status = TimeEntries.EntryStatus.CORRECTED
             ficha_original.save()
 
-            # --- CÁLCULO DE SEGUNDOS ---
+            # --- CALCULATION OF SECONDS ---
             segundos = 0
             if incidencia.new_clock_in and incidencia.new_clock_out:
                 delta = incidencia.new_clock_out - incidencia.new_clock_in
                 segundos = int(delta.total_seconds())
 
-            # 2. Creamos el nuevo registro definitivo
+            # 2. Create the new definitive record
             TimeEntries.objects.create(
                 id=uuid.uuid4(),
                 user=ficha_original.user,
@@ -165,14 +165,14 @@ def resolver_incidencia(request):
         elif accion == 'denegar':
             incidencia.status = 'rejected'
 
-        # Guardamos todos los cambios (incluyendo approver, date y note)
+        # Save all changes (including approver, date and note)
         incidencia.save()
         
         return redirect('manager_logs')
         
     return HttpResponse("Método no permitido.")
 
-# Vista para exportar los logs filtrados a CSV, con formato compatible con Excel y con los segundos formateados
+# View for exporting filtered logs to CSV, with format compatible with Excel and formatted seconds
 def exportar_logs(request):
 
     if request.method == 'POST':
@@ -187,23 +187,23 @@ def exportar_logs(request):
         fecha_reporte = timezone.now().strftime('%d_%m_%Y')
         response['Content-Disposition'] = f'attachment; filename="reporte_fichajes_{fecha_reporte}.csv"'
 
-        # IMPORTANTE: Esto evita que los acentos se vean mal en Excel
+        # IMPORTANT: This prevents accents from displaying incorrectly in Excel
         response.write(u'\ufeff'.encode('utf8'))
         
-        writer = csv.writer(response, delimiter=';') # El punto y coma es el estándar para Excel en español
+        writer = csv.writer(response, delimiter=';') # Semicolon is standard for Spanish Excel
         
-        # Cabeceras claras
+        # Clear headers
         writer.writerow(['Empleado', 'Fecha', 'Entrada', 'Salida', 'Tiempo Total (HH:MM:SS)', 'Notas'])
 
     for r in registros:
-        # Lógica de conversión de segundos a formato HH:MM:SS
+        # Seconds to HH:MM:SS conversion logic
         total_s = r.total_seconds
         
         horas = total_s // 3600
         minutos = (total_s % 3600) // 60
         segundos = total_s % 60
 
-        # Formateamos con ceros a la izquierda (ej: 08:05:09)
+        # Format with leading zeros (e.g., 08:05:09)
         tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
 
         writer.writerow([
@@ -217,7 +217,7 @@ def exportar_logs(request):
 
     return response
     
-# Vista para que el manager edite manualmente un registro (en caso de incidencia o error), creando un nuevo registro corregido y anulando el original    
+# View for the manager to manually edit a record (in case of incident or error), creating a new corrected record and voiding the original   
 @manager_or_admin_required
 def editar_registro(request):   
     if request.method == 'POST':
@@ -227,12 +227,12 @@ def editar_registro(request):
         hora_entrada = request.POST.get('clock_in')
         hora_salida = request.POST.get('clock_out')
 
-        # 1. Anulamos el actual
+        # 1. Void the current one
         registro_original.status = TimeEntries.EntryStatus.CORRECTED
         registro_original.save()
 
-        # 2. Construimos los datetimes para el nuevo registro
-        # Usamos la fecha del registro original y le pegamos la nueva hora
+        # 2. Build datetimes for the new record
+        # We use the original record's date and attach the new time
         try:
             new_in = combine_local_date_time(registro_original.date, hora_entrada)
         except ValueError:
@@ -245,7 +245,7 @@ def editar_registro(request):
                 new_out = combine_local_date_time(registro_original.date, hora_salida)
             except ValueError:
                 return HttpResponse("Hora de salida no válida.", status=400)
-            # Calcular segundos
+            # Calculate seconds for the new record
             delta = new_out - new_in
             segundos = int(delta.total_seconds())
 
@@ -258,15 +258,15 @@ def editar_registro(request):
             clock_out=new_out,
             status=TimeEntries.EntryStatus.CONFIRMED,
             notes="Editado manualmente por el manager",
-            total_seconds=max(0, segundos) # Guardamos los segundos calculados
+            total_seconds=max(0, segundos) # Save thhe calculated seconds
         )
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
 
 
-@login_required # Cambiamos manager_or_admin_required por login_required normal
+@login_required 
 def manager_employee(request):
-    # 1. Obtener la membresía del usuario actual (sea manager o empleado)
+    # 1. Get current user's membership (whether manager or employee)
     user_membership = UserCompanyMembership.objects.filter(user=request.user).first()
 
     if not user_membership:
@@ -274,15 +274,13 @@ def manager_employee(request):
 
     company = user_membership.company
     
-    # Comprobamos si es manager o admin para pasarlo a la plantilla
+    # Check if they are a manager or admin to pass it to the template
     is_manager = (user_membership.role == UserCompanyMembership.RoleChoices.MANAGER) or request.user.is_admin
 
-    # 2. Obtener TODAS las membresías (empleados) de esa empresa
+    # 2. Get ALL memberships (employees) for that company
     memberships = UserCompanyMembership.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
-
-    # Ya no filtramos aquí, lo haremos en el navegador con JavaScript
 
     return render(request, 'audit/manager_employee.html', {
         'memberships': memberships,
@@ -292,31 +290,31 @@ def manager_employee(request):
 @manager_or_admin_required
 @require_POST
 def edit_employee(request):
-    # 1. Obtener la empresa del manager actual
+    # 1. Get current manager's company
     membership_manager = UserCompanyMembership.objects.filter(
         user=request.user, 
         role=UserCompanyMembership.RoleChoices.MANAGER
     ).first()
     company = membership_manager.company
 
-    # 2. Recoger datos del formulario
+    # 2. Collect form data
     user_id = request.POST.get('user_id')
     username = request.POST.get('username')
     surname = request.POST.get('surname')
     role = request.POST.get('role')
     status = request.POST.get('status')
 
-    # 3. Validar que el empleado pertenece a la empresa del manager
+    # 3. Validate that the employee belongs to the manager's company
     membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
     user = membership.user
 
-    # 4. Actualizar datos del usuario
+    # 4. Update user data
     user.username = username
     user.surname = surname
     user.status = status
     user.save()
 
-    # 5. Actualizar rol en la empresa
+    # 5. Update role in the company
     membership.role = role
     membership.save()
 
@@ -325,23 +323,22 @@ def edit_employee(request):
 @manager_or_admin_required
 @require_POST
 def delete_employee(request):
-    # 1. Obtener la empresa del manager actual
+    # 1. Get current manager's company
     membership_manager = UserCompanyMembership.objects.filter(
         user=request.user, 
         role=UserCompanyMembership.RoleChoices.MANAGER
     ).first()
     company = membership_manager.company
 
-    # 2. Recoger el ID del usuario a eliminar
+    # 2. Collect ID of user to delete
     user_id = request.POST.get('user_id')
 
-    # 3. Buscar la vinculación (membership) y eliminarla
-    # Con esto "desvinculamos" al usuario de la empresa sin borrar sus fichajes históricos ni su cuenta global
+    # 3. Find the membership and delete it
+    # With this we "unlink" the user from the company without deleting their historical clock-ins or global account
     membership = get_object_or_404(UserCompanyMembership, user_id=user_id, company=company)
     
-    # Evitar que un manager se elimine a sí mismo por error
+    # Prevent a manager from accidentally deleting themselves
     if user_id == str(request.user.id):
-        # Aquí podrías usar messages.error(request, "No puedes eliminarte a ti mismo")
         return redirect('manager_employee')
 
     membership.delete()
