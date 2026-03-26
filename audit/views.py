@@ -91,7 +91,7 @@ def manager_logs(request):
     fecha = request.GET.get('fecha')
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
-    solo_incidencias = request.GET.get('solo_incidencias')  # Capturamos el nuevo checkbox
+    solo_incidencias = request.GET.get('solo_incidencias')  
 
     if empleado_id:
         registros = registros.filter(user_id=empleado_id)

@@ -467,8 +467,20 @@ def workday(request):
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
             
             if entry and reason:
-                new_in = parse_local_datetime(new_clock_in_str)
-                new_out = parse_local_datetime(new_clock_out_str)
+                # ── COMPROBACIÓN DE SEGURIDAD: Evitar duplicados ─────────────────────
+                # Verificamos si ya hay una incidencia en estado 'pending' para este registro
+                incidencia_existente = CorrectionRequests.objects.filter(
+                    time_entry=entry, 
+                    status='pending'
+                ).exists()
+
+                if incidencia_existente:
+                    messages.error(request, 'Ya existe una solicitud de corrección pendiente para este registro.')
+                    return redirect('workday')
+                # ──────────────────────────────────────────────────────────────────────
+
+                new_in = parse_local_datetime(new_clock_in_str) if new_clock_in_str else None
+                new_out = parse_local_datetime(new_clock_out_str) if new_clock_out_str else None
 
                 if (new_clock_in_str and new_in is None) or (new_clock_out_str and new_out is None):
                     messages.error(request, 'El formato de fecha y hora no es válido.')
