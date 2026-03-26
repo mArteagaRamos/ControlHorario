@@ -14,7 +14,7 @@ from .forms import (
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
-from users.models import Users, Companies, UserCompanyMembership, CompanySettings, CorrectionRequests
+from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -68,16 +68,16 @@ def get_or_create_demo_user():
 
 
 def ensure_membership(user):
-    membership = UserCompanyMembership.objects.filter(user=user).order_by('-joined_at').first()
+    membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
     if not membership:
         company = Companies.objects.first()
         if not company:
             company = Companies.objects.create(
                 id=uuid4(), name='DemoCorp', legal_name='Demo Corporation'
             )
-        membership = UserCompanyMembership.objects.create(
+        membership = UserCompany.objects.create(
             id=uuid4(), user=user, company=company,
-            role=UserCompanyMembership.RoleChoices.EMPLOYEE
+            role=UserCompany.RoleChoices.EMPLOYEE
         )
     return membership
 
@@ -108,7 +108,7 @@ def login_view(request):
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
-                        memberships = UserCompanyMembership.objects.filter(
+                        memberships = UserCompany.objects.filter(
                             user=user
                         ).select_related('company')
                         auth_login(request, user)
@@ -146,7 +146,7 @@ def login_view(request):
                 if updated_user:
                     auth_login(request, updated_user)
 
-                memberships = UserCompanyMembership.objects.filter(
+                memberships = UserCompany.objects.filter(
                     user=user
                 ).select_related('company')
 
@@ -168,7 +168,7 @@ def login_view(request):
             if not request.user.is_authenticated:
                 return redirect('login')
 
-            memberships  = UserCompanyMembership.objects.filter(
+            memberships  = UserCompany.objects.filter(
                 user=request.user
             ).select_related('company')
             company_form = CompanySelectLoginForm(request.POST, companies=memberships)
@@ -225,7 +225,7 @@ def lookup_user(request):
         return JsonResponse({'error': 'Email requerido'}, status=400)
 
     if company_id:
-        membership = UserCompanyMembership.objects.filter(
+        membership = UserCompany.objects.filter(
             user__email__iexact=email,
             company_id=company_id
         ).select_related('user').first()
@@ -236,7 +236,7 @@ def lookup_user(request):
         company = getattr(request, 'company', None)
         if not company:
             return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
-        membership = UserCompanyMembership.objects.filter(
+        membership = UserCompany.objects.filter(
             user__email__iexact=email,
             company=company
         ).select_related('user').first()
@@ -260,7 +260,7 @@ def register_unified(request):
     is_admin     = request.user.is_admin
     current_role = request.role
 
-    if not is_admin and current_role != UserCompanyMembership.RoleChoices.MANAGER:
+    if not is_admin and current_role != UserCompany.RoleChoices.MANAGER:
         messages.error(request, 'No tienes permisos para acceder a esta página.')
         return redirect('home_timetracking')
 
@@ -336,7 +336,7 @@ def register_unified(request):
                 if email else None
             )
             worker_role = request.POST.get(
-                'role', UserCompanyMembership.RoleChoices.EMPLOYEE
+                'role', UserCompany.RoleChoices.EMPLOYEE
             )
 
             if existing_user:
@@ -366,8 +366,8 @@ def register_unified(request):
 
         # ── 3. Crear/actualizar membership ─────────────────────────────────────
         if not errors and worker_user and company_obj:
-            role       = worker_role or UserCompanyMembership.RoleChoices.EMPLOYEE
-            membership = UserCompanyMembership.objects.filter(
+            role       = worker_role or UserCompany.RoleChoices.EMPLOYEE
+            membership = UserCompany.objects.filter(
                 user=worker_user,
                 company=company_obj,
             ).first()
@@ -376,7 +376,7 @@ def register_unified(request):
                     membership.role = role
                     membership.save(update_fields=['role'])
             else:
-                UserCompanyMembership.objects.create(
+                UserCompany.objects.create(
                     id=uuid4(),
                     user=worker_user,
                     company=company_obj,
@@ -403,7 +403,7 @@ def register_unified(request):
 
 @login_required
 def switch_company(request, company_id):
-    membership = UserCompanyMembership.objects.filter(
+    membership = UserCompany.objects.filter(
         user=request.user,
         company_id=company_id
     ).first()
