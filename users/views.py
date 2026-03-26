@@ -457,78 +457,8 @@ def workday(request):
     if request.method == 'POST':
         action = request.POST.get('action')
 
-        active_entry = TimeEntries.objects.filter(
-            user=user,
-            company=company,
-            status=TimeEntries.EntryStatus.ONGOING,
-            clock_out__isnull=True
-        ).order_by('-clock_in').first()
-
-        if action == 'clock_in':
-            if active_entry:
-                messages.warning(request, 'Ya tienes una entrada activa.')
-            else:
-                entry = TimeEntries.objects.create(
-                    id=uuid4(),
-                    user=user,
-                    company=company,
-                    date=timezone.localdate(),
-                    clock_in=timezone.now(),
-                    status=TimeEntries.EntryStatus.ONGOING
-                )
-                TimeEntryEvent.objects.create(
-                    id=uuid4(),
-                    time_entry=entry,
-                    event_type=TimeEntryEvent.EventType.CLOCK_IN,
-                    timestamp=timezone.now(),
-                    actor=user
-                )
-                messages.success(request, 'Clock-in registrado.')
-
-        elif action == 'clock_out':
-            if not active_entry:
-                messages.error(request, 'No hay entrada activa para hacer clock-out.')
-            else:
-                active_entry.clock_out = timezone.now()
-                active_entry.status    = TimeEntries.EntryStatus.CONFIRMED
-                active_entry.save(update_fields=['clock_out', 'status'])
-                TimeEntryEvent.objects.create(
-                    id=uuid4(),
-                    time_entry=active_entry,
-                    event_type=TimeEntryEvent.EventType.CLOCK_OUT,
-                    timestamp=timezone.now(),
-                    actor=user
-                )
-                messages.success(request, 'Clock-out registrado.')
-
-        elif action == 'pause_start':
-            if not active_entry:
-                messages.error(request, 'No hay entrada activa para pausar.')
-            else:
-                TimeEntryEvent.objects.create(
-                    id=uuid4(),
-                    time_entry=active_entry,
-                    event_type=TimeEntryEvent.EventType.PAUSE_START,
-                    timestamp=timezone.now(),
-                    actor=user
-                )
-                messages.success(request, 'Pausa iniciada.')
-
-        elif action == 'pause_end':
-            if not active_entry:
-                messages.error(request, 'No hay pausa activa para terminar.')
-            else:
-                TimeEntryEvent.objects.create(
-                    id=uuid4(),
-                    time_entry=active_entry,
-                    event_type=TimeEntryEvent.EventType.PAUSE_END,
-                    timestamp=timezone.now(),
-                    actor=user
-                )
-                messages.success(request, 'Pausa finalizada.')
-
         # Petición de corrección CORREGIDA
-        elif action == 'request_correction':
+        if action == 'request_correction':
             entry_id = request.POST.get('entry_id')
             reason = request.POST.get('reason', '').strip()
             new_clock_in_str = request.POST.get('new_clock_in')
