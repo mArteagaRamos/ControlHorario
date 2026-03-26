@@ -6,6 +6,11 @@
 {% block content %}
 <div class="container py-4">
 
+  {% if user_role == 'manager' or user_role == 'admin' %}
+  <form method="post" action="{% url 'entity_info' %}">
+  {% csrf_token %}
+  {% endif %}
+
   {# ── Header ── #}
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
@@ -13,7 +18,7 @@
       <small class="text-muted">Información de la empresa</small>
     </div>
     <div class="d-flex align-items-center gap-2">
-      {% if user_role == 'manager' %}
+      {% if user_role == 'manager' or user_role == 'admin' %}
         <span class="badge text-bg-primary">Manager</span>
         <button id="editToggleBtn" class="btn btn-sm btn-dark" onclick="toggleEdit()">
           Editar
@@ -119,7 +124,7 @@
             </div>
             <div class="edit-mode d-none">
               <div class="d-flex flex-wrap gap-2 mt-1">
-                {% for day_val, day_name in weekday_choices %}
+                {% for day_val, day_name in weekdays %}
                   <div class="form-check form-check-inline">
                     <input class="form-check-input" type="checkbox" name="weekend_days"
                       value="{{ day_val }}" id="day_{{ day_val }}"
@@ -141,7 +146,7 @@
               {% endfor %}
             </div>
             <div class="edit-mode d-none">
-              <textarea class="form-control form-control-sm" name="holidays_text" rows="2"
+              <textarea class="form-control form-control-sm" name="holidays" rows="2"
                 placeholder="YYYY-MM-DD, YYYY-MM-DD, ...">{% for h in settings.holidays %}{{ h|date:"Y-m-d" }}{% if not forloop.last %}, {% endif %}{% endfor %}</textarea>
               <div class="form-text">Fechas separadas por comas en formato AAAA-MM-DD</div>
             </div>
@@ -153,24 +158,20 @@
     {% endif %}
 
     {# ── Save bar ── #}
-    {% if user_role == 'manager' %}
-    <form method="post" action="{% url 'entity_info' %}">
-      {% csrf_token %}
+    {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
       <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
       <button type="submit" class="btn btn-sm btn-success">Guardar cambios</button>
     </div>
+
+    </form>
     {% endif %}
-
-  {% if user_role == 'manager' %}
-  </form>
-  {% endif %}
-
+    <p>DEBUG user_role: "{{ user_role }}"</p>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
-{% if user_role == 'manager' %}
+{% if user_role == 'manager' or user_role == 'admin' %}
 <script>
   let editing = false;
   function toggleEdit() {
@@ -184,4 +185,3 @@
 </script>
 {% endif %}
 {% endblock %}
-

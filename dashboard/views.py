@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from users.models import Companies, Users, UserCompanyMembership, CompanySettings
+from audit.views import manager_or_admin_required
 
 
 WEEKDAY = [
@@ -45,6 +46,7 @@ def request_correction(request):
 # Team management views
 
 @login_required
+@manager_or_admin_required
 def entity_info(request):
     company_id = request.session.get('company_id')
     if not company_id:
@@ -61,11 +63,20 @@ def entity_info(request):
     company=company
     ).first()
 
-    user_role = membership.role if membership else None
+    # Admin global siempre puede editar, independientemente de su rol en la empresa
+    if request.user.is_admin:
+        user_role = 'admin'
+    elif membership and membership.role == UserCompanyMembership.RoleChoices.MANAGER:
+        user_role = 'manager'
+    else:
+        user_role = 'employee'
+
+    can_edit = user_role in ('admin', 'manager')
 
     settings_obj = CompanySettings.objects.filter(company=company).first()
 
-    if request.method == 'POST' and user_role == UserCompanyMembership.RoleChoices.MANAGER:
+
+    if request.method == 'POST' and can_edit:
  
         # Update company info
         company.name       = request.POST.get('name', company.name).strip()
@@ -77,13 +88,13 @@ def entity_info(request):
         # Workday settings
         
         if settings_obj:
-            workday_start = request.POST.get('workday_start')
-            if workday_start:
-                settings_obj.workday_start = workday_start
+            work_start = request.POST.get('work_start')
+            if work_start:
+                settings_obj.work_start = work_start
 
-            workday_end = request.POST.get('workday_end')
-            if workday_end:
-                settings_obj.workday_end = workday_end
+            work_end = request.POST.get('work_end')
+            if work_end:
+                settings_obj.work_end = work_end
 
             tolerance_min = request.POST.get('max_tolerance')
             if tolerance_min is not None and tolerance_min != '':
