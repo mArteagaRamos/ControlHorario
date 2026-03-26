@@ -110,3 +110,7 @@ SET last_login = now();
  
 ALTER TABLE time_entries
 ADD COLUMN IF NOT EXISTS total_seconds INTEGER DEFAULT 0;
+
+ALTER TABLE correction_requests 
+ADD COLUMN IF NOT EXISTS new_clock_in TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS new_clock_out TIMESTAMPTZ;
