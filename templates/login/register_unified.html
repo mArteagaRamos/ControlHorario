@@ -40,7 +40,7 @@
             <input type="hidden" name="company_mode"  id="company_mode_input"  value="{{ company_mode }}">
             <input type="hidden" name="worker_action" id="worker_action_input" value="{{ worker_action }}">
             {# company_id se rellena vía JS tras el lookup de empresa existente #}
-            <input type="hidden" name="company_id" id="company_id_input" value="">
+            <input type="hidden" name="company_id" id="company_id_input" value="{{ manager_company_id }}">
 
             {# SECCIÓN EMPRESA (solo ADMIN) #}
             {% if is_admin %}

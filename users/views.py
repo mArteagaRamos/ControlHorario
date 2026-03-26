@@ -396,6 +396,7 @@ def register_unified(request):
         'worker_select': worker_select,
         'company_mode':  company_mode,
         'worker_action': worker_action,
+        'manager_company_id': str(request.company.id) if not is_admin and request.company else '',
     })
 
 
