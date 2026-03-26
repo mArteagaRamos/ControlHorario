@@ -1,192 +1,93 @@
 -- Convierte columnas TIMESTAMP WITHOUT TIME ZONE a TIMESTAMPTZ.
--- Esta migración asume que los valores actuales quedaron guardados en UTC
--- porque Django estaba ejecutándose con USE_TZ = True.
+-- Esta migracion asume que los valores actuales quedaron guardados en UTC
+-- porque Django estaba ejecutandose con USE_TZ = True.
+--
+-- A diferencia de la version anterior, este script detecta el esquema real
+-- donde estan las tablas (priorizando control_horario y despues public) y
+-- muestra NOTICE de cada cambio aplicado.
 
 BEGIN;
 
-SET search_path = control_horario;
-
 DO $$
+DECLARE
+    target_schema text;
+    rec record;
 BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'users'
-          AND column_name = 'date_joined'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE users ALTER COLUMN date_joined TYPE TIMESTAMPTZ USING date_joined AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
+    SELECT n.nspname
+    INTO target_schema
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'time_entries'
+      AND c.relkind = 'r'
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+    ORDER BY CASE
+        WHEN n.nspname = 'control_horario' THEN 0
+        WHEN n.nspname = 'public' THEN 1
+        ELSE 2
+    END
+    LIMIT 1;
 
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'companies'
-          AND column_name = 'created_at'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE companies ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE ''UTC''';
+    IF target_schema IS NULL THEN
+        RAISE EXCEPTION 'No se ha encontrado la tabla time_entries en ningun esquema de usuario.';
     END IF;
 
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'companies'
-          AND column_name = 'updated_at'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE companies ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
+    RAISE NOTICE 'Aplicando migracion de timezone sobre el esquema %', target_schema;
 
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'user_company_membership'
-          AND column_name = 'joined_at'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE user_company_membership ALTER COLUMN joined_at TYPE TIMESTAMPTZ USING joined_at AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'company_settings'
-          AND column_name = 'updated_at'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE company_settings ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'time_entries'
-          AND column_name = 'clock_in'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE time_entries ALTER COLUMN clock_in TYPE TIMESTAMPTZ USING clock_in AT TIME ZONE ''UTC''';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'time_entries'
-          AND column_name = 'clock_out'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE time_entries ALTER COLUMN clock_out TYPE TIMESTAMPTZ USING clock_out AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'time_entry_event'
-          AND column_name = 'timestamp'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE time_entry_event ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp AT TIME ZONE ''UTC''';
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'request_date'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ALTER COLUMN request_date TYPE TIMESTAMPTZ USING request_date AT TIME ZONE ''UTC''';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'approval_date'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ALTER COLUMN approval_date TYPE TIMESTAMPTZ USING approval_date AT TIME ZONE ''UTC''';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'new_clock_in'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ALTER COLUMN new_clock_in TYPE TIMESTAMPTZ USING new_clock_in AT TIME ZONE ''UTC''';
-    ELSIF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'new_clock_in'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ADD COLUMN new_clock_in TIMESTAMPTZ';
-    END IF;
-
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'new_clock_out'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ALTER COLUMN new_clock_out TYPE TIMESTAMPTZ USING new_clock_out AT TIME ZONE ''UTC''';
-    ELSIF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'correction_requests'
-          AND column_name = 'new_clock_out'
-    ) THEN
-        EXECUTE 'ALTER TABLE correction_requests ADD COLUMN new_clock_out TIMESTAMPTZ';
-    END IF;
-END $$;
-
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = current_schema()
-          AND table_name = 'audit_log'
-          AND column_name = 'timestamp'
-          AND data_type = 'timestamp without time zone'
-    ) THEN
-        EXECUTE 'ALTER TABLE audit_log ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp AT TIME ZONE ''UTC''';
-    END IF;
+    FOR rec IN
+        SELECT *
+        FROM (
+            VALUES
+                ('users', 'date_joined'),
+                ('companies', 'created_at'),
+                ('companies', 'updated_at'),
+                ('user_company_membership', 'joined_at'),
+                ('company_settings', 'updated_at'),
+                ('time_entries', 'clock_in'),
+                ('time_entries', 'clock_out'),
+                ('time_entry_event', 'timestamp'),
+                ('correction_requests', 'request_date'),
+                ('correction_requests', 'approval_date'),
+                ('correction_requests', 'new_clock_in'),
+                ('correction_requests', 'new_clock_out'),
+                ('audit_log', 'timestamp')
+        ) AS columns_to_fix(table_name, column_name)
+    LOOP
+        IF EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = target_schema
+              AND table_name = rec.table_name
+              AND column_name = rec.column_name
+              AND data_type = 'timestamp without time zone'
+        ) THEN
+            EXECUTE format(
+                'ALTER TABLE %I.%I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I AT TIME ZONE ''UTC''',
+                target_schema,
+                rec.table_name,
+                rec.column_name,
+                rec.column_name
+            );
+            RAISE NOTICE 'Convertida %.% a TIMESTAMPTZ', rec.table_name, rec.column_name;
+        ELSIF rec.table_name = 'correction_requests'
+          AND rec.column_name IN ('new_clock_in', 'new_clock_out')
+          AND NOT EXISTS (
+              SELECT 1
+              FROM information_schema.columns
+              WHERE table_schema = target_schema
+                AND table_name = rec.table_name
+                AND column_name = rec.column_name
+          ) THEN
+            EXECUTE format(
+                'ALTER TABLE %I.%I ADD COLUMN %I TIMESTAMPTZ',
+                target_schema,
+                rec.table_name,
+                rec.column_name
+            );
+            RAISE NOTICE 'Anadida %.% como TIMESTAMPTZ', rec.table_name, rec.column_name;
+        ELSE
+            RAISE NOTICE 'Sin cambios en %.%', rec.table_name, rec.column_name;
+        END IF;
+    END LOOP;
 END $$;
 
 COMMIT;
