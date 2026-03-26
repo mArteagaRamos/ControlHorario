@@ -595,6 +595,7 @@ def workday(request):
             'new_clock_in':  r.time_entry.clock_in  if r.time_entry else None,
             'new_clock_out': r.time_entry.clock_out if r.time_entry else None,
             'reason':        r.reason,
+            'correction_note': r.correction_note,
             'status':        r.status,
         })
 
