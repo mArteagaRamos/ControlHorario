@@ -221,5 +221,51 @@ function showToast(message) {
 }
 </script>
 
+{% if messages %}
+    <div id="django-messages-container" style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        width: 90%;
+        max-width: 400px;
+    ">
+        {% for message in messages %}
+        <div class="alert shadow-lg" style="
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        ">
+            <div style="font-size: 40px; margin-bottom: 10px;">
+                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
+            </div>
+            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
+                {{ message }}
+            </p>
+            <button onclick="document.getElementById('django-messages-container').remove()" style="
+                margin-top: 20px;
+                padding: 8px 20px;
+                border: none;
+                background: #f1f1f1;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: bold;
+            ">Entendido</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        setTimeout(function() {
+            var msg = document.getElementById('django-messages-container');
+            if (msg) msg.remove();
+        }, 5000);
+    </script>
+{% endif %}
+
 </body>
 </html>

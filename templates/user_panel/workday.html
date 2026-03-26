@@ -151,11 +151,7 @@
                 </div>
 
                 <div class="modal-body">
-                    <form
-                        id="correctionForm"
-                        hx-post="{% url 'workday' %}"
-                        hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
-                    >
+                    <form id="correctionForm" method="POST" action="{% url 'workday' %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="request_correction">
                         <input type="hidden" name="entry_id" id="entry_id">
