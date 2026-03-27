@@ -20,7 +20,7 @@
     <div class="d-flex align-items-center gap-2">
       {% if user_role == 'manager' or user_role == 'admin' %}
         <span class="badge text-bg-primary">Manager</span>
-        <button id="editToggleBtn" class="btn btn-sm btn-dark" onclick="toggleEdit()">
+        <button id="editToggleBtn" type="button" class="btn btn-sm btn-dark" onclick="toggleEdit()">
           Editar
         </button>
       {% else %}
@@ -94,7 +94,7 @@
             <label class="form-label text-muted small mb-1">Tolerancia máx.</label>
             <div class="view-mode">{% widthratio settings.max_tolerance.total_seconds 60 1 %} min</div>
             <div class="edit-mode d-none">
-              <input class="form-control form-control-sm" type="number" name="max_tolerance_minutes"
+              <input class="form-control form-control-sm" type="number" name="max_tolerance"
                 value="{% widthratio settings.max_tolerance.total_seconds 60 1 %}"
                 min="0" max="120">
             </div>
@@ -165,23 +165,19 @@
     </div>
 
     </form>
+    <script>
+      let editing = false;
+      function toggleEdit() {
+        editing = !editing;
+        document.querySelectorAll('.view-mode').forEach(el => el.classList.toggle('d-none', editing));
+        document.querySelectorAll('.edit-mode').forEach(el => el.classList.toggle('d-none', !editing));
+        const btn = document.getElementById('editToggleBtn');
+        btn.textContent = editing ? 'Cancelar' : 'Editar';
+        btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
+      }
+    </script>
     {% endif %}
-    <p>DEBUG user_role: "{{ user_role }}"</p>
+
 </div>
 {% endblock %}
 
-{% block extra_scripts %}
-{% if user_role == 'manager' or user_role == 'admin' %}
-<script>
-  let editing = false;
-  function toggleEdit() {
-    editing = !editing;
-    document.querySelectorAll('.view-mode').forEach(el => el.classList.toggle('d-none', editing));
-    document.querySelectorAll('.edit-mode').forEach(el => el.classList.toggle('d-none', !editing));
-    const btn = document.getElementById('editToggleBtn');
-    btn.textContent = editing ? 'Cancelar' : 'Editar';
-    btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
-  }
-</script>
-{% endif %}
-{% endblock %}

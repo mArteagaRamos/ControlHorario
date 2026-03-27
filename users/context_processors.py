@@ -1,7 +1,55 @@
-# Context processor to add current company to templates
-from .models import UserCompany
+# Context processor to add current company and breadcrumbs to templates
+from django.urls import reverse
+
+
+# Labels for URL names - maps route names to display labels
+BREADCRUMB_LABELS = {
+    'home_timetracking': 'Inicio',
+    'workday': 'Jornadas',
+    'calendar': 'Calendario',
+    'profile': 'Perfil',
+    'absence': 'Ausencias',
+    'request_correction': 'Solicitar Corrección',
+    'manager_employee': 'Gestión de Empleados',
+    'entity_info': 'Información de la Empresa',
+    'notes': 'Notas',
+    'manager_logs': 'Log de Actividades',
+    'control': 'Panel de Control',
+    'register_unified': 'Registro',
+    'staff': 'Personal',
+}
+
+
+def get_breadcrumbs(request):
+    """Generate breadcrumbs from navigation history"""
+    if not request.user.is_authenticated:
+        return []
+
+    history = request.session.get('nav_history', [])
+
+    if not history:
+        return []
+
+    breadcrumbs = []
+
+    # Add all pages from history
+    for page in history:
+        label = BREADCRUMB_LABELS.get(page['name'], page['name'].replace('_', ' ').title())
+        breadcrumbs.append({
+            'label': label,
+            'url': page['path'],
+        })
+
+    # Make the last item (current page) non-clickable
+    if breadcrumbs:
+        breadcrumbs[-1]['url'] = None
+
+    return breadcrumbs
+
 
 def user_company(request):
+    from .models import UserCompany
+
     memberships = UserCompany.objects.none()
     is_admin = False
 
@@ -16,5 +64,6 @@ def user_company(request):
         'memberships': memberships,
         'company_count': memberships.count(),
         'is_admin': is_admin,
+        'breadcrumbs': get_breadcrumbs(request),
     }
 

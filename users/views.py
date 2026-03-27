@@ -68,6 +68,18 @@ def get_or_create_demo_user():
     return user
 
 
+def format_date_spanish(date_obj):
+    """Format date as '1 ENERO, 2026' format"""
+    if not date_obj:
+        return None
+    months = {
+        1: 'ENERO', 2: 'FEBRERO', 3: 'MARZO', 4: 'ABRIL',
+        5: 'MAYO', 6: 'JUNIO', 7: 'JULIO', 8: 'AGOSTO',
+        9: 'SEPTIEMBRE', 10: 'OCTUBRE', 11: 'NOVIEMBRE', 12: 'DICIEMBRE'
+    }
+    return f"{date_obj.day} {months[date_obj.month]}, {date_obj.year}"
+
+
 def ensure_membership(user):
     membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
     if not membership:
@@ -95,7 +107,7 @@ def login_view(request):
     if request.method == 'POST':
         step = request.POST.get('step', 'credentials')
 
-        # ── Paso 1: login ──────────────────────────────────────────────────────
+        # ── Step 1: login ──────────────────────────────────────────────────────
         if step == 'credentials':
             form = LoginForm(request, data=request.POST)
             if form.is_valid():
@@ -106,6 +118,8 @@ def login_view(request):
                 if user is not None:
                     if not user.flag:
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
@@ -113,6 +127,8 @@ def login_view(request):
                             user=user
                         ).select_related('company')
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         if memberships.count() > 1:
                             company_form = CompanySelectLoginForm(companies=memberships)
                             show_company_selector = True
@@ -126,7 +142,7 @@ def login_view(request):
                 else:
                     messages.error(request, 'Email o contraseña incorrectos.')
 
-        # ── Paso 2: set password ───────────────────────────────────────────────
+        # ── Step 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
             if not request.user.is_authenticated:
                 return redirect('login')
@@ -164,7 +180,7 @@ def login_view(request):
                         )
                     return redirect('home_timetracking')
 
-        # ── Paso 3: seleccionar empresa ────────────────────────────────────────
+        # ── Step 3: select company ────────────────────────────────────────
         elif step == 'select_company':
             if not request.user.is_authenticated:
                 return redirect('login')
@@ -292,7 +308,7 @@ def register_unified(request):
         worker_user = None
         worker_role = None
 
-        # ── 1. Resolver empresa ────────────────────────────────────────────────
+        # ── 1. Resolve company ────────────────────────────────────────────────
         if is_admin:
             if company_mode == 'create':
                 tax_id           = request.POST.get('tax_id', '').strip()
@@ -336,7 +352,7 @@ def register_unified(request):
         else:
             company_obj = request.company
 
-        # ── 2. Resolver trabajador ─────────────────────────────────────────────
+        # ── 2. Resolve worker ─────────────────────────────────────────────
         if not errors:
             email         = request.POST.get('email', '').strip()
             existing_user = (
@@ -372,7 +388,7 @@ def register_unified(request):
                 else:
                     errors.append('Corrige los datos del trabajador.')
 
-        # ── 3. Crear/actualizar membership ─────────────────────────────────────
+        # ── 3. Create/update membership ─────────────────────────────────────
         if not errors and worker_user and company_obj:
             role       = worker_role or UserCompany.RoleChoices.EMPLOYEE
             membership = UserCompany.objects.filter(
@@ -408,7 +424,7 @@ def register_unified(request):
     })
 
 
-# ── Cambio de empresa ──────────────────────────────────────────────────────────
+# ── Company switch ──────────────────────────────────────────────────────────
 
 @login_required
 def switch_company(request, company_id):
@@ -423,7 +439,7 @@ def switch_company(request, company_id):
     return redirect('workday')
 
 
-# ── Panel de usuario ───────────────────────────────────────────────────────────
+# ── User panel ───────────────────────────────────────────────────────────
 
 @login_required
 @never_cache
@@ -451,8 +467,8 @@ def workday(request):
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
 
             if entry and reason and new_clock_in_str and new_clock_out_str:
-                # ── COMPROBACIÓN DE SEGURIDAD: Evitar duplicados ─────────────────────
-                # Verificamos si ya hay una incidencia en estado 'pending' para este registro
+                # ── SECURITY CHECK: Avoid duplicates ─────────────────────
+                # Verify whether a 'pending' incident already exists for this record
                 incidencia_existente = CorrectionRequests.objects.filter(
                     time_entry=entry, 
                     status='pending'
@@ -524,7 +540,7 @@ def workday(request):
             
         return redirect('workday')
 
-    # ── GET: construir datos para el template ──────────────────────────────────
+    # ── GET: build data for the template ──────────────────────────────────
     entries = TimeEntries.objects.filter(
         user=user,
         company=company,
@@ -542,7 +558,8 @@ def workday(request):
         minutes        = (worked_seconds % 3600) // 60
         entry_rows.append({
             'id':        e.id,
-            'date':      e.date,
+            'date':      format_date_spanish(e.date),
+            'date_iso':  e.date.isoformat() if e.date else None,
             'clock_in':  e.clock_in,
             'clock_out': e.clock_out,
             'status':    e.status,
@@ -551,10 +568,12 @@ def workday(request):
 
     request_rows = []
     for r in correction_requests:
+        entry_date = r.time_entry.date if r.time_entry else None
         request_rows.append({
             'id':              r.id,
-            'entry_date':      r.time_entry.date if r.time_entry else None,
-            'request_date':    r.request_date.date() if r.request_date else None,
+            'entry_date':      format_date_spanish(entry_date),
+            'entry_date_iso':  entry_date.isoformat() if entry_date else None,
+            'request_date':    format_date_spanish(r.request_date.date() if r.request_date else None),
             'new_clock_in':    r.new_clock_in  if hasattr(r, 'new_clock_in')  else None,
             'new_clock_out':   r.new_clock_out if hasattr(r, 'new_clock_out') else None,
             'reason':          r.reason,

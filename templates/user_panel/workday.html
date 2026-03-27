@@ -5,6 +5,32 @@
 
 {% block content %}
 
+<!-- Mantengo estilos en el mismo archivo para evitar problemas de carga al hacer HTMX requests, 
+ ya que el contenido se actualiza dinámicamente y no se recarga toda la página. De esta forma, 
+ los estilos siempre estarán disponibles sin importar cómo se actualice el contenido. -->
+<style>
+    .table-scroll-container {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .table-row-hidden {
+        display: none;
+    }
+
+    .buttonContainer {
+        display: flex;
+        justify-content: center;
+        margin-top: 20px;
+    }
+
+    #entryShowMore,
+    #requestShowMore {
+        display: block;
+        margin: 0 auto;
+    }
+</style>
+
 <div class="container-fluid">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -16,19 +42,20 @@
             <div class="d-flex flex-wrap align-items-end gap-3">
                 <div>
                     <label class="form-label small text-muted">Desde:</label>
-                    <input type="date" class="form-control">
+                    <input type="date" class="form-control" id="filterFromDate">
                 </div>
                 <div>
                     <label class="form-label small text-muted">Hasta:</label>
-                    <input type="date" class="form-control">
+                    <input type="date" class="form-control" id="filterToDate">
                 </div>
                 <div>
-                    <button class="btn btn-primary mt-2">Buscar</button>
+                    <button class="btn btn-primary mt-2" id="filterButton">Buscar</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- CLOCK-IN TABLE -->
     <div class="card shadow-sm border-0">
         <div class="card-body">
 
@@ -36,8 +63,8 @@
                 Fichaje <span class="text-muted">Acciones</span>
             </h6>
 
-            <div class="table-responsive">
-                <table class="table align-middle">
+            <div class="table-responsive table-scroll-container" id="entryTableContainer">
+                <table class="table align-middle" id="entryTable">
                     <thead class="table-light">
                         <tr>
                             <th>Fecha</th>
@@ -47,9 +74,9 @@
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="entryTableBody">
                         {% for entry in entry_rows %}
-                        <tr>
+                        <tr class="entry-row" data-entry-index="{{ forloop.counter0 }}" data-entry-date="{{ entry.date_iso }}">
                             <td>{{ entry.date }}</td>
                             <td>{{ entry.clock_in|date:"H:i" }}</td>
                             <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
@@ -73,16 +100,17 @@
                 </table>
             </div>
 
-            <div class="text-center mt-4">
-                <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
+            <div class="text-center mt-3, buttonContainer">
+                <button class="btn btn-sm btn-outline-primary" id="entryShowMore">Ver Más</button>
             </div>
 
+            <!-- CORRECTIONS TABLE -->
             <h6 class="mb-3 mt-4 text-primary fw-semibold">
                 Solicitudes <span class="text-muted">Correcciones</span>
             </h6>
 
-            <div class="table-responsive mt-3">
-                <table class="table align-middle">
+            <div class="table-responsive table-scroll-container mt-3" id="requestTableContainer">
+                <table class="table align-middle" id="requestTable">
                     <thead class="table-light">
                         <tr>
                             <th>Fecha fichaje</th>
@@ -94,9 +122,9 @@
                             <th>Estado</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="requestTableBody">
                         {% for r in request_rows %}
-                        <tr>
+                        <tr class="request-row" data-request-index="{{ forloop.counter0 }}" data-entry-date="{{ r.entry_date_iso }}">
                             <td>{{ r.entry_date }}</td>
                             <td>{{ r.request_date }}</td>
                             <td>{% if r.new_clock_in %}{{ r.new_clock_in|date:"H:i" }}{% else %}--{% endif %}</td>
@@ -140,13 +168,14 @@
                 </table>
             </div>
 
-            <div class="text-center mt-4">
-                <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
+            <div class="text-center mt-3, buttonContainer">
+                <button class="btn btn-sm btn-outline-primary" id="requestShowMore">Ver Más</button>
             </div>
 
         </div>
     </div>
 
+    <!-- CORRECTION MODAL -->
     <div class="modal fade" id="modalCorreccion" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -208,6 +237,169 @@
         document.getElementById('form_action').value = action;
         
         // Limpiar feedback anterior al abrir el modal
+    // ── Pagination state manager ─────────────────────────────────────────────
+    const pagination = {};
+
+    // ── Function to handle table pagination ────────────────────────────────
+    function initTablePagination(tableSelector, rowSelector, buttonSelector, containerSelector) {
+        const table = document.querySelector(tableSelector);
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll(rowSelector));
+        const button = document.querySelector(buttonSelector);
+        const container = document.querySelector(containerSelector);
+
+        const ROWS_PER_PAGE = 5;
+        const stateKey = buttonSelector;
+
+        pagination[stateKey] = {
+            currentPage: 1,
+            rows: rows,
+            container: container,
+            button: button,
+            ROWS_PER_PAGE: ROWS_PER_PAGE
+        };
+
+        // Function to show/hide rows based on the current page
+        function updateTableView() {
+            const state = pagination[stateKey];
+            const visibleRows = state.rows.filter(r => !r.classList.contains('table-row-hidden'));
+            const maxRows = state.ROWS_PER_PAGE * state.currentPage;
+
+            let visibleCount = 0;
+            state.rows.forEach((row) => {
+                if (!row.classList.contains('table-row-hidden')) {
+                    visibleCount++;
+                    row.style.display = visibleCount <= maxRows ? '' : 'none';
+                }
+            });
+
+            // Apply scroll if there are more visible rows than ROWS_PER_PAGE
+            if (visibleRows.length > state.ROWS_PER_PAGE) {
+                state.container.classList.add('table-scroll-container');
+            } else {
+                state.container.classList.remove('table-scroll-container');
+            }
+
+            // Show/hide the "See More" button
+            if (maxRows >= visibleRows.length) {
+                state.button.style.display = 'none';
+            } else {
+                state.button.style.display = 'block';
+            }
+        }
+
+        // Click on "See More"
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            pagination[stateKey].currentPage++;
+            updateTableView();
+        });
+
+        // Initialize view
+        updateTableView();
+    }
+
+    // ── Initialize both tables ────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function() {
+        initTablePagination('#entryTable', '.entry-row', '#entryShowMore', '#entryTableContainer');
+        initTablePagination('#requestTable', '.request-row', '#requestShowMore', '#requestTableContainer');
+
+        // ── Filter functionality ───────────────────────────────────────────────
+        const filterButton = document.getElementById('filterButton');
+        const filterFromDate = document.getElementById('filterFromDate');
+        const filterToDate = document.getElementById('filterToDate');
+
+        filterButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            const fromDate = filterFromDate.value;
+            const toDate = filterToDate.value;
+
+            // Get all rows for both tables
+            const entryRows = document.querySelectorAll('.entry-row');
+            const requestRows = document.querySelectorAll('.request-row');
+
+            // Apply filter to entry rows
+            entryRows.forEach(row => {
+                const rowDate = row.getAttribute('data-entry-date');
+                let shouldShow = true;
+
+                if (fromDate && rowDate < fromDate) {
+                    shouldShow = false;
+                }
+                if (toDate && rowDate > toDate) {
+                    shouldShow = false;
+                }
+
+                if (shouldShow) {
+                    row.classList.remove('table-row-hidden');
+                } else {
+                    row.classList.add('table-row-hidden');
+                }
+            });
+
+            // Apply filter to request rows
+            requestRows.forEach(row => {
+                const rowDate = row.getAttribute('data-entry-date');
+                let shouldShow = true;
+
+                if (fromDate && rowDate < fromDate) {
+                    shouldShow = false;
+                }
+                if (toDate && rowDate > toDate) {
+                    shouldShow = false;
+                }
+
+                if (shouldShow) {
+                    row.classList.remove('table-row-hidden');
+                } else {
+                    row.classList.add('table-row-hidden');
+                }
+            });
+
+            // Reset pagination for both tables
+            pagination['#entryShowMore'].currentPage = 1;
+            pagination['#requestShowMore'].currentPage = 1;
+
+            // Refresh table views
+            const updateEntry = document.getElementById('entryShowMore').onclick;
+            const updateRequest = document.getElementById('requestShowMore').onclick;
+
+            // Trigger manual refresh by calling the update logic
+            ['#entryShowMore', '#requestShowMore'].forEach(key => {
+                const state = pagination[key];
+                const visibleRows = state.rows.filter(r => !r.classList.contains('table-row-hidden'));
+                const maxRows = state.ROWS_PER_PAGE * state.currentPage;
+
+                let visibleCount = 0;
+                state.rows.forEach((row) => {
+                    if (!row.classList.contains('table-row-hidden')) {
+                        visibleCount++;
+                        row.style.display = visibleCount <= maxRows ? '' : 'none';
+                    }
+                });
+
+                // Apply scroll if there are more visible rows
+                if (visibleRows.length > state.ROWS_PER_PAGE) {
+                    state.container.classList.add('table-scroll-container');
+                } else {
+                    state.container.classList.remove('table-scroll-container');
+                }
+
+                // Show/hide button
+                if (maxRows >= visibleRows.length) {
+                    state.button.style.display = 'none';
+                } else {
+                    state.button.style.display = 'block';
+                }
+            });
+        });
+    });
+    // ── Pass entry_id to the modal when it opens ──────────────────────────────
+    document.getElementById('modalCorreccion').addEventListener('show.bs.modal', function (event) {
+        const entryId = event.relatedTarget.getAttribute('data-entry-id');
+        document.getElementById('entry_id').value = entryId;
+
+        // Clear previous feedback when opening the modal
         const feedback = document.getElementById('correctionFeedback');
         feedback.textContent = '';
         feedback.classList.add('d-none');
@@ -231,21 +423,21 @@
         }
     });
 
-    // ── Gestionar respuesta HTMX (Si usas HTMX) ───────────────────────────────────────────────
+    // ── Handle HTMX response ───────────────────────────────────────────────
     document.getElementById('correctionForm').addEventListener('htmx:afterRequest', function (evt) {
         const status   = evt.detail.xhr.status;
         const feedback = document.getElementById('correctionFeedback');
 
         if (status === 204) {
-            // Éxito: cerrar modal y recargar la tabla de correcciones
+            // Success: close modal and refresh the corrections table
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalCorreccion'));
             modal.hide();
 
-            // Recargamos la página para que la nueva solicitud aparezca en la tabla
+            // Reload the page so the new request appears in the table
             window.location.reload();
 
         } else {
-            // Error: mostrar mensaje dentro del modal sin cerrar ni recargar
+            // Error: show message inside modal without closing or reloading
             feedback.textContent = evt.detail.xhr.responseText || 'Error al enviar la solicitud.';
             feedback.classList.remove('d-none');
         }

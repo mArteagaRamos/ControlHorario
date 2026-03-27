@@ -63,7 +63,7 @@ def entity_info(request):
     company=company
     ).first()
 
-    # Admin global siempre puede editar, independientemente de su rol en la empresa
+    # Global admin can always edit, regardless of their role in the company
     if request.user.is_admin:
         user_role = 'admin'
     elif membership and membership.role == UserCompany.RoleChoices.MANAGER:
@@ -120,7 +120,7 @@ def entity_info(request):
             settings_obj.updated_at = timezone.now()
             settings_obj.save()
 
-        messages.success(request, "Información de la empresa actualizada correctamente.")
+        #messages.success(request, "Información de la empresa actualizada correctamente.")
         return redirect('entity_info')
              
     return render(request, 'team/entity_info.html',{
