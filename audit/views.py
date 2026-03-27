@@ -102,23 +102,23 @@ def manager_logs(request):
     if solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
-    # 6. PAGINACIÓN: Solo 20 registros por página
+    # 6. PAGINATION: Only 20 records per page
     paginator = Paginator(registros, 20)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
 
-    # 7. Formatear segundos SOLO para los 20 registros que se van a mostrar
+    # 7. Format seconds ONLY for the 20 records that will be displayed
     for r in page_obj:
         horas = r.total_seconds // 3600
         minutos = (r.total_seconds % 3600) // 60
         r.horas_formateadas = f"{horas}h {minutos}m" if r.total_seconds > 0 else "--"
 
     context = {
-        'page_obj': page_obj, # Enviamos la página en lugar de todos los registros
+        'page_obj': page_obj, # Send the current page instead of all records
         'empleados': empleados,
         'incidencias': incidencias,
         'fichajes_con_incidencia': fichajes_con_incidencia_str,
-        # Pasamos los filtros actuales para que el HTML los recuerde
+        # Pass current filters so the HTML can preserve them
         'current_filters': {
             'empleado': empleado_id or '',
             'fecha': fecha or '',
@@ -233,14 +233,14 @@ def editar_registro(request):
         registro_id = request.POST.get('registro_id')
         registro_original = get_object_or_404(TimeEntries, id=registro_id)
 
-        hora_entrada = request.POST.get('clock_in') # Ahora recibe algo como "YYYY-MM-DDTHH:MM"
+        hora_entrada = request.POST.get('clock_in') # Now receives values like "YYYY-MM-DDTHH:MM"
         hora_salida = request.POST.get('clock_out')
 
         # 1. Void the current one
         registro_original.status = TimeEntries.EntryStatus.CORRECTED
         registro_original.save()
 
-        # 2. Parsear los datetimes que vienen del nuevo input datetime-local
+        # 2. Parse datetimes coming from the new datetime-local input
         try:
             naive_in = datetime.strptime(hora_entrada, '%Y-%m-%dT%H:%M')
             new_in = timezone.make_aware(naive_in, timezone.get_current_timezone())
@@ -264,12 +264,12 @@ def editar_registro(request):
             id=uuid.uuid4(),
             user=registro_original.user,
             company=registro_original.company,
-            date=registro_original.date, # Mantenemos la fecha lógica original del turno
+            date=registro_original.date, # Keep the original logical date of the shift
             clock_in=new_in,
             clock_out=new_out,
             status=TimeEntries.EntryStatus.CONFIRMED,
             notes="Editado manualmente por el manager",
-            total_seconds=max(0, segundos) # Save the calculated seconds
+            total_seconds=max(0, segundos)
         )
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
