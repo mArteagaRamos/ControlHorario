@@ -120,7 +120,7 @@ def entity_info(request):
             settings_obj.updated_at = timezone.now()
             settings_obj.save()
 
-        messages.success(request, "Información de la empresa actualizada correctamente.")
+        #messages.success(request, "Información de la empresa actualizada correctamente.")
         return redirect('entity_info')
              
     return render(request, 'team/entity_info.html',{
