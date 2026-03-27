@@ -187,23 +187,23 @@
 <!-- CONTENT -->
 <main class="p-4" style="width: 100%;">
     <!-- BREADCRUMBS -->
-    {% if breadcrumbs %}
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb bg-light p-2 rounded">
-            {% for crumb in breadcrumbs %}
-                {% if crumb.url %}
-                    <li class="breadcrumb-item">
-                        <a href="{{ crumb.url }}" class="text-decoration-none">{{ crumb.label }}</a>
-                    </li>
-                {% else %}
-                    <li class="breadcrumb-item {% if forloop.last %}active{% endif %}">
-                        {{ crumb.label }}
-                    </li>
-                {% endif %}
-            {% endfor %}
+            {% if breadcrumbs %}
+                {% for crumb in breadcrumbs %}
+                    {% if crumb.url %}
+                        <li class="breadcrumb-item">
+                            <a href="{{ crumb.url }}" class="text-decoration-none">{{ crumb.label }}</a>
+                        </li>
+                    {% else %}
+                        <li class="breadcrumb-item {% if forloop.last %}active{% endif %}">
+                            {{ crumb.label }}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
         </ol>
     </nav>
-    {% endif %}
 
     {% block content %}{% endblock %}
 </main>
