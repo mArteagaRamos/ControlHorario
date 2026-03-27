@@ -11,6 +11,9 @@ class UsersManager(BaseUserManager):
     def create_user(self, email, username, dni, password=None, **extra_fields):
         if not email:
             raise ValueError('Email is required')
+        if not dni:
+            raise ValueError('DNI is required')
+        
         email = self.normalize_email(email)
         user = self.model(email=email, username=username, dni=dni, **extra_fields)
         user.set_password(password)
@@ -32,12 +35,12 @@ class Users(AbstractBaseUser):
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
     flag = models.BooleanField(default=False)
-    dni = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='') 
 
     objects = UsersManager()
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    REQUIRED_FIELDS = ['username', 'dni']
 
     class Meta:
         managed = False
@@ -46,6 +49,12 @@ class Users(AbstractBaseUser):
     def __str__(self):
         return self.email
 
+    def save(self, *args, **kwargs):
+        self.username = self.username.upper().strip() if self.username else self.username
+        self.surname  = self.surname.upper().strip()  if self.surname  else self.surname
+        self.email    = self.email.lower().strip()    if self.email    else self.email
+        self.dni      = self.dni.upper().strip()      if self.dni      else self.dni
+        super().save(*args, **kwargs)
 
 # Company / membership models section
 class Companies(models.Model):

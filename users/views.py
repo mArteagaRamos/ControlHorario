@@ -113,8 +113,7 @@ def login_view(request):
             if form.is_valid():
                 email    = form.cleaned_data.get('username')
                 password = form.cleaned_data.get('password')
-                dni      = form.cleaned_data.get('dni')
-                user     = authenticate(request, username=email, password=password, dni=dni)
+                user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
                     if not user.flag:
@@ -246,7 +245,9 @@ def lookup_company(request):
 @login_required
 def lookup_user(request):
     email      = request.GET.get('email', '').strip()
+    
     company_id = request.GET.get('company_id', '').strip()
+
 
     if not email:
         return JsonResponse({'error': 'Email requerido'}, status=400)
