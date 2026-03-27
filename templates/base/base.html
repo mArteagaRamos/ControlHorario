@@ -21,16 +21,16 @@
 
 <!-- NAVBAR -->
 <nav class="navbar navbar-dark bg-dark px-3">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
+    <div class="container-fluid d-flex justify-content-between align-items-center flex-nowrap">
 
-        <!-- Botón menú -->
+        <!-- Responsive Menu Button small screens-->
         <button class="btn btn-outline-light d-md-none" id="menu-toggle">
             <i class="bi bi-list"></i>
         </button>
 
-        <!-- Empresa -->
+        <!-- Company -->
         {% if company_count > 1 %}
-        <div class="dropdown">
+        <div class="dropdown mx-auto mx-md-0">
             <a class="navbar-brand d-flex align-items-center gap-2 dropdown-toggle text-white text-decoration-none"
                href="#"
                data-bs-toggle="dropdown">
@@ -63,10 +63,10 @@
         </a>
         {% endif %}
 
-        <!-- Usuario -->
+        <!-- User -->
         <div class="d-flex align-items-center gap-2">
             {% if request.user.is_authenticated %}
-                <span class="text-white">
+                <span class="text-white d-none d-md-inline-block">
                     {{ request.user.username }} {{ request.user.surname }}
                     {% if current_role %}
                         <small class="text-secondary">({{ current_role }})</small>
@@ -84,7 +84,7 @@
 <!-- SIDEBAR -->
 <div class="d-flex">
 
-<aside id="sidebar" class="sidebar d-flex flex-column p-3 text-white">
+<aside id="sidebar" class="sidebar d-flex flex-column p-3 text-white" style="align-self:stretch;">
 
     <span class="fs-5 mb-4">Menú</span>
 
