@@ -118,6 +118,8 @@ def login_view(request):
                 if user is not None:
                     if not user.flag:
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
@@ -125,6 +127,8 @@ def login_view(request):
                             user=user
                         ).select_related('company')
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         if memberships.count() > 1:
                             company_form = CompanySelectLoginForm(companies=memberships)
                             show_company_selector = True
