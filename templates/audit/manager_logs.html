@@ -303,25 +303,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterForm = document.getElementById('filterForm');
     const contenedor = document.getElementById('resultados-actualizables');
     
-    // --- FUNCIÓN PRINCIPAL FETCH ---
+    // --- MAIN FETCH FUNCTION ---
     window.fetchResultados = function(page = 1) {
-        // Efecto visual de carga
+        // Loading visual effect
         const tabla = contenedor.querySelector('.table-scroll-container');
         if(tabla) tabla.style.opacity = '0.4';
         contenedor.style.pointerEvents = 'none';
 
-        // Recopilamos todos los datos del formulario de filtros
+        // Collect all data from the filter form
         const formData = new FormData(filterForm);
         const params = new URLSearchParams(formData);
         params.set('page', page);
 
-        // Hacemos la petición silenciosa al servidor
+        // Send the silent request to the server
         fetch(`${window.location.pathname}?${params.toString()}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         })
         .then(response => response.text())
         .then(html => {
-            // Extraemos solo la tabla y paginación del nuevo HTML recibido
+            // Extract only the table and pagination from the new HTML
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const nuevoContenido = doc.getElementById('resultados-actualizables');
@@ -330,11 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 contenedor.innerHTML = nuevoContenido.innerHTML;
             }
 
-            // Quitamos efecto de carga y actualizamos botones
+            // Remove loading effect and update buttons
             contenedor.style.pointerEvents = 'auto';
             actualizarBotonExportar();
             
-            // Actualizamos la URL en el navegador (por si recargan la página)
+            // Update the URL in the browser (in case they refresh the page)
             // window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
         })
         .catch(error => {
@@ -344,8 +344,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     };
 
-    // --- EVENTOS DE LOS FILTROS ---
-    let tomSelectInit = false; // Flag para evitar llamadas dobles al inicio
+    // --- FILTER EVENTS ---
+    let tomSelectInit = false; // Flag to avoid duplicate calls on init
 
     if (typeof TomSelect !== 'undefined') {
         new TomSelect("#empleado-select", {
@@ -356,20 +356,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (tomSelectInit) fetchResultados(1);
             }
         });
-        tomSelectInit = true; // Activar después de inicializar
+        tomSelectInit = true; // Enable after initialization
     }
 
-    // Escuchar cambios en inputs de fecha, hora e incidencias
+    // Listen for changes in date, time, and incident inputs
     document.querySelectorAll('.js-filter').forEach(input => {
         input.addEventListener('change', () => fetchResultados(1));
     });
 
-    // --- FUNCIÓN DE PAGINACIÓN ---
+    // --- PAGINATION FUNCTION ---
     window.cambiarPagina = function(numeroPagina) {
         fetchResultados(numeroPagina);
     };
 
-    // --- LOGICA DE CHECKBOXES Y EXPORTACIÓN ---
+    // --- CHECKBOX AND EXPORT LOGIC ---
     window.actualizarBotonExportar = function() {
         const seleccionados = document.querySelectorAll('.select-row:checked').length;
         const btnExportar = document.getElementById('btnExportar');
@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Usamos delegación de eventos porque los checkboxes se reemplazan dinámicamente
+    // Use event delegation because checkboxes are replaced dynamically
     document.addEventListener('change', function(e) {
         if (e.target.id === 'selectAll') {
             document.querySelectorAll('.select-row').forEach(cb => cb.checked = e.target.checked);
@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- EVENTOS DE MODALES (Delegación para elementos dinámicos) ---
+    // --- MODAL EVENTS (delegation for dynamic elements) ---
     const resolverModal = document.getElementById('modalResolver');
     if (resolverModal) {
         resolverModal.addEventListener('show.bs.modal', function(event) {

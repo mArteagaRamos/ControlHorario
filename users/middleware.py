@@ -16,14 +16,14 @@ class CompanyMiddleware:
 
             membership = None
 
-            # 1. Si hay empresa en sesión
+            # 1. If there is a company in session
             if company_id:
                 membership = UserCompany.objects.filter(
                     user=request.user,
                     company_id=company_id
                 ).select_related('company').first()
 
-            # 2. Fallback → primera empresa válida
+            # 2. Fallback -> first valid company
             if not membership:
                 membership = UserCompany.objects.filter(
                     user=request.user
@@ -32,7 +32,7 @@ class CompanyMiddleware:
                 if membership:
                     request.session['company_id'] = str(membership.company.id)
 
-            # 3. Asignar al request
+            # 3. Assign to request
             if membership:
                 request.company = membership.company
                 request.role = membership.role

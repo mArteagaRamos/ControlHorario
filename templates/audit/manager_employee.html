@@ -4,7 +4,7 @@
 
 {% block content %}
 <style>
-    /* Tus estilos anteriores... */
+    /* Your previous styles... */
     .table-scroll-container {
         max-height: 500px; 
         overflow-y: auto;
@@ -18,15 +18,15 @@
     .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
     .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
-    /* --- NUEVO: MAGIA RESPONSIVE PARA MÓVILES --- */
+    /* --- NEW: RESPONSIVE MAGIC FOR MOBILE --- */
     @media (max-width: 767px) {
-        /* Quitamos el forzado de una sola línea en móviles */
+        /* Remove forced single-line layout on mobile */
         .text-nowrap { white-space: normal !important; }
         
-        /* Ocultamos la cabecera tradicional de la tabla */
+        /* Hide the traditional table header */
         #tablaEmpleados thead { display: none; }
         
-        /* Convertimos cada fila en una "tarjeta" */
+        /* Convert each row into a "card" */
         #tablaEmpleados tbody tr.empleado-row {
             display: block;
             margin-bottom: 1rem;
@@ -37,7 +37,7 @@
             background-color: #fff;
         }
 
-        /* Convertimos cada celda en una fila de la tarjeta */
+        /* Convert each cell into a card row */
         #tablaEmpleados tbody tr.empleado-row td {
             display: flex;
             justify-content: space-between;
@@ -47,12 +47,12 @@
             text-align: right;
         }
         
-        /* Quitamos el borde a la última celda */
+        /* Remove the border from the last cell */
         #tablaEmpleados tbody tr.empleado-row td:last-child {
             border-bottom: none;
         }
 
-        /* Insertamos el texto de la cabecera usando el atributo data-label */
+        /* Insert header text using the data-label attribute */
         #tablaEmpleados tbody tr.empleado-row td::before {
             content: attr(data-label);
             font-weight: 600;
@@ -61,7 +61,7 @@
             margin-right: 1rem;
         }
 
-        /* Ajustamos los botones en móvil para que no se apelotonen */
+        /* Adjust mobile buttons so they do not stack awkwardly */
         .acciones-movil {
             justify-content: flex-end !important;
             width: 100%;
@@ -278,7 +278,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // --- LÓGICA DE FILTRADO SIN RECARGA (CLIENT-SIDE) ---
+    // --- FILTERING LOGIC WITHOUT RELOAD (CLIENT-SIDE) ---
     const inputBusqueda = document.getElementById('filtroBusqueda');
     const selectRol = document.getElementById('filtroRol');
     const selectEstado = document.getElementById('filtroEstado');
@@ -292,18 +292,18 @@ document.addEventListener('DOMContentLoaded', function() {
         let filasVisibles = 0;
 
         filas.forEach(fila => {
-            // Recoger los datos de la fila
+            // Collect row data
             const nombre = fila.querySelector('.nombre-empleado').textContent.toLowerCase();
             const email = fila.querySelector('.email-empleado').textContent.toLowerCase();
             const rol = fila.getAttribute('data-rol');
             const estado = fila.getAttribute('data-estado');
 
-            // Comprobar coincidencias
+            // Check matches
             const coincideTexto = nombre.includes(textoBuscado) || email.includes(textoBuscado);
             const coincideRol = (rolBuscado === "") || (rol === rolBuscado);
             const coincideEstado = (estadoBuscado === "") || (estado === estadoBuscado);
 
-            // Mostrar u ocultar la fila
+            // Show or hide the row
             if (coincideTexto && coincideRol && coincideEstado) {
                 fila.style.display = '';
                 filasVisibles++;
@@ -312,18 +312,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Mostrar mensaje si no hay resultados tras filtrar
+        // Show message if there are no results after filtering
         if (noResultsJs) {
             noResultsJs.style.display = (filasVisibles === 0 && filas.length > 0) ? '' : 'none';
         }
     }
 
-    // Escuchar los eventos para que filtre en tiempo real
+    // Listen for events to filter in real time
     inputBusqueda.addEventListener('input', filtrarTabla);
     selectRol.addEventListener('change', filtrarTabla);
     selectEstado.addEventListener('change', filtrarTabla);
 
-    // --- RELLENAR MODALES (SOLO SI EXISTEN EN EL DOM PARA MANAGERS) ---
+    // --- FILL MODALS (ONLY IF THEY EXIST IN THE DOM FOR MANAGERS) ---
     const editarModal = document.getElementById('modalEditar');
     if (editarModal) {
         editarModal.addEventListener('show.bs.modal', function(event) {

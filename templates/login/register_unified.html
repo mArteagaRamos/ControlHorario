@@ -163,7 +163,7 @@ const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
 const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
 const CSRF_TOKEN         = "{{ csrf_token }}";
 
-// ── Referencias DOM ────────────────────────────────────────────────────────────
+// ── DOM references ────────────────────────────────────────────────────────────
 const companyModeInput  = document.getElementById('company_mode_input');
 const workerActionInput = document.getElementById('worker_action_input');
 const companyIdInput    = document.getElementById('company_id_input');
@@ -178,22 +178,22 @@ const btnWorkerCreate   = document.getElementById('btn-worker-create');
 const btnWorkerSelect   = document.getElementById('btn-worker-select');
 const workerLookupBlock = document.getElementById('worker-lookup-block');
 
-// ── Toggle empresa ─────────────────────────────────────────────────────────────
+// ── Company toggle ─────────────────────────────────────────────────────────────
 function setCompanyMode(mode) {
   companyModeInput.value = mode;
   const isCreate = mode === 'create';
 
-  // Botones
+  // Buttons
   btnCompanyCreate?.classList.toggle('btn-primary',         isCreate);
   btnCompanyCreate?.classList.toggle('btn-outline-primary', !isCreate);
   btnCompanySelect?.classList.toggle('btn-primary',         !isCreate);
   btnCompanySelect?.classList.toggle('btn-outline-primary', isCreate);
 
-  // Bloques
+  // Blocks
   companyLookupBlock?.classList.toggle('d-none', isCreate);
   companyFormBlock?.classList.toggle('d-none', !isCreate);
 
-  // En modo 'create' ocultamos los toggles de trabajador (formulario directo)
+  // In 'create' mode, hide worker toggles (direct form)
   workerToggleGroup?.classList.toggle('d-none', isCreate);
   
   if (isCreate) setWorkerAction('create');
@@ -212,7 +212,7 @@ function setCompanyMode(mode) {
 btnCompanyCreate?.addEventListener('click', () => setCompanyMode('create'));
 btnCompanySelect?.addEventListener('click', () => setCompanyMode('select'));
 
-// ── Toggle trabajador ──────────────────────────────────────────────────────────
+// ── Worker toggle ──────────────────────────────────────────────────────────
 function setWorkerAction(action) {
   workerActionInput.value = action;
   const isCreate = action === 'create';
@@ -234,7 +234,7 @@ function setWorkerAction(action) {
 btnWorkerCreate?.addEventListener('click', () => setWorkerAction('create'));
 btnWorkerSelect?.addEventListener('click', () => setWorkerAction('select'));
 
-// ── Lookup empresa por CIF ─────────────────────────────────────────────────────
+// ── Company lookup by Tax ID ─────────────────────────────────────────────────────
 document.getElementById('btn-lookup-company')?.addEventListener('click', async () => {
   const taxId   = document.getElementById('cif-lookup-input').value.trim();
   const feedback = document.getElementById('company-lookup-feedback');
@@ -250,7 +250,7 @@ document.getElementById('btn-lookup-company')?.addEventListener('click', async (
     const data = await res.json();
 
     if (data.found) {
-      // Rellenar formulario con datos existentes
+      // Fill the form with existing data
       document.getElementById('id_tax_id').value     = data.tax_id    || '';
       document.getElementById('id_name').value       = data.name      || '';
       document.getElementById('id_legal_name').value = data.legal_name || '';
@@ -270,10 +270,10 @@ document.getElementById('btn-lookup-company')?.addEventListener('click', async (
   }
 });
 
-// ── Lookup trabajador por email ────────────────────────────────────────────────
+// ── Worker lookup by email ────────────────────────────────────────────────
 document.getElementById('btn-lookup-worker')?.addEventListener('click', async () => {
   const email     = document.getElementById('worker-lookup-input').value.trim();
-  const companyId = document.getElementById('company_id_input').value.trim(); // ← añadir
+  const companyId = document.getElementById('company_id_input').value.trim(); // <- add
   const feedback  = document.getElementById('worker-lookup-feedback');
 
   if (!email) {
@@ -282,7 +282,7 @@ document.getElementById('btn-lookup-worker')?.addEventListener('click', async ()
     return;
   }
 
-  // Validar que se ha seleccionado empresa antes
+  // Validate that a company is selected first
   if (!companyId) {
     feedback.textContent = 'Primero busca y selecciona una empresa.';
     feedback.className = 'form-text text-warning';
@@ -291,7 +291,7 @@ document.getElementById('btn-lookup-worker')?.addEventListener('click', async ()
 
   try {
     const res  = await fetch(
-      `${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&company_id=${encodeURIComponent(companyId)}` // ← añadir company_id
+      `${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&company_id=${encodeURIComponent(companyId)}` // <- add company_id
     );
     const data = await res.json();
 
@@ -320,7 +320,7 @@ document.getElementById('btn-lookup-worker')?.addEventListener('click', async ()
   }
 });
 
-// Limpiar feedback al escribir un nuevo CIF
+// Clear feedback when typing a new Tax ID
 document.getElementById('cif-lookup-input')?.addEventListener('input', () => {
   document.getElementById('company-lookup-feedback').textContent = '';
   document.getElementById('company_id_input').value = '';
@@ -330,13 +330,13 @@ document.getElementById('cif-lookup-input')?.addEventListener('input', () => {
   clearFormBlock('worker-lookup-block');
 });
 
-// Limpiar feedback al escribir un nuevo email de trabajador
+// Clear feedback when typing a new worker email
 document.getElementById('worker-lookup-input')?.addEventListener('input', () => {
   document.getElementById('worker-lookup-feedback').textContent = '';
   clearFormBlock('worker-form-block');
 });
 
-// ── Limpiar campos de un bloque ────────────────────────────────────────────────
+// ── Clear fields in a block ────────────────────────────────────────────────
 function clearFormBlock(blockId) {
   const block = document.getElementById(blockId);
   if (!block) return;
@@ -350,7 +350,7 @@ function clearFormBlock(blockId) {
   });
 }
 
-// ── Generador de contraseña temporal ──────────────────────────────────────────
+// ── Temporary password generator ──────────────────────────────────────────
 function generatePassword(length = 12) {
   const upper  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const lower  = 'abcdefghijklmnopqrstuvwxyz';
@@ -358,7 +358,7 @@ function generatePassword(length = 12) {
   const special = '!@#$%&*?';
   const all = upper + lower + digits + special;
 
-  // Garantizamos al menos uno de cada tipo
+  // Ensure at least one of each character type
   let password = [
     upper[Math.floor(Math.random()  * upper.length)],
     lower[Math.floor(Math.random()  * lower.length)],
@@ -370,7 +370,7 @@ function generatePassword(length = 12) {
     password.push(all[Math.floor(Math.random() * all.length)]);
   }
 
-  // Mezclar el array
+  // Shuffle the array
   return password.sort(() => Math.random() - 0.5).join('');
 }
 
@@ -381,7 +381,7 @@ document.getElementById('btn-gen-password')?.addEventListener('click', () => {
   }
 });
 
-// Generar automáticamente al cargar si estamos en modo 'create'
+// Auto-generate on load if we are in 'create' mode
 document.addEventListener('DOMContentLoaded', () => {
   const input = document.getElementById('id_password');
   if (input && !input.value) {
