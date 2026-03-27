@@ -1,92 +1,55 @@
 # Context processor to add current company and breadcrumbs to templates
-from django.urls import reverse, NoReverseMatch
-from .models import UserCompany
+from django.urls import reverse
 
 
-# Breadcrumbs configuration: maps URL names to breadcrumb hierarchy
-BREADCRUMBS_CONFIG = {
-    # Mi Área section
-    'workday': {
-        'label': 'Jornadas',
-        'parent': 'Mi Área',
-    },
-    'calendar': {
-        'label': 'Calendario',
-        'parent': 'Mi Área',
-    },
-    'profile': {
-        'label': 'Perfil',
-        'parent': 'Mi Área',
-    },
-    'absence': {
-        'label': 'Ausencias',
-        'parent': 'Mi Área',
-    },
-    'request_correction': {
-        'label': 'Solicitar Corrección',
-        'parent': 'Mi Área',
-    },
-    # Equipo section
-    'manager_employee': {
-        'label': 'Gestión de Empleados',
-        'parent': 'Equipo',
-    },
-    'entity_info': {
-        'label': 'Información de la Empresa',
-        'parent': 'Equipo',
-    },
-    'notes': {
-        'label': 'Notas',
-        'parent': 'Equipo',
-    },
-    # Manager/Admin section
-    'manager_logs': {
-        'label': 'Log de Actividades',
-        'parent': 'Panel de Control',
-    },
-    'control': {
-        'label': 'Panel de Control',
-    },
-    # Other
-    'home_timetracking': {
-        'label': 'Registrar Actividad',
-    },
-    'register_unified': {
-        'label': 'Registro',
-    },
+# Labels for URL names - maps route names to display labels
+BREADCRUMB_LABELS = {
+    'home_timetracking': 'Inicio',
+    'workday': 'Jornadas',
+    'calendar': 'Calendario',
+    'profile': 'Perfil',
+    'absence': 'Ausencias',
+    'request_correction': 'Solicitar Corrección',
+    'manager_employee': 'Gestión de Empleados',
+    'entity_info': 'Información de la Empresa',
+    'notes': 'Notas',
+    'manager_logs': 'Log de Actividades',
+    'control': 'Panel de Control',
+    'register_unified': 'Registro',
+    'staff': 'Personal',
 }
 
 
 def get_breadcrumbs(request):
-    """Generate breadcrumbs for the current page"""
-    if not request.resolver_match or not request.resolver_match.url_name:
+    """Generate breadcrumbs from navigation history"""
+    if not request.user.is_authenticated:
         return []
 
-    url_name = request.resolver_match.url_name
-    config = BREADCRUMBS_CONFIG.get(url_name)
+    history = request.session.get('nav_history', [])
 
-    if not config:
+    if not history:
         return []
 
-    breadcrumbs = [
-        {'label': 'Inicio', 'url': reverse('home_timetracking')}
-    ]
+    breadcrumbs = []
 
-    if 'parent' in config:
+    # Add all pages from history
+    for page in history:
+        label = BREADCRUMB_LABELS.get(page['name'], page['name'].replace('_', ' ').title())
         breadcrumbs.append({
-            'label': config['parent'],
-            'url': None,  # Parent section has no direct URL
+            'label': label,
+            'url': page['path'],
         })
 
-    breadcrumbs.append({
-        'label': config['label'],
-        'url': None,  # Current page is not clickable
-    })
+    # Make the last item (current page) non-clickable
+    if breadcrumbs:
+        breadcrumbs[-1]['url'] = None
 
     return breadcrumbs
 
 
 def user_company(request):
+    from .models import UserCompany
+
     memberships = UserCompany.objects.none()
     is_admin = False
 
