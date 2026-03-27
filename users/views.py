@@ -3,7 +3,7 @@
 import json
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils.dateparse import parse_datetime
@@ -15,6 +15,7 @@ from .forms import (
 )
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
+from django.views.decorators.cache import never_cache
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -190,6 +191,13 @@ def login_view(request):
         'set_password_form':     set_password_form,
         'show_set_password':     show_set_password,
     })
+
+@login_required
+def logout_view(request):
+    """Cierra la sesión del usuario y redirige al login."""
+    auth_logout(request)
+    messages.success(request, 'Has cerrado sesión correctamente.')
+    return redirect('login')
 
 
 # ── AJAX lookup endpoints ──────────────────────────────────────────────────────
@@ -418,6 +426,7 @@ def switch_company(request, company_id):
 # ── Panel de usuario ───────────────────────────────────────────────────────────
 
 @login_required
+@never_cache
 def workday(request):
     user = Users.objects.filter(email=request.user.email).first()
 

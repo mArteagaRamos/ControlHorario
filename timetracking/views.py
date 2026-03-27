@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.utils import timezone
 from .models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings
+from django.views.decorators.cache import never_cache
 
 
 # CALCULATE WORKED SECONDS 
@@ -89,6 +90,7 @@ def auto_close_entry_if_expired(entry, company):
 
 # save clock-in, clock-out, pause start/end and calculate total hours worked
 
+@never_cache
 @login_required
 def time_entries(request):
 

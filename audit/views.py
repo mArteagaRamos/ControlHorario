@@ -16,6 +16,7 @@ from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.core.paginator import Paginator
+from django.views.decorators.cache import never_cache
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -45,6 +46,7 @@ def manager_or_admin_required(view_func):
 
 # Main manager view to see the clock-in logs of their company, with filters and incidents
 @manager_or_admin_required
+@never_cache
 def manager_logs(request):
     # 1. Get the manager's company
     membership = UserCompany.objects.filter(
@@ -182,6 +184,7 @@ def resolver_incidencia(request):
     return HttpResponse("Método no permitido.")
 
 # View for exporting filtered logs to CSV, with format compatible with Excel and formatted seconds
+@manager_or_admin_required
 def exportar_logs(request):
 
     if request.method == 'POST':
@@ -276,6 +279,7 @@ def editar_registro(request):
 
 
 @login_required 
+@never_cache
 def manager_employee(request):
     # 1. Get current user's membership (whether manager or employee)
     user_membership = UserCompany.objects.filter(user=request.user).first()

@@ -21,6 +21,7 @@ urlpatterns = [
     path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
     path('api/lookup-user/',    user_views.lookup_user,    name='lookup_user'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
+    path('logout/', user_views.logout_view, name='logout'),
 
     # Dashboard - Worker
     path('workday/', user_views.workday, name='workday'),
@@ -33,7 +34,6 @@ urlpatterns = [
     path('entity_info/', dashboard_views.entity_info, name='entity_info'),
     path('staff/', dashboard_views.staff, name='staff'),
     path('notes/', dashboard_views.notes, name='notes'),
-
 
     # Manager Panel URLs 
     # Manager Logs
