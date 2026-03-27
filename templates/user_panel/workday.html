@@ -7,12 +7,10 @@
 
 <div class="container-fluid">
 
-    <!-- HEADER -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-semibold">Mi Historial de Fichajes</h4>
     </div>
 
-    <!-- FILTER -->
     <div class="card mb-4 shadow-sm border-0">
         <div class="card-body">
             <div class="d-flex flex-wrap align-items-end gap-3">
@@ -31,7 +29,6 @@
         </div>
     </div>
 
-    <!-- TABLA FICHAJES -->
     <div class="card shadow-sm border-0">
         <div class="card-body">
 
@@ -61,6 +58,7 @@
                                 <button class="btn btn-sm btn-primary"
                                         data-bs-toggle="modal"
                                         data-bs-target="#modalCorreccion"
+                                        data-action="request_correction"
                                         data-entry-id="{{ entry.id }}">
                                     Editar Entrada
                                 </button>
@@ -79,7 +77,6 @@
                 <a href="#" class="text-primary fw-semibold text-decoration-none">Ver Historial Completo</a>
             </div>
 
-            <!-- TABLA CORRECCIONES -->
             <h6 class="mb-3 mt-4 text-primary fw-semibold">
                 Solicitudes <span class="text-muted">Correcciones</span>
             </h6>
@@ -115,6 +112,16 @@
                             <td>
                                 {% if r.status == 'pending' %}
                                     <span class="badge bg-warning text-dark">Pendiente</span>
+                                    <button class="btn btn-sm btn-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalCorreccion"
+                                            data-action="edit_correction"
+                                            data-request-id="{{ r.id }}"
+                                            data-in="{{ r.new_clock_in|date:'Y-m-d\\TH:i' }}"
+                                            data-out="{{ r.new_clock_out|date:'Y-m-d\\TH:i' }}"
+                                            data-reason="{{ r.reason }}">
+                                        Editar Solicitud
+                                    </button>
                                 {% elif r.status == 'approved' %}
                                     <span class="badge bg-success">Aprobada</span>
                                 {% elif r.status == 'rejected' %}
@@ -140,7 +147,6 @@
         </div>
     </div>
 
-    <!-- MODAL CORRECCIÓN -->
     <div class="modal fade" id="modalCorreccion" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -153,8 +159,9 @@
                 <div class="modal-body">
                     <form id="correctionForm" method="POST" action="{% url 'workday' %}">
                         {% csrf_token %}
-                        <input type="hidden" name="action" value="request_correction">
+                        <input type="hidden" name="action" id="form_action" value="request_correction">
                         <input type="hidden" name="entry_id" id="entry_id">
+                        <input type="hidden" name="request_id" id="request_id">
 
                         <div class="mb-3">
                             <label class="form-label">Nueva Hora de Entrada:</label>
@@ -193,18 +200,38 @@
 </div>
 
 <script>
-    // ── Pasar el entry_id al modal cuando se abre ──────────────────────────────
+    // ── Preparar el modal según la acción (Crear vs Editar) ──────────────────────────────
     document.getElementById('modalCorreccion').addEventListener('show.bs.modal', function (event) {
-        const entryId = event.relatedTarget.getAttribute('data-entry-id');
-        document.getElementById('entry_id').value = entryId;
-
+        const button = event.relatedTarget;
+        const action = button.getAttribute('data-action') || 'request_correction';
+        
+        document.getElementById('form_action').value = action;
+        
         // Limpiar feedback anterior al abrir el modal
         const feedback = document.getElementById('correctionFeedback');
         feedback.textContent = '';
         feedback.classList.add('d-none');
+
+        if (action === 'edit_correction') {
+            // MODO EDICIÓN
+            document.getElementById('request_id').value = button.getAttribute('data-request-id');
+            document.getElementById('entry_id').value = ''; // Limpiamos por si acaso
+            document.querySelector('input[name="new_clock_in"]').value = button.getAttribute('data-in') || '';
+            document.querySelector('input[name="new_clock_out"]').value = button.getAttribute('data-out') || '';
+            document.querySelector('textarea[name="reason"]').value = button.getAttribute('data-reason') || '';
+            document.querySelector('.modal-title').textContent = 'Editar Solicitud de Corrección';
+        } else {
+            // MODO CREACIÓN NUEVA
+            document.getElementById('entry_id').value = button.getAttribute('data-entry-id');
+            document.getElementById('request_id').value = ''; // Limpiamos por si acaso
+            document.querySelector('input[name="new_clock_in"]').value = '';
+            document.querySelector('input[name="new_clock_out"]').value = '';
+            document.querySelector('textarea[name="reason"]').value = '';
+            document.querySelector('.modal-title').textContent = 'Nueva Solicitud de Corrección';
+        }
     });
 
-    // ── Gestionar respuesta HTMX ───────────────────────────────────────────────
+    // ── Gestionar respuesta HTMX (Si usas HTMX) ───────────────────────────────────────────────
     document.getElementById('correctionForm').addEventListener('htmx:afterRequest', function (evt) {
         const status   = evt.detail.xhr.status;
         const feedback = document.getElementById('correctionFeedback');

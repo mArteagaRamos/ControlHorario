@@ -496,7 +496,32 @@ def workday(request):
                 messages.error(request, 'Datos incompletos o inválidos.')
                 return redirect('workday')
 
-        # Fallback: cualquier POST con action no reconocida
+        elif action == 'edit_correction':
+            request_id        = request.POST.get('request_id')
+            reason            = request.POST.get('reason', '').strip()
+            new_clock_in_str  = request.POST.get('new_clock_in')
+            new_clock_out_str = request.POST.get('new_clock_out')
+
+            # Buscamos la solicitud (asegurándonos de que es de este usuario y sigue pendiente)
+            correction = CorrectionRequests.objects.filter(id=request_id, requester=user, status='pending').first()
+
+            if correction and reason and new_clock_in_str and new_clock_out_str:
+                correction.new_clock_in = parse_local_datetime(new_clock_in_str)
+                correction.new_clock_out = parse_local_datetime(new_clock_out_str)
+                correction.reason = reason
+                correction.save()
+
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(status=204)
+
+                messages.success(request, 'Solicitud actualizada correctamente.')
+                return redirect('workday')
+            else:
+                if request.headers.get('HX-Request'):
+                    return HttpResponse('Datos inválidos o solicitud no encontrada.', status=400)
+                messages.error(request, 'Error al actualizar la solicitud.')
+                return redirect('workday')
+            
         return redirect('workday')
 
     # ── GET: construir datos para el template ──────────────────────────────────
@@ -527,6 +552,7 @@ def workday(request):
     request_rows = []
     for r in correction_requests:
         request_rows.append({
+            'id':              r.id,
             'entry_date':      r.time_entry.date if r.time_entry else None,
             'request_date':    r.request_date.date() if r.request_date else None,
             'new_clock_in':    r.new_clock_in  if hasattr(r, 'new_clock_in')  else None,
