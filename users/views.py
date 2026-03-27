@@ -119,6 +119,8 @@ def login_view(request):
                 if user is not None:
                     if not user.flag:
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
@@ -126,6 +128,8 @@ def login_view(request):
                             user=user
                         ).select_related('company')
                         auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
                         if memberships.count() > 1:
                             company_form = CompanySelectLoginForm(companies=memberships)
                             show_company_selector = True
@@ -204,6 +208,8 @@ def login_view(request):
         'set_password_form':     set_password_form,
         'show_set_password':     show_set_password,
     })
+
+#── Logout ─────────────────────────────────────────────────────────────────────
 
 @login_required
 def logout_view(request):
@@ -511,7 +517,32 @@ def workday(request):
                 messages.error(request, 'Datos incompletos o inválidos.')
                 return redirect('workday')
 
-        # Fallback: any POST with an unrecognized action
+        elif action == 'edit_correction':
+            request_id        = request.POST.get('request_id')
+            reason            = request.POST.get('reason', '').strip()
+            new_clock_in_str  = request.POST.get('new_clock_in')
+            new_clock_out_str = request.POST.get('new_clock_out')
+
+            # Buscamos la solicitud (asegurándonos de que es de este usuario y sigue pendiente)
+            correction = CorrectionRequests.objects.filter(id=request_id, requester=user, status='pending').first()
+
+            if correction and reason and new_clock_in_str and new_clock_out_str:
+                correction.new_clock_in = parse_local_datetime(new_clock_in_str)
+                correction.new_clock_out = parse_local_datetime(new_clock_out_str)
+                correction.reason = reason
+                correction.save()
+
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(status=204)
+
+                messages.success(request, 'Solicitud actualizada correctamente.')
+                return redirect('workday')
+            else:
+                if request.headers.get('HX-Request'):
+                    return HttpResponse('Datos inválidos o solicitud no encontrada.', status=400)
+                messages.error(request, 'Error al actualizar la solicitud.')
+                return redirect('workday')
+            
         return redirect('workday')
 
     # ── GET: build data for the template ──────────────────────────────────
@@ -544,6 +575,7 @@ def workday(request):
     for r in correction_requests:
         entry_date = r.time_entry.date if r.time_entry else None
         request_rows.append({
+            'id':              r.id,
             'entry_date':      format_date_spanish(entry_date),
             'entry_date_iso':  entry_date.isoformat() if entry_date else None,
             'request_date':    format_date_spanish(r.request_date.date() if r.request_date else None),

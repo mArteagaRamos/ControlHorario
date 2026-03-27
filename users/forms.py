@@ -112,6 +112,9 @@ class LoginForm(AuthenticationForm):
         })
     )
 
+    def clean_username(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        return username.upper()
 
 # ── Login with company selection ────────────────────────────────────────────
 
@@ -209,9 +212,11 @@ class SetPasswordForm(forms.Form):
             has_upper = any(c.isupper() for c in new_password)
             has_lower = any(c.islower() for c in new_password)
             has_digit = any(c.isdigit() for c in new_password)
-            if not (has_upper and has_lower and has_digit):
+            special_chars = '!¡¿?@#$%^&*-_;:./~'
+            has_special = any(c in special_chars for c in new_password)
+            if not (has_upper and has_lower and has_digit and has_special):
                 self.add_error(
                     'new_password',
-                    'La contraseña debe contener mayúsculas, minúsculas y números.',
+                    'La contraseña debe contener mayúsculas, minúsculas, números y símbolos especiales (!¡¿?@#$%^&*-_;:./~).',
                 )
         return cleaned_data
