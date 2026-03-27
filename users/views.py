@@ -113,7 +113,8 @@ def login_view(request):
             if form.is_valid():
                 email    = form.cleaned_data.get('username')
                 password = form.cleaned_data.get('password')
-                user     = authenticate(request, username=email, password=password)
+                dni      = form.cleaned_data.get('dni')
+                user     = authenticate(request, username=email, password=password, dni=dni)
 
                 if user is not None:
                     if not user.flag:
@@ -268,8 +269,10 @@ def lookup_user(request):
         'found':    True,
         'username': user.username,
         'surname':  user.surname,
+        'dni':      user.dni,
         'email':    user.email,
         'status':   user.status,
+
     })
 
 
@@ -402,7 +405,7 @@ def register_unified(request):
                     company=company_obj,
                     role=role,
                 )
-            messages.success(request, 'Registro completado correctamente.')
+            #messages.success(request, 'Registro completado correctamente.')
             return redirect('home_timetracking')
 
         for error in errors:

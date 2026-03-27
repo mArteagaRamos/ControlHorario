@@ -122,3 +122,44 @@ ALTER TABLE audit_log
 RENAME COLUMN actor_id TO user_id;
 
 ALTER TABLE user_company_membership RENAME TO user_company;
+
+-- ADICIÓN POST DEMO
+
+-- 1. Añadir columna DNI y normalizar nombres de columnas si es necesario
+ALTER TABLE users 
+ADD COLUMN dni VARCHAR(20) UNIQUE;
+
+-- 2. Limpieza y Normalización a MAYÚSCULAS
+-- Nota: Usamos TRIM para quitar espacios accidentales
+UPDATE users SET 
+    username = UPPER(TRIM(username)),
+    surname = UPPER(TRIM(surname)),
+    email = UPPER(TRIM(email));
+
+-- 3. Forzar que las nuevas entradas sean siempre en mayúsculas (Opcional pero recomendado)
+-- Puedes añadir un CHECK o manejarlo por software, aquí ajustamos la restricción unique
+ALTER TABLE users ADD CONSTRAINT unique_user_dni UNIQUE (dni);
+
+
+-- 1. Normalización de datos existentes
+UPDATE companies SET 
+    name = UPPER(TRIM(name)),
+    legal_name = UPPER(TRIM(legal_name)),
+    tax_id = UPPER(TRIM(tax_id));
+
+-- 2. Aplicar restricciones de unicidad para evitar duplicados
+ALTER TABLE companies 
+ADD CONSTRAINT unique_company_name UNIQUE (name),
+ADD CONSTRAINT unique_company_legal_name UNIQUE (legal_name);
+
+
+-- Activar extensión para búsqueda de texto
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Índices para búsqueda rápida en empresas
+CREATE INDEX idx_companies_search_name ON companies USING gin (name gin_trgm_ops);
+CREATE INDEX idx_companies_search_taxid ON companies USING gin (tax_id gin_trgm_ops);
+
+-- Índices para búsqueda rápida en usuarios
+CREATE INDEX idx_users_search_composite ON users USING gin (surname gin_trgm_ops);
+CREATE INDEX idx_users_search_email ON users USING gin (email gin_trgm_ops);

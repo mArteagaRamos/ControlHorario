@@ -8,11 +8,11 @@ import uuid
 
 # Manager section
 class UsersManager(BaseUserManager):
-    def create_user(self, email, username, password=None, **extra_fields):
+    def create_user(self, email, username, dni, password=None, **extra_fields):
         if not email:
             raise ValueError('Email is required')
         email = self.normalize_email(email)
-        user = self.model(email=email, username=username, **extra_fields)
+        user = self.model(email=email, username=username, dni=dni, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -32,6 +32,7 @@ class Users(AbstractBaseUser):
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
     flag = models.BooleanField(default=False)
+    dni = models.CharField(max_length=20, unique=True, blank=True, null=True)
 
     objects = UsersManager()
 
