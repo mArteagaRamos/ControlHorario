@@ -79,7 +79,7 @@ def manager_logs(request):
     registros = TimeEntries.objects.filter(
         company=company
     ).exclude(
-        status=TimeEntries.EntryStatus.CORRECTED 
+        status__in=[TimeEntries.EntryStatus.CORRECTED, TimeEntries.EntryStatus.VOIDED]
     ).annotate(
         rol_empleado=Subquery(rol_subquery)
     ).select_related('user').order_by('-date', '-clock_in')
@@ -355,4 +355,23 @@ def delete_employee(request):
     membership.delete()
 
     return redirect('manager_employee')
+
+@manager_or_admin_required
+@require_POST
+def anular_registro(request):
+    registro_id = request.POST.get('registro_id')
+    
+    if not registro_id:
+        return HttpResponse("ID de registro no proporcionado.", status=400)
+
+    registro = get_object_or_404(TimeEntries, id=registro_id)
+
+    registro.status = 'voided' 
+    
+    registro.total_seconds = 0 
+    registro.notes = f"{registro.notes}\n[Anulado por el manager {request.user.username}]"
+    
+    registro.save()
+
+    return redirect('manager_logs')
 

@@ -116,6 +116,8 @@
                                     <span class="badge bg-danger">Incidencia</span>
                                 {% elif registro.status == 'corrected' %}
                                     <span class="badge bg-info text-dark">Corregido</span>
+                                {% elif registro.status == 'voided' %}
+                                    <span class="badge bg-secondary">Anulado</span>
                                 {% else %}
                                     <span class="badge bg-success">Confirmado</span>
                                 {% endif %}
@@ -140,14 +142,23 @@
                                             {% endif %}
                                         {% endfor %}
                                     {% else %}
-                                        <button type="button" class="btn btn-sm btn-outline-primary {% if registro.status == 'corrected' %}disabled{% endif %}"
-                                            data-bs-toggle="modal" 
-                                            data-bs-target="#modalEditar"
-                                            data-entry-id="{{ registro.id }}"
-                                            data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
-                                            data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
-                                            <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
-                                        </button>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary {% if registro.status == 'corrected' or registro.status == 'anulado' %}disabled{% endif %}"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#modalEditar"
+                                                data-entry-id="{{ registro.id }}"
+                                                data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
+                                                data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
+                                                <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
+                                            </button>
+                                            
+                                            <button type="button" class="btn btn-sm btn-outline-danger {% if registro.status == 'corrected' or registro.status == 'anulado' %}disabled{% endif %}"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#modalAnular"
+                                                data-entry-id="{{ registro.id }}">
+                                                <i class="bi bi-trash" style="pointer-events: none;"></i> Anular
+                                            </button>
+                                        </div>
                                     {% endif %}
                                 </div>
                             </td>
@@ -257,6 +268,30 @@
                 <div class="modal-footer bg-light justify-content-between">
                     <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAnular" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Anular Entrada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'anular_registro' %}"> 
+                {% csrf_token %}
+                <div class="modal-body p-4 text-center">
+                    <input type="hidden" name="registro_id" id="anularRegistroId">
+                    <i class="bi bi-trash text-danger" style="font-size: 3rem;"></i>
+                    <p class="fs-5 mt-3 mb-1 fw-bold">¿Estás seguro?</p>
+                    <p class="text-muted small">Esta acción marcará el fichaje como anulado, pondrá sus horas a cero y no se podrá deshacer.</p>
+                </div>
+                <div class="modal-footer bg-light justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Anular</button>
                 </div>
             </form>
         </div>
@@ -386,6 +421,19 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('editRegistroId').value = button.getAttribute('data-entry-id');
             document.getElementById('editClockIn').value = button.getAttribute('data-in');
             document.getElementById('editClockOut').value = button.getAttribute('data-out') || '';
+        });
+    }
+
+    const modalAnular = document.getElementById('modalAnular');
+    if (modalAnular) {
+        modalAnular.addEventListener('show.bs.modal', function (event) {
+            // Botón que activó el modal
+            const button = event.relatedTarget;
+            // Extraer info de los atributos data-*
+            const entryId = button.getAttribute('data-entry-id');
+            // Actualizar el valor del input hidden
+            const inputId = modalAnular.querySelector('#anularRegistroId');
+            inputId.value = entryId;
         });
     }
 });
