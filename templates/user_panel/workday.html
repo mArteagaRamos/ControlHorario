@@ -78,13 +78,21 @@
                             <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ entry.worked }}</td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-primary"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#modalCorreccion"
-                                        data-action="request_correction"
-                                        data-entry-id="{{ entry.id }}">
-                                    Editar Entrada
-                                </button>
+                                {% if entry.clock_out %}
+                                    <button class="btn btn-sm btn-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalCorreccion"
+                                            data-action="request_correction"
+                                            data-entry-id="{{ entry.id }}">
+                                        Editar Entrada
+                                    </button>
+                                {% else %}
+                                    <span d-inline-block tabindex="0" data-bs-toggle="tooltip" title="Debes finalizar la jornada para solicitar una corrección">
+                                        <button class="btn btn-sm btn-secondary" disabled style="pointer-events: none;">
+                                            Editar Entrada
+                                        </button>
+                                    </span>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
