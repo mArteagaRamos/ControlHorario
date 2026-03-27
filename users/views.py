@@ -208,6 +208,8 @@ def login_view(request):
         'show_set_password':     show_set_password,
     })
 
+#── Logout ─────────────────────────────────────────────────────────────────────
+
 @login_required
 def logout_view(request):
     """Cierra la sesión del usuario y redirige al login."""
