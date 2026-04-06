@@ -17,6 +17,7 @@ from .email_utils import send_new_user_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from django.views.decorators.cache import never_cache
+from django.db.models import Q
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
