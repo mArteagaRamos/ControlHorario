@@ -1,6 +1,6 @@
 # ---------- Email Utilities: users/email_utils.py ----------
 
-from django.core.mail import EmailMultiAlternatives
+from django.core.mail import EmailMultiAlternatives, EmailMessage
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -57,7 +57,7 @@ def send_new_user_email(user, password, company):
         email.attach_alternative(html_message, 'text/html')
 
         # Send email
-        email.send(fail_silently=False)
+        email.send(fail_silently=True)
         logger.info(f'Nuevo usuario email enviado a {user.email}')
 
     except Exception as e:
@@ -106,7 +106,7 @@ def send_existing_user_email(user, company, role):
         email.attach_alternative(html_message, 'text/html')
 
         # Send email
-        email.send(fail_silently=False)
+        email.send(fail_silently=True)
         logger.info(f'Email de usuario existente enviado a {user.email}')
 
     except Exception as e:

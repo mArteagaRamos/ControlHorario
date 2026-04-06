@@ -3,9 +3,10 @@
 from django.db import models
 from users.models import Users, Companies
 from django.utils import timezone
+from core.model_normalization import UppercaseNormalizationMixin
 
 # Time entry models
-class TimeEntries(models.Model):
+class TimeEntries(UppercaseNormalizationMixin, models.Model):
     class EntryStatus(models.TextChoices):
         ONGOING = 'ongoing'
         CONFIRMED = 'confirmed'
@@ -38,7 +39,7 @@ class TimeEntries(models.Model):
         db_table = 'time_entries'
 
 
-class TimeEntryEvent(models.Model):
+class TimeEntryEvent(UppercaseNormalizationMixin, models.Model):
     class EventType(models.TextChoices):
         CLOCK_IN = 'clock_in'
         CLOCK_OUT = 'clock_out'

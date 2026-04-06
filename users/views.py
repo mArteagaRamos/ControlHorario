@@ -280,7 +280,7 @@ def lookup_user(request):
     })
 
 
-# ── Registro unificado ─────────────────────────────────────────────────────────
+# ── Register unified ─────────────────────────────────────────────────────────
 
 @login_required
 def register_unified(request):

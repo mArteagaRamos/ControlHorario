@@ -119,6 +119,7 @@
                     {# Renderizamos campo a campo para insertar el botón en 'password' #}
                     {% bootstrap_field worker_create.username %}
                     {% bootstrap_field worker_create.surname %}
+                    {% bootstrap_field worker_create.dni %}
                     {% bootstrap_field worker_create.email %}
                     {% bootstrap_field worker_create.status %}
                     {% bootstrap_field worker_create.role %}
@@ -299,6 +300,7 @@ document.getElementById('btn-lookup-worker')?.addEventListener('click', async ()
       'id_email':    data.email    || email,
       'id_username': data.username || '',
       'id_surname':  data.surname  || '',
+      'id_dni':      data.dni      || '',
       'id_status':   data.status   || '',
     };
 

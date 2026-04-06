@@ -41,3 +41,19 @@ body {
 .hidden {
   display: none;
 }
+
+/* Keep validation feedback focused on errors: avoid green/tick success state. */
+.form-control.is-valid,
+.was-validated .form-control:valid,
+.form-select.is-valid,
+.was-validated .form-select:valid,
+.form-check-input.is-valid,
+.was-validated .form-check-input:valid {
+    border-color: var(--bs-border-color) !important;
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+.valid-feedback {
+    display: none;
+}
