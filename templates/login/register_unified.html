@@ -46,18 +46,45 @@
             {% if is_admin %}
             <section id="section-company" class="mb-4">
 
-              {# ── Flujo SELECCIONAR: buscador por CIF ── #}
+              {# ── Flujo SELECCIONAR: buscador por CIF o nombre── #}
               <div id="company-lookup-block" class="{% if company_mode != 'select' %}d-none{% endif %}">
                 <h5 class="border-bottom pb-2">
                   <span class="badge bg-primary me-2">1</span>Empresa
                 </h5>
-                <div class="input-group mb-3">
-                  <input type="text" id="cif-lookup-input" class="form-control"
-                         placeholder="Introduce el CIF / NIF de la empresa">
-                  <button type="button" id="btn-lookup-company" class="btn btn-outline-secondary">
-                    Buscar
+
+                {# Pestañas de modo de búsqueda #}
+                <div class="btn-group btn-group-sm mb-3 w-100" role="group" id="company-search-mode-group">
+                  <button type="button" class="btn btn-outline-secondary active" data-cmode="tax_id">
+                    <i class="bi bi-upc me-1"></i>CIF / NIF
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary" data-cmode="name">
+                    <i class="bi bi-building me-1"></i>Nombre
                   </button>
                 </div>
+ 
+                {# Búsqueda por CIF #}
+                <div id="company-search-block-tax_id" class="company-search-block">
+                  <div class="input-group mb-3">
+                    <input type="text" id="cif-lookup-input" class="form-control"
+                           placeholder="Introduce el CIF / NIF de la empresa" autocomplete="off">
+                    <button type="button" id="btn-lookup-company" class="btn btn-outline-secondary">
+                      Buscar
+                    </button>
+                  </div>
+                </div>
+ 
+                {# Búsqueda por Nombre con autocomplete #}
+                <div id="company-search-block-name" class="company-search-block d-none">
+                  <div class="position-relative mb-3">
+                    <input type="text" id="company-lookup-name" class="form-control"
+                           placeholder="Escribe nombre o razón social…" autocomplete="off">
+                    <ul id="company-name-suggestions"
+                        class="list-group position-absolute w-100 shadow-sm d-none"
+                        style="z-index:1050; top:100%; max-height:220px; overflow-y:auto;">
+                    </ul>
+                  </div>
+                </div>
+ 
                 <div id="company-lookup-feedback" class="form-text mb-2"></div>
               </div>
 
@@ -221,7 +248,7 @@ const btnWorkerCreate   = document.getElementById('btn-worker-create');
 const btnWorkerSelect   = document.getElementById('btn-worker-select');
 const workerLookupBlock = document.getElementById('worker-lookup-block');
 
-// ── Name autocomplete ──────────────────────────────────────────────────────
+// ── Employee name autocomplete ──────────────────────────────────────────────────────
 const nameInput      = document.getElementById('worker-lookup-name');
 const suggestionsList = document.getElementById('name-suggestions');
 let nameDebounceTimer = null;
@@ -230,7 +257,16 @@ function hideSuggestions() {
   suggestionsList?.classList.add('d-none');
   if (suggestionsList) suggestionsList.innerHTML = '';
 }
+
+ // ── Company name autocomplete elements (hoisted) ──────────────────────────
+const companyNameInput   = document.getElementById('company-lookup-name');
+const companySuggestions = document.getElementById('company-name-suggestions');
+let companyDebounceTimer = null;
  
+function hideCompanySuggestions() {
+  companySuggestions?.classList.add('d-none');
+  if (companySuggestions) companySuggestions.innerHTML = '';
+}
 
 // ── Company toggle ─────────────────────────────────────────────────────────────
 function setCompanyMode(mode) {
@@ -257,10 +293,11 @@ function setCompanyMode(mode) {
   clearFormBlock('worker-form-block');
   clearFormBlock('worker-lookup-block');
   document.getElementById('cif-lookup-input').value          = '';
+  document.getElementById('company-lookup-name')?.value  && (document.getElementById('company-lookup-name').value = '');
   document.getElementById('company-lookup-feedback').textContent = '';
   document.getElementById('worker-lookup-feedback').textContent  = '';
   document.getElementById('company_id_input').value          = '';
-  companyFormBlock?.classList.toggle('d-none', mode !== 'create');
+  hideCompanySuggestions();
 }
 
 btnCompanyCreate?.addEventListener('click', () => setCompanyMode('create'));
@@ -315,14 +352,41 @@ document.getElementById('search-mode-group')?.querySelectorAll('[data-mode]').fo
   });
 });
 
+// ── Company search mode tabs (CIF / Nombre) ───────────────────────────────
+document.getElementById('company-search-mode-group')?.querySelectorAll('[data-cmode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#company-search-mode-group [data-cmode]').forEach(b => {
+      b.classList.toggle('active',                b === btn);
+      b.classList.toggle('btn-secondary',         b === btn);
+      b.classList.toggle('btn-outline-secondary', b !== btn);
+    });
+    document.querySelectorAll('.company-search-block').forEach(b => b.classList.add('d-none'));
+    document.getElementById(`company-search-block-${btn.dataset.cmode}`)?.classList.remove('d-none');
+    document.getElementById('company-lookup-feedback').textContent = '';
+    hideCompanySuggestions();
+  });
+});
+function setCompanyFeedback(text, type) {
+  const fb = document.getElementById('company-lookup-feedback');
+  fb.textContent = text;
+  fb.className   = `form-text text-${type}`;
+}
+
+function fillCompanyForm(data) {
+  document.getElementById('id_tax_id').value     = data.tax_id    || '';
+  document.getElementById('id_name').value       = data.name      || '';
+  document.getElementById('id_legal_name').value = data.legal_name || '';
+  companyIdInput.value = data.id;
+  companyFormBlock.classList.remove('d-none');
+}
+
 // ── Company lookup by Tax ID ─────────────────────────────────────────────────────
 document.getElementById('btn-lookup-company')?.addEventListener('click', async () => {
   const taxId   = document.getElementById('cif-lookup-input').value.trim();
   const feedback = document.getElementById('company-lookup-feedback');
 
   if (!taxId) {
-    feedback.textContent = 'Introduce un CIF / NIF.';
-    feedback.className = 'form-text text-danger';
+    setCompanyFeedback('Introduce un CIF / NIF.', 'danger');
     return;
   }
 
@@ -331,23 +395,74 @@ document.getElementById('btn-lookup-company')?.addEventListener('click', async (
     const data = await res.json();
 
     if (data.found) {
-      // Fill the form with existing data
-      document.getElementById('id_tax_id').value     = data.tax_id    || '';
-      document.getElementById('id_name').value       = data.name      || '';
-      document.getElementById('id_legal_name').value = data.legal_name || '';
-      companyIdInput.value = data.id;
-      companyFormBlock.classList.remove('d-none');
-      feedback.textContent = 'Empresa encontrada. Puedes editar sus datos.';
-      feedback.className = 'form-text text-success';
+      fillCompanyForm(data);
+      setCompanyFeedback('Empresa encontrada. Puedes editar sus datos.', 'success');
     } else {
-      feedback.textContent = 'No existe ninguna empresa con ese CIF.';
-      feedback.className = 'form-text text-danger';
+      setCompanyFeedback('No existe ninguna empresa con ese CIF.', 'danger');
       companyFormBlock.classList.add('d-none');
       companyIdInput.value = '';
     }
   } catch {
-    feedback.textContent = 'Error al buscar la empresa.';
-    feedback.className = 'form-text text-danger';
+    setCompanyFeedback('Error al buscar la empresa.', 'danger');
+  }
+});
+
+// ── Company lookup by Name (autocomplete) ─────────────────────────────────
+companyNameInput?.addEventListener('input', () => {
+  clearTimeout(companyDebounceTimer);
+  const query = companyNameInput.value.trim();
+ 
+  if (query.length < 2) {
+    hideCompanySuggestions();
+    setCompanyFeedback('', '');
+    return;
+  }
+ 
+  companyDebounceTimer = setTimeout(async () => {
+    try {
+      const res     = await fetch(`${LOOKUP_COMPANY_URL}?name=${encodeURIComponent(query)}`);
+      const data    = await res.json();
+      const results = data.results || [];
+ 
+      companySuggestions.innerHTML = '';
+ 
+      if (results.length === 0) {
+        hideCompanySuggestions();
+        setCompanyFeedback('Sin resultados para esa búsqueda.', 'warning');
+        return;
+      }
+ 
+      setCompanyFeedback('', '');
+      results.forEach(company => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        li.style.cursor = 'pointer';
+        li.innerHTML = `
+          <span>
+            <strong>${company.name}</strong>
+            <small class="text-muted ms-2">${company.legal_name}</small>
+          </span>
+        `;
+        li.addEventListener('click', () => {
+          fillCompanyForm(company);
+          companyNameInput.value = company.name;
+          hideCompanySuggestions();
+          setCompanyFeedback('Empresa seleccionada. Puedes editar sus datos.', 'success');
+        });
+        companySuggestions.appendChild(li);
+      });
+ 
+      companySuggestions.classList.remove('d-none');
+    } catch {
+      hideCompanySuggestions();
+      setCompanyFeedback('Error al buscar empresas.', 'danger');
+    }
+  }, 300);
+});
+ 
+document.addEventListener('click', (e) => {
+  if (!companyNameInput?.contains(e.target) && !companySuggestions?.contains(e.target)) {
+    hideCompanySuggestions();
   }
 });
 

@@ -220,6 +220,13 @@ def logout_view(request):
 
 
 # ── AJAX lookup endpoints ──────────────────────────────────────────────────────
+def _company_to_dict(company):
+    return {
+        'id':         str(company.id),
+        'name':       company.name,
+        'legal_name': company.legal_name,
+        'tax_id':     company.tax_id,
+    }
 
 @login_required
 def lookup_company(request):
@@ -227,20 +234,32 @@ def lookup_company(request):
         return JsonResponse({'error': 'Sin permisos'}, status=403)
 
     tax_id = request.GET.get('tax_id', '').strip()
-    if not tax_id:
-        return JsonResponse({'error': 'CIF requerido'}, status=400)
+    name  = request.GET.get('name', '').strip()
 
+    # ── Búsqueda por nombre (autocompletado) → múltiples resultados ───────────
+    if name:
+        if len(name) < 2:
+            return JsonResponse({'results': []})
+        companies = (
+            Companies.objects
+            .filter(
+                Q(name__icontains=name) | Q(legal_name__icontains=name)
+                )
+                [:10]
+        )
+        results = [_company_to_dict(c) for c in companies]
+        return JsonResponse({'results': results})
+ 
+    # ── Búsqueda por CIF → resultado único ────────────────────────────────────
+    if not tax_id:
+        return JsonResponse({'error': 'Proporciona tax_id o name'}, status=400)
+ 
     company = Companies.objects.filter(tax_id__iexact=tax_id).first()
     if not company:
         return JsonResponse({'found': False})
+ 
+    return JsonResponse({'found': True, **_company_to_dict(company)})
 
-    return JsonResponse({
-        'found':      True,
-        'id':         str(company.id),
-        'name':       company.name,
-        'legal_name': company.legal_name,
-        'tax_id':     company.tax_id,
-    })
 
 def _user_to_dict(user):
     """Serializes a Users instance to a dict for JSON responses."""
