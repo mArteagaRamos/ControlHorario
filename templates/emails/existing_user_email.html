@@ -4,71 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f9f9f9;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #28a745;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            color: #28a745;
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            margin: 20px 0;
-        }
-        .content p {
-            margin: 10px 0;
-        }
-        .info-box {
-            background-color: #e8f5e9;
-            border-left: 4px solid #28a745;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .footer {
-            text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-            margin-top: 20px;
-            font-size: 12px;
-            color: #999;
-        }
-        .action-link {
-            display: inline-block;
-            background-color: #28a745;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .action-link:hover {
-            background-color: #218838;
-        }
+        {{ styles }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <div class="header existing-user">
             <h1>¡Bienvenido de vuelta!</h1>
-            <p style="color: #666; margin: 10px 0 0 0;">Se ha añadido acceso a una nueva empresa</p>
+            <p class="header-subtitle">Se ha añadido acceso a una nueva empresa</p>
         </div>
 
         <div class="content">
@@ -88,8 +31,8 @@
 
             <p>Una vez inicie sesión, verás que tienes acceso a {{ company_name }} desde el selector de empresas.</p>
 
-            <div style="text-align: center;">
-                <a href="{{ login_url }}" class="action-link">Acceder ahora</a>
+            <div class="text-center">
+                <a href="{{ login_url }}" class="action-link existing-user">Acceder ahora</a>
             </div>
 
             <p>Si tienes cualquier pregunta o necesitas ayuda, no dudes en contactar con tu administrador.</p>

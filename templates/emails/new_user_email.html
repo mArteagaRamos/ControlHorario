@@ -4,91 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f9f9f9;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
-        }
-        .header h1 {
-            color: #007bff;
-            margin: 0;
-            font-size: 24px;
-        }
-        .content {
-            margin: 20px 0;
-        }
-        .content p {
-            margin: 10px 0;
-        }
-        .password-box {
-            background-color: #f0f0f0;
-            border-left: 4px solid #007bff;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .password-box .label {
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 8px;
-        }
-        .password-box .password {
-            font-family: 'Courier New', monospace;
-            font-size: 16px;
-            font-weight: bold;
-            color: #007bff;
-            word-break: break-all;
-        }
-        .warning {
-            background-color: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-            color: #856404;
-        }
-        .footer {
-            text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-            margin-top: 20px;
-            font-size: 12px;
-            color: #999;
-        }
-        .action-link {
-            display: inline-block;
-            background-color: #007bff;
-            color: white;
-            padding: 12px 30px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin: 20px 0;
-        }
-        .action-link:hover {
-            background-color: #0056b3;
-        }
+        {{ styles }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <div class="header new-user">
             <h1>¡Bienvenido!</h1>
-            <p style="color: #666; margin: 10px 0 0 0;">Tu cuenta ha sido creada correctamente</p>
+            <p class="header-subtitle">Tu cuenta ha sido creada correctamente</p>
         </div>
 
         <div class="content">
@@ -96,7 +19,7 @@
 
             <p>Tu cuenta de usuario ha sido registrada en <strong>{{ company_name }}</strong>.</p>
 
-            <p>A continuación encontrarás tu contraseña temporal para acceder al sistema. deberás cambiarla en tu primer inicio de sesión.</p>
+            <p>A continuación encontrarás tu contraseña temporal para acceder al sistema. Deberás cambiarla en tu primer inicio de sesión.</p>
 
             <div class="password-box">
                 <div class="label">Tu contraseña temporal:</div>
@@ -110,11 +33,11 @@
             </ul>
 
             <div class="warning">
-                <strong>⚠️ Importante:</strong> Esta es una contraseña temporal. Te pediremos que la cambies la primera vez que inicie sesión. Te recomendamos elegir una contraseña segura con mayúsculas, minúsculas, números y caracteres especiales.
+                <strong>Importante:</strong> Esta es una contraseña temporal. Te pediremos que la cambies la primera vez que inicie sesión. Te recomendamos elegir una contraseña segura con mayúsculas, minúsculas, números y caracteres especiales.
             </div>
 
-            <div style="text-align: center;">
-                <a href="{{ login_url }}" class="action-link">Acceder ahora</a>
+            <div class="text-center">
+                <a href="{{ login_url }}" class="action-link new-user">Acceder ahora</a>
             </div>
 
             <p>Si tienes cualquier pregunta o necesitas ayuda, no dudes en contactar con tu administrador.</p>

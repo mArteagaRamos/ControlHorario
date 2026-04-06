@@ -420,8 +420,7 @@ def register_unified(request):
                     send_new_user_email(worker_user, temp_password, company_obj)
                 else:
                     send_existing_user_email(worker_user, company_obj, role)
-
-            messages.success(request, 'Registro completado correctamente.')
+            messages.success(request, 'Trabajador registrado correctamente.')
             return redirect('home_timetracking')
 
         for error in errors:

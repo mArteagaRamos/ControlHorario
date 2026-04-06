@@ -6,8 +6,20 @@ from django.utils.html import strip_tags
 from django.conf import settings
 from datetime import datetime
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+
+def _get_email_styles():
+    """Load email styles from static CSS file."""
+    css_path = os.path.join(settings.BASE_DIR, 'static', 'css', 'email_styles.css')
+    try:
+        with open(css_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.warning(f'Email CSS file not found at {css_path}')
+        return ''
 
 
 def send_new_user_email(user, password, company):
@@ -27,6 +39,7 @@ def send_new_user_email(user, password, company):
             'company_name': company.name,
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,
+            'styles': _get_email_styles(),
         }
 
         # Render HTML email
@@ -75,6 +88,7 @@ def send_existing_user_email(user, company, role):
             'role': role_display,
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,
+            'styles': _get_email_styles(),
         }
 
         # Render HTML email
@@ -104,8 +118,7 @@ def send_existing_user_email(user, company, role):
 
 def _get_login_url():
     """Get the login URL for the application."""
-    # Modify this based on your actual domain/URL configuration
-    return 'https://yourapp.com/login/'
+    return 'https://127.0.0.1:8000/login/'
 
 
 def _get_role_display(role):
@@ -113,6 +126,5 @@ def _get_role_display(role):
     role_map = {
         'EMPLOYEE': 'Empleado',
         'MANAGER': 'Manager',
-        'ADMIN': 'Administrador',
     }
     return role_map.get(role, role)

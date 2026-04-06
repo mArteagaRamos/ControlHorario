@@ -4,8 +4,10 @@ from urllib import request
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 from django.utils.dateparse import parse_date
+from users.forms import ProfilePasswordChangeForm
 from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 
@@ -32,7 +34,24 @@ def calendar(request):
 
 @login_required
 def profile(request):
-    return render(request, 'user_panel/profile.html')
+    password_form = ProfilePasswordChangeForm(user=request.user)
+    show_password_form = False
+
+    if request.method == 'POST':
+        password_form = ProfilePasswordChangeForm(user=request.user, data=request.POST)
+        show_password_form = True
+        if password_form.is_valid():
+            user = password_form.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, 'Tu contraseña se ha actualizado correctamente.')
+            return redirect('profile')
+
+        messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
+
+    return render(request, 'user_panel/profile.html', {
+        'password_form': password_form,
+        'show_password_form': show_password_form,
+    })
 
 @login_required
 def absence(request):
