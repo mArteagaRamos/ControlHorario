@@ -170,22 +170,22 @@
 
 </aside>
 
-<!-- MESSAGES -->
-{% if messages %}
-<div class="container mt-3">
-    {% for message in messages %}
-        {% if message.tags == "error" %}
-        <div class="alert alert-danger alert-dismissible fade show">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-        {% endif %}
-    {% endfor %}
-</div>
-{% endif %}
-
 <!-- CONTENT -->
 <main class="p-4" style="width: 100%;">
+    <!-- MESSAGES -->
+    {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+            {% if message.tags == "error" %}
+            <div class="alert alert-danger alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <!-- BREADCRUMBS -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb bg-light p-2 rounded">
