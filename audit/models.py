@@ -1,8 +1,9 @@
 from django.db import models
 from users.models import Users
 from django.utils import timezone
+from core.model_normalization import UppercaseNormalizationMixin
 
-class AuditLog(models.Model):
+class AuditLog(UppercaseNormalizationMixin, models.Model):
     class AuditAction(models.TextChoices):
         CREATE = 'create'
         UPDATE = 'update'
