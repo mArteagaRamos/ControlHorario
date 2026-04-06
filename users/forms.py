@@ -57,10 +57,11 @@ class _UserBaseForm(forms.ModelForm):
 
     class Meta:
         model  = Users
-        fields = ['username', 'surname', 'email', 'status', 'password']
+        fields = ['username', 'surname','dni', 'email', 'status', 'password']
         labels = {
             'username': 'Nombre',
             'surname':  'Apellidos',
+            'dni':      'DNI',
             'email':    'Correo electrónico',
             'status':   'Estado',
             'password': 'Contraseña temporal',
@@ -68,6 +69,7 @@ class _UserBaseForm(forms.ModelForm):
         widgets = {
             'username': forms.TextInput(attrs={'class': 'form-control'}),
             'surname':  forms.TextInput(attrs={'class': 'form-control'}),
+            'dni':      forms.TextInput(attrs={'class': 'form-control'}),
             'email':    forms.EmailInput(attrs={'class': 'form-control'}),
             'status':   forms.Select(attrs={'class': 'form-control'}),
             # TextInput instead of PasswordInput: prevents Django from dropping

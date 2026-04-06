@@ -241,46 +241,77 @@ def lookup_company(request):
         'tax_id':     company.tax_id,
     })
 
-
-@login_required
-def lookup_user(request):
-    email      = request.GET.get('email', '').strip()
-    
-    company_id = request.GET.get('company_id', '').strip()
-
-
-    if not email:
-        return JsonResponse({'error': 'Email requerido'}, status=400)
-
-    if company_id:
-        membership = UserCompany.objects.filter(
-            user__email__iexact=email,
-            company_id=company_id
-        ).select_related('user').first()
-        if not membership:
-            return JsonResponse({'found': False})
-        user = membership.user
-    else:
-        company = getattr(request, 'company', None)
-        if not company:
-            return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
-        membership = UserCompany.objects.filter(
-            user__email__iexact=email,
-            company=company
-        ).select_related('user').first()
-        if not membership:
-            return JsonResponse({'found': False})
-        user = membership.user
-
-    return JsonResponse({
-        'found':    True,
+def _user_to_dict(user):
+    """Serializes a Users instance to a dict for JSON responses."""
+    return {
         'username': user.username,
         'surname':  user.surname,
         'dni':      user.dni,
         'email':    user.email,
         'status':   user.status,
+    }
 
-    })
+@login_required
+def lookup_user(request):
+    dni      = request.GET.get('dni', '').strip()
+
+    email      = request.GET.get('email', '').strip()
+
+    name     = request.GET.get('name', '').strip()
+    
+    company_id = request.GET.get('company_id', '').strip()
+
+
+    if company_id:
+        company_filter = {'company_id': company_id}
+    else:
+        company = getattr(request, 'company', None)
+        if not company:
+            return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
+        company_filter = {'company': company}
+ 
+    # ── Name search → multiple results ────────────────────────────────────────
+    if name:
+        if len(name) < 2:
+            return JsonResponse({'results': []})
+ 
+        memberships = (
+            UserCompany.objects
+            .filter(
+                Q(user__username__icontains=name) | Q(user__surname__icontains=name),
+                **company_filter,
+            )
+            .select_related('user')[:10]
+        )
+        results = [_user_to_dict(m.user) for m in memberships]
+        return JsonResponse({'results': results})
+ 
+    # ── Email search → single result ───────────────────────────────────────────
+    if email:
+        membership = (
+            UserCompany.objects
+            .filter(user__email__iexact=email, **company_filter)
+            .select_related('user')
+            .first()
+        )
+        if not membership:
+            return JsonResponse({'found': False})
+        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
+ 
+    # ── DNI search → single result ─────────────────────────────────────────────
+    if dni:
+        membership = (
+            UserCompany.objects
+            .filter(user__dni__iexact=dni, **company_filter)
+            .select_related('user')
+            .first()
+        )
+        if not membership:
+            return JsonResponse({'found': False})
+        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
+ 
+    return JsonResponse({'error': 'Proporciona email, dni o name para buscar'}, status=400)
+
 
 
 # ── Registro unificado ─────────────────────────────────────────────────────────
@@ -378,7 +409,7 @@ def register_unified(request):
                 if active_form.is_valid():
                     worker_user          = active_form.save(commit=False)
                     worker_user.is_admin = False
-                    worker_user.save(update_fields=['username', 'surname', 'status'])
+                    worker_user.save(update_fields=['username', 'surname','dni', 'status'])
                 else:
                     errors.append('Corrige los datos del trabajador.')
             else:
