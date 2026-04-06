@@ -16,6 +16,7 @@ from .forms import (
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from django.views.decorators.cache import never_cache
+from django.db.models import Q
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
