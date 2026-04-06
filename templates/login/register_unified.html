@@ -98,16 +98,58 @@
                   </button>
                 </div>
 
-                {# ── Buscador de trabajador existente ── #}
+                {# ── Buscador de trabajador existente (3 modos) ── #}
                 <div id="worker-lookup-block"
                     class="{% if worker_action != 'select' %}d-none{% endif %}">
-                  <div class="input-group mb-3">
-                    <input type="text" id="worker-lookup-input" class="form-control"
-                          placeholder="Email del trabajador existente">
-                    <button type="button" id="btn-lookup-worker" class="btn btn-outline-secondary">
-                      Buscar
+ 
+                  {# Selector de modo de búsqueda #}
+                  <div class="btn-group btn-group-sm mb-3 w-100" role="group" id="search-mode-group">
+                    <button type="button" class="btn btn-outline-secondary active" data-mode="email">
+                      <i class="bi bi-envelope me-1"></i>Email
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-mode="dni">
+                      <i class="bi bi-card-text me-1"></i>DNI
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-mode="name">
+                      <i class="bi bi-person me-1"></i>Nombre / Apellidos
                     </button>
                   </div>
+ 
+                  {# Búsqueda por Email #}
+                  <div id="search-block-email" class="search-block">
+                    <div class="input-group mb-3">
+                      <input type="text" id="worker-lookup-email" class="form-control"
+                             placeholder="Email del trabajador" autocomplete="off">
+                      <button type="button" class="btn btn-outline-secondary btn-lookup-exact" data-field="email">
+                        Buscar
+                      </button>
+                    </div>
+                  </div>
+ 
+                  {# Búsqueda por DNI #}
+                  <div id="search-block-dni" class="search-block d-none">
+                    <div class="input-group mb-3">
+                      <input type="text" id="worker-lookup-dni" class="form-control"
+                             placeholder="DNI / NIE del trabajador" autocomplete="off">
+                      <button type="button" class="btn btn-outline-secondary btn-lookup-exact" data-field="dni">
+                        Buscar
+                      </button>
+                    </div>
+                  </div>
+ 
+                  {# Búsqueda por Nombre/Apellidos con autocomplete #}
+                  <div id="search-block-name" class="search-block d-none">
+                    <div class="position-relative mb-3">
+                      <input type="text" id="worker-lookup-name" class="form-control"
+                             placeholder="Escribe nombre o apellidos…" autocomplete="off">
+                      {# Dropdown de sugerencias #}
+                      <ul id="name-suggestions"
+                          class="list-group position-absolute w-100 shadow-sm d-none"
+                          style="z-index:1050; top:100%; max-height:220px; overflow-y:auto;">
+                      </ul>
+                    </div>
+                  </div>
+ 
                   <div id="worker-lookup-feedback" class="form-text mb-2"></div>
                 </div>
 
@@ -119,6 +161,7 @@
                     {# Renderizamos campo a campo para insertar el botón en 'password' #}
                     {% bootstrap_field worker_create.username %}
                     {% bootstrap_field worker_create.surname %}
+                    {% bootstrap_field worker_create.dni %}
                     {% bootstrap_field worker_create.email %}
                     {% bootstrap_field worker_create.status %}
                     {% bootstrap_field worker_create.role %}
@@ -178,6 +221,17 @@ const btnWorkerCreate   = document.getElementById('btn-worker-create');
 const btnWorkerSelect   = document.getElementById('btn-worker-select');
 const workerLookupBlock = document.getElementById('worker-lookup-block');
 
+// ── Name autocomplete ──────────────────────────────────────────────────────
+const nameInput      = document.getElementById('worker-lookup-name');
+const suggestionsList = document.getElementById('name-suggestions');
+let nameDebounceTimer = null;
+ 
+function hideSuggestions() {
+  suggestionsList?.classList.add('d-none');
+  if (suggestionsList) suggestionsList.innerHTML = '';
+}
+ 
+
 // ── Company toggle ─────────────────────────────────────────────────────────────
 function setCompanyMode(mode) {
   companyModeInput.value = mode;
@@ -227,12 +281,39 @@ function setWorkerAction(action) {
   // Clean worker form and lookup when toggling
   clearFormBlock('worker-form-block');
   clearFormBlock('worker-lookup-block');
-  document.getElementById('worker-lookup-input').value          = '';
+  document.getElementById('worker-lookup-email')?.value && (document.getElementById('worker-lookup-email').value = '');
+  document.getElementById('worker-lookup-dni')?.value   && (document.getElementById('worker-lookup-dni').value   = '');
+  document.getElementById('worker-lookup-name')?.value  && (document.getElementById('worker-lookup-name').value  = '');
   document.getElementById('worker-lookup-feedback').textContent = '';
+  hideSuggestions();
 }
 
 btnWorkerCreate?.addEventListener('click', () => setWorkerAction('create'));
 btnWorkerSelect?.addEventListener('click', () => setWorkerAction('select'));
+
+// ── Search-mode tabs (Email / DNI / Nombre) ────────────────────────────────
+let currentSearchMode = 'email';
+ 
+document.getElementById('search-mode-group')?.querySelectorAll('[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentSearchMode = btn.dataset.mode;
+ 
+    // Toggle active button
+    document.querySelectorAll('#search-mode-group [data-mode]').forEach(b => {
+      b.classList.toggle('active', b === btn);
+      b.classList.toggle('btn-secondary', b === btn);
+      b.classList.toggle('btn-outline-secondary', b !== btn);
+    });
+ 
+    // Show/hide search blocks
+    document.querySelectorAll('.search-block').forEach(block => block.classList.add('d-none'));
+    document.getElementById(`search-block-${currentSearchMode}`)?.classList.remove('d-none');
+ 
+    // Clear feedback and suggestions
+    document.getElementById('worker-lookup-feedback').textContent = '';
+    hideSuggestions();
+  });
+});
 
 // ── Company lookup by Tax ID ─────────────────────────────────────────────────────
 document.getElementById('btn-lookup-company')?.addEventListener('click', async () => {
@@ -270,53 +351,133 @@ document.getElementById('btn-lookup-company')?.addEventListener('click', async (
   }
 });
 
-// ── Worker lookup by email ────────────────────────────────────────────────
-document.getElementById('btn-lookup-worker')?.addEventListener('click', async () => {
-  const email     = document.getElementById('worker-lookup-input').value.trim();
-  const companyId = document.getElementById('company_id_input').value.trim(); // <- add
-  const feedback  = document.getElementById('worker-lookup-feedback');
-
-  if (!email) {
-    feedback.textContent = 'Introduce un email.';
-    feedback.className = 'form-text text-danger';
-    return;
+// ── Helpers: fill worker form & show feedback ─────────────────────────────
+function fillWorkerForm(data) {
+  const fields = {
+    'id_email':    data.email    || '',
+    'id_username': data.username || '',
+    'id_surname':  data.surname  || '',
+    'id_dni':      data.dni      || '',
+    'id_status':   data.status   || '',
+  };
+  for (const [id, value] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (el) el.value = value;
   }
-
-  // Validate that a company is selected first
+}
+ 
+function setFeedback(text, type) {
+  const fb = document.getElementById('worker-lookup-feedback');
+  fb.textContent = text;
+  fb.className   = `form-text text-${type}`;
+}
+ 
+function buildLookupUrl(params) {
+  const companyId = document.getElementById('company_id_input').value.trim();
+  const url = new URL(LOOKUP_USER_URL, window.location.origin);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  if (companyId) url.searchParams.set('company_id', companyId);
+  return url.toString();
+}
+ 
+function requireCompany() {
+  const companyId = document.getElementById('company_id_input').value.trim();
   if (!companyId) {
-    feedback.textContent = 'Primero busca y selecciona una empresa.';
-    feedback.className = 'form-text text-warning';
+    setFeedback('Primero busca y selecciona una empresa.', 'warning');
+    return false;
+  }
+  return true;
+}
+ 
+// ── Exact lookup (Email or DNI) ────────────────────────────────────────────
+document.querySelectorAll('.btn-lookup-exact').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const field    = btn.dataset.field;                          // 'email' or 'dni'
+    const inputEl  = document.getElementById(`worker-lookup-${field}`);
+    const value    = inputEl?.value.trim() || '';
+ 
+    if (!value) {
+      setFeedback(`Introduce un ${field === 'email' ? 'email' : 'DNI'}.`, 'danger');
+      return;
+    }
+    if (!requireCompany()) return;
+ 
+    try {
+      const res  = await fetch(buildLookupUrl({ [field]: value }));
+      const data = await res.json();
+ 
+      if (data.found) {
+        fillWorkerForm(data);
+        setFeedback('Trabajador encontrado.', 'success');
+      } else {
+        clearFormBlock('worker-form-block');
+        setFeedback(`No existe ningún trabajador con ese ${field === 'email' ? 'email' : 'DNI'} en esta empresa.`, 'danger');
+      }
+    } catch {
+      setFeedback('Error al buscar el trabajador.', 'danger');
+    }
+  });
+});
+ 
+nameInput?.addEventListener('input', () => {
+  clearTimeout(nameDebounceTimer);
+  const query = nameInput.value.trim();
+ 
+  if (query.length < 2) {
+    hideSuggestions();
+    setFeedback('', '');
     return;
   }
-
-  try {
-    const res  = await fetch(
-      `${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&company_id=${encodeURIComponent(companyId)}` // <- add company_id
-    );
-    const data = await res.json();
-
-    const fields = {
-      'id_email':    data.email    || email,
-      'id_username': data.username || '',
-      'id_surname':  data.surname  || '',
-      'id_status':   data.status   || '',
-    };
-
-    for (const [id, value] of Object.entries(fields)) {
-      const el = document.getElementById(id);
-      if (el) el.value = value;
+ 
+  nameDebounceTimer = setTimeout(async () => {
+    if (!requireCompany()) return;
+ 
+    try {
+      const res  = await fetch(buildLookupUrl({ name: query }));
+      const data = await res.json();
+      const results = data.results || [];
+ 
+      suggestionsList.innerHTML = '';
+ 
+      if (results.length === 0) {
+        hideSuggestions();
+        setFeedback('Sin resultados para esa búsqueda.', 'warning');
+        return;
+      }
+ 
+      setFeedback('', '');
+      results.forEach(user => {
+        const li = document.createElement('li');
+        li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+        li.style.cursor = 'pointer';
+        li.innerHTML = `
+          <span>
+            <strong>${user.username} ${user.surname}</strong>
+            <small class="text-muted ms-2">${user.email}</small>
+          </span>
+          <span class="badge bg-secondary">${user.dni || ''}</span>
+        `;
+        li.addEventListener('click', () => {
+          fillWorkerForm(user);
+          nameInput.value = `${user.username} ${user.surname}`;
+          hideSuggestions();
+          setFeedback('Trabajador seleccionado.', 'success');
+        });
+        suggestionsList.appendChild(li);
+      });
+ 
+      suggestionsList.classList.remove('d-none');
+    } catch {
+      hideSuggestions();
+      setFeedback('Error al buscar trabajadores.', 'danger');
     }
-
-    if (data.found) {
-      feedback.textContent = 'Trabajador encontrado.';
-      feedback.className = 'form-text text-success';
-    } else {
-      feedback.textContent = 'No existe ningún trabajador con ese email en esta empresa.';
-      feedback.className = 'form-text text-danger';
-    }
-  } catch {
-    feedback.textContent = 'Error al buscar el trabajador.';
-    feedback.className = 'form-text text-danger';
+  }, 300);  // 300 ms debounce
+});
+ 
+// Close suggestions when clicking outside
+document.addEventListener('click', (e) => {
+  if (!nameInput?.contains(e.target) && !suggestionsList?.contains(e.target)) {
+    hideSuggestions();
   }
 });
 
