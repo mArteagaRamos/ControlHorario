@@ -1,6 +1,6 @@
 # ---------- Email Utilities: users/email_utils.py ----------
 
-from django.core.mail import EmailMultiAlternatives, EmailMessage
+from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -23,14 +23,7 @@ def _get_email_styles():
 
 
 def send_new_user_email(user, password, company):
-    """
-    Send welcome email to newly created user with temporary password.
-
-    Args:
-        user: Users instance
-        password: Temporary password string
-        company: Companies instance
-    """
+    """Send welcome email to newly created user with temporary password."""
     try:
         context = {
             'username': user.username,
@@ -42,11 +35,9 @@ def send_new_user_email(user, password, company):
             'styles': _get_email_styles(),
         }
 
-        # Render HTML email
         html_message = render_to_string('emails/new_user_email.html', context)
         text_message = strip_tags(html_message)
 
-        # Create email
         subject = f'Bienvenido a {company.name} - Credenciales de acceso'
         email = EmailMultiAlternatives(
             subject=subject,
@@ -55,65 +46,51 @@ def send_new_user_email(user, password, company):
             to=[user.email],
         )
         email.attach_alternative(html_message, 'text/html')
-
-        # Send email
         email.send(fail_silently=True)
         logger.info(f'Nuevo usuario email enviado a {user.email}')
 
     except Exception as e:
         logger.error(f'Error enviando email a {user.email}: {str(e)}')
-        # Decide if you want to re-raise or silently fail
-        # For now, we'll log but not raise to allow registration to complete
         return False
 
     return True
 
 
 def send_existing_user_email(user, company, role):
-    """
-    Send notification email to existing user who was added to a new company.
-
-    Args:
-        user: Users instance
-        company: Companies instance
-        role: Role string (e.g., 'EMPLOYEE', 'MANAGER')
-    """
+    """Send notification email to existing user who was added to a new company."""
     try:
         role_display = _get_role_display(role)
+        user_email = user.email.lower()
 
         context = {
             'username': user.username,
-            'email': user.email,
+            'email': user_email,
             'company_name': company.name,
-            'role': role_display,
+            'role_display': role_display,
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,
             'styles': _get_email_styles(),
         }
 
-        # Render HTML email
         html_message = render_to_string('emails/existing_user_email.html', context)
         text_message = strip_tags(html_message)
 
-        # Create email
         subject = f'Se te ha añadido acceso a {company.name}'
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email],
+            to=[user_email],
         )
         email.attach_alternative(html_message, 'text/html')
-
-        # Send email
         email.send(fail_silently=True)
-        logger.info(f'Email de usuario existente enviado a {user.email}')
+        logger.info(f'Email de usuario existente enviado a {user_email}')
+
+        return True
 
     except Exception as e:
-        logger.error(f'Error enviando email a {user.email}: {str(e)}')
+        logger.exception(f'Error enviando email: {str(e)}')
         return False
-
-    return True
 
 
 def _get_login_url():
@@ -124,7 +101,8 @@ def _get_login_url():
 def _get_role_display(role):
     """Convert role code to display name."""
     role_map = {
-        'EMPLOYEE': 'Empleado',
-        'MANAGER': 'Manager',
+        'employee': 'empleado',
+        'manager': 'manager',
     }
-    return role_map.get(role, role)
+    role_key = str(role).lower()
+    return role_map.get(role_key, role)
