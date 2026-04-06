@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        {{ styles }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header new-user">
+            <h1>¡Bienvenido!</h1>
+            <p class="header-subtitle">Tu cuenta ha sido creada correctamente</p>
+        </div>
+
+        <div class="content">
+            <p>Hola <strong>{{ username }}</strong>,</p>
+
+            <p>Tu cuenta de usuario ha sido registrada en <strong>{{ company_name }}</strong>.</p>
+
+            <p>A continuación encontrarás tu contraseña temporal para acceder al sistema. Deberás cambiarla en tu primer inicio de sesión.</p>
+
+            <div class="password-box">
+                <div class="label">Tu contraseña temporal:</div>
+                <div class="password">{{ password }}</div>
+            </div>
+
+            <p>Para iniciar sesión en el sistema, utiliza:</p>
+            <ul>
+                <li><strong>Email:</strong> {{ email }}</li>
+                <li><strong>Contraseña:</strong> La mostrada arriba</li>
+            </ul>
+
+            <div class="warning">
+                <strong>Importante:</strong> Esta es una contraseña temporal. Te pediremos que la cambies la primera vez que inicie sesión. Te recomendamos elegir una contraseña segura con mayúsculas, minúsculas, números y caracteres especiales.
+            </div>
+
+            <div class="text-center">
+                <a href="{{ login_url }}" class="action-link new-user">Acceder ahora</a>
+            </div>
+
+            <p>Si tienes cualquier pregunta o necesitas ayuda, no dudes en contactar con tu administrador.</p>
+        </div>
+
+        <div class="footer">
+            <p>Este correo fue generado automáticamente. Por favor, no responda a este mensaje.</p>
+            <p>&copy; {{ current_year }} {{ company_name }}. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

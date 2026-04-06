@@ -36,7 +36,6 @@ class Users(AbstractBaseUser):
     password = models.CharField(db_column='password_hash', max_length=255)
     flag = models.BooleanField(default=False)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='') 
-    dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
 
     objects = UsersManager()
 

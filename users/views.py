@@ -13,6 +13,7 @@ from .forms import (
     LoginForm, CompanyForm, CompanySelectLoginForm,
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
+from .email_utils import send_new_user_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from django.views.decorators.cache import never_cache
@@ -364,6 +365,8 @@ def register_unified(request):
         company_obj = None
         worker_user = None
         worker_role = None
+        is_new_user = False
+        temp_password = None
 
         # ── 1. Resolve company ────────────────────────────────────────────────
         if is_admin:
@@ -442,6 +445,7 @@ def register_unified(request):
                     if temp_password:
                         worker_user.set_password(temp_password)
                     worker_user.save()
+                    is_new_user = True
                 else:
                     errors.append('Corrige los datos del trabajador.')
 
@@ -456,6 +460,8 @@ def register_unified(request):
                 if role and membership.role != role:
                     membership.role = role
                     membership.save(update_fields=['role'])
+                # Send email to existing user registering in new company
+                send_existing_user_email(worker_user, company_obj, role)
             else:
                 UserCompany.objects.create(
                     id=uuid4(),
@@ -463,7 +469,12 @@ def register_unified(request):
                     company=company_obj,
                     role=role,
                 )
-            #messages.success(request, 'Registro completado correctamente.')
+                # Send appropriate email based on user type
+                if is_new_user and temp_password:
+                    send_new_user_email(worker_user, temp_password, company_obj)
+                else:
+                    send_existing_user_email(worker_user, company_obj, role)
+            messages.success(request, 'Trabajador registrado correctamente.')
             return redirect('home_timetracking')
 
         for error in errors:

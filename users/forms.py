@@ -222,3 +222,89 @@ class SetPasswordForm(forms.Form):
                     'La contraseña debe contener mayúsculas, minúsculas, números y símbolos especiales (!¡¿?@#$%^&*-_;:./~).',
                 )
         return cleaned_data
+
+
+class ProfilePasswordChangeForm(forms.Form):
+    """Password change form used in profile page with Spanish copy."""
+
+    old_password = forms.CharField(
+        label='Contraseña actual',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'current-password',
+            'placeholder': 'Introduce tu contraseña actual',
+        }),
+        error_messages={
+            'required': 'Debes introducir tu contraseña actual.',
+        },
+    )
+    new_password = forms.CharField(
+        label='Nueva contraseña',
+        min_length=8,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'new-password',
+            'placeholder': 'Mínimo 8 caracteres',
+        }),
+        help_text='Debe incluir mayúsculas, minúsculas, números y símbolos.',
+        error_messages={
+            'required': 'Debes introducir una nueva contraseña.',
+            'min_length': 'La nueva contraseña debe tener al menos 8 caracteres.',
+        },
+    )
+    confirm_password = forms.CharField(
+        label='Confirmar nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'new-password',
+            'placeholder': 'Repite la nueva contraseña',
+        }),
+        error_messages={
+            'required': 'Debes confirmar la nueva contraseña.',
+        },
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.user = user
+
+    def clean_old_password(self):
+        old_password = self.cleaned_data.get('old_password', '')
+        if not self.user.check_password(old_password):
+            raise forms.ValidationError('La contraseña actual no es correcta.')
+        return old_password
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password', '')
+        confirm_password = cleaned_data.get('confirm_password', '')
+
+        if new_password and confirm_password and new_password != confirm_password:
+            self.add_error('confirm_password', 'Las contraseñas nuevas no coinciden.')
+
+        if new_password:
+            has_upper = any(c.isupper() for c in new_password)
+            has_lower = any(c.islower() for c in new_password)
+            has_digit = any(c.isdigit() for c in new_password)
+            special_chars = '!¡¿?@#$%^&*-_;:./~'
+            has_special = any(c in special_chars for c in new_password)
+
+            if not (has_upper and has_lower and has_digit and has_special):
+                self.add_error(
+                    'new_password',
+                    'La contraseña debe contener mayúsculas, minúsculas, números y símbolos especiales (!¡¿?@#$%^&*-_;:./~).',
+                )
+
+            if self.user.check_password(new_password):
+                self.add_error(
+                    'new_password',
+                    'La nueva contraseña no puede ser igual a la actual.',
+                )
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        self.user.set_password(self.cleaned_data['new_password'])
+        if commit:
+            self.user.save(update_fields=['password'])
+        return self.user
