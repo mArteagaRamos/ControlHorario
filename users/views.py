@@ -172,7 +172,7 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    if not user.flag:
+                    if not user.is_authenticated:
                         auth_login(request, user)
                         # Clear navigation history on login
                         request.session['nav_history'] = []
@@ -210,8 +210,8 @@ def login_view(request):
                 new_password = set_password_form.cleaned_data['new_password']
                 user         = request.user
                 user.set_password(new_password)
-                user.flag = True
-                user.save(update_fields=['password', 'flag'])
+                user.is_authenticated = True
+                user.save(update_fields=['password', 'is_authenticated'])
 
                 updated_user = authenticate(
                     request, username=user.email, password=new_password
@@ -564,7 +564,7 @@ def register_unified(request):
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
-                    worker_user.flag     = False
+                    worker_user.is_authenticated = False
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
                         worker_user.set_password(temp_password)

@@ -7,7 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from users.forms import ProfilePasswordChangeForm
+from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
 from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 
@@ -34,6 +34,38 @@ def calendar(request):
 
 @login_required
 def profile(request):
+    """
+    User profile page: display and edit personal data, view associated companies.
+    """
+    user = request.user
+    personal_form = UserPersonalDataForm(instance=user)
+
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type', 'personal_data')
+
+        if form_type == 'personal_data':
+            personal_form = UserPersonalDataForm(request.POST, instance=user)
+            if personal_form.is_valid():
+                personal_form.save()
+                messages.success(request, 'Tus datos personales se han actualizado correctamente.')
+                return redirect('profile')
+            else:
+                messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
+
+    # Get all companies user belongs to
+    companies = UserCompany.objects.filter(user=user).select_related('company').order_by('-joined_at')
+
+    return render(request, 'user_panel/profile.html', {
+        'personal_form': personal_form,
+        'companies': companies,
+    })
+
+
+@login_required
+def security(request):
+    """
+    Security settings page: change password.
+    """
     password_form = ProfilePasswordChangeForm(user=request.user)
     show_password_form = False
 
@@ -44,11 +76,11 @@ def profile(request):
             user = password_form.save()
             update_session_auth_hash(request, user)
             messages.success(request, 'Tu contraseña se ha actualizado correctamente.')
-            return redirect('profile')
+            return redirect('security')
 
         messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
 
-    return render(request, 'user_panel/profile.html', {
+    return render(request, 'user_panel/security.html', {
         'password_form': password_form,
         'show_password_form': show_password_form,
     })

@@ -17,6 +17,7 @@ BREADCRUMB_LABELS = {
     'control': 'Panel de Control',
     'register_unified': 'Registro',
     'staff': 'Personal',
+    'security': 'Seguridad',
 }
 
 

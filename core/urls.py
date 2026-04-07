@@ -28,6 +28,7 @@ urlpatterns = [
     path('workday/', user_views.workday, name='workday'),
     path('calendar/', dashboard_views.calendar, name='calendar'),
     path('profile/', dashboard_views.profile, name='profile'),
+    path('security/', dashboard_views.security, name='security'),
     path('request_correction/', dashboard_views.request_correction, name='request_correction'),
     path('absence/', dashboard_views.absence, name='absence'),
 
