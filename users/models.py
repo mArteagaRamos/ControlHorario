@@ -4,6 +4,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
+from core.model_normalization import UppercaseNormalizationMixin
 import uuid
 
 # Manager section
@@ -20,7 +21,7 @@ class UsersManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-class Users(AbstractBaseUser):
+class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     class StatusChoices(models.TextChoices):
         ACTIVE = 'active', 'Activo'
         INACTIVE = 'inactive', 'Inactivo'
@@ -36,6 +37,9 @@ class Users(AbstractBaseUser):
     password = models.CharField(db_column='password_hash', max_length=255)
     flag = models.BooleanField(default=False)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='') 
+
+    uppercase_fields = {'username', 'surname', 'email', 'dni'}
+    uppercase_excluded_fields = {'password'}
 
     objects = UsersManager()
 
@@ -57,7 +61,7 @@ class Users(AbstractBaseUser):
         super().save(*args, **kwargs)
 
 # Company / membership models section
-class Companies(models.Model):
+class Companies(UppercaseNormalizationMixin, models.Model):
     id = models.UUIDField(primary_key=True)
     name = models.CharField(max_length=100)
     legal_name = models.CharField(max_length=200)
@@ -70,7 +74,7 @@ class Companies(models.Model):
         db_table = 'companies'
 
 
-class UserCompany(models.Model):
+class UserCompany(UppercaseNormalizationMixin, models.Model):
     class RoleChoices(models.TextChoices):
         MANAGER = 'manager'
         EMPLOYEE = 'employee'
@@ -87,7 +91,7 @@ class UserCompany(models.Model):
         unique_together = (('user', 'company'),)
 
 
-class CompanySettings(models.Model):
+class CompanySettings(UppercaseNormalizationMixin, models.Model):
     id = models.AutoField(primary_key=True)
     company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
     work_start = models.TimeField(default='08:00:00')
@@ -104,7 +108,7 @@ class CompanySettings(models.Model):
 
 
 # Correction requests section for time corrections
-class CorrectionRequests(models.Model):
+class CorrectionRequests(UppercaseNormalizationMixin, models.Model):
     class CorrectionStatus(models.TextChoices):
         PENDING = 'pending'
         APPROVED = 'approved'

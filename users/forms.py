@@ -57,7 +57,7 @@ class _UserBaseForm(forms.ModelForm):
 
     class Meta:
         model  = Users
-        fields = ['username', 'surname','dni', 'email', 'status', 'password']
+        fields = ['username', 'surname', 'dni', 'email', 'status', 'password']
         labels = {
             'username': 'Nombre',
             'surname':  'Apellidos',
@@ -84,6 +84,7 @@ class _UserBaseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.required = False
+        self.fields['dni'].required = True
 
     def save(self, commit=True):
         user     = super().save(commit=False)
