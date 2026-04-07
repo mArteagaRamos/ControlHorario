@@ -415,13 +415,19 @@ def register_unified(request):
         # ── 2. Resolve worker ─────────────────────────────────────────────
         if not errors:
             email         = request.POST.get('email', '').strip()
-            existing_user = (
-                Users.objects.filter(email__iexact=email).first()
-                if email else None
-            )
-            worker_role = request.POST.get(
-                'role', UserCompany.RoleChoices.EMPLOYEE
-            )
+            existing_user = None
+            worker_role   = request.POST.get('role', UserCompany.RoleChoices.EMPLOYEE)
+
+            if not email:
+                errors.append('El email es obligatorio para el trabajador.')
+            else:
+                existing_user = (
+                    Users.objects.filter(email__iexact=email).first()
+                    if email else None
+                )
+                worker_role = request.POST.get(
+                    'role', UserCompany.RoleChoices.EMPLOYEE
+                )
 
             if existing_user:
                 active_form = (
