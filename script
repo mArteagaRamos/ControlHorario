@@ -163,3 +163,23 @@ CREATE INDEX idx_companies_search_taxid ON companies USING gin (tax_id gin_trgm_
 -- Índices para búsqueda rápida en usuarios
 CREATE INDEX idx_users_search_composite ON users USING gin (surname gin_trgm_ops);
 CREATE INDEX idx_users_search_email ON users USING gin (email gin_trgm_ops);
+
+
+-- ── Tablón de anuncios ────────────────────────────────────────────────────────
+
+CREATE TYPE note_type AS ENUM ('urgente', 'general', 'tarea', 'felicitacion');
+
+CREATE TABLE notes (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id  UUID REFERENCES companies(id) ON DELETE CASCADE,
+    author_id   UUID REFERENCES users(id) ON DELETE SET NULL,
+    type        note_type NOT NULL DEFAULT 'general',
+    title       VARCHAR(200) NOT NULL,
+    body        TEXT,
+    tasks       JSONB DEFAULT '[]',
+    pinned      BOOLEAN DEFAULT FALSE,
+    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notes_company ON notes(company_id, created_at DESC);
