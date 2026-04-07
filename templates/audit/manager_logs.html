@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     // --- FILTER EVENTS ---
-    let tomSelectInit = false; // Flag to avoid duplicate calls on init
+    let tomSelectInit = false; // is_authenticated to avoid duplicate calls on init
 
     if (typeof TomSelect !== 'undefined') {
         new TomSelect("#empleado-select", {

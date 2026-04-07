@@ -47,41 +47,9 @@ urlpatterns = [
     path('manager_employees/edit/', audit_views.edit_employee, name='edit_employee'),
     path('manager_employees/delete/', audit_views.delete_employee, name='delete_employee'),
 
-# ── API: Calendario ────────────────────────────────────────────────────────
-    path(
-        'api/calendar/events/',
-        dashboard_views.api_calendar_events,
-        name='api_calendar_events',
-    ),
- 
-    # ── API: Ausencias (empleado) ──────────────────────────────────────────────
-    path(
-        'api/calendar/leave/create/',
-        dashboard_views.api_leave_request_create,
-        name='api_leave_create',
-    ),
-    path(
-        'api/calendar/leave/<uuid:leave_id>/cancel/',
-        dashboard_views.api_leave_request_cancel,
-        name='api_leave_cancel',
-    ),
- 
-    # ── API: Ausencias (manager) ───────────────────────────────────────────────
-    path(
-        'api/calendar/leave/pending/',
-        dashboard_views.api_leave_pending,
-        name='api_leave_pending',
-    ),
-    path(
-        'api/calendar/leave/<uuid:leave_id>/review/',
-        dashboard_views.api_leave_review,
-        name='api_leave_review',
-    ),
- 
-    # ── API: Horarios individuales (manager) ───────────────────────────────────
-    path(
-        'api/calendar/schedule/create/',
-        dashboard_views.api_schedule_create,
-        name='api_schedule_create',
-    ),
+    path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
+    path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),
+    path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review,         name='api_leave_review'),
+    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
+    path('api/calendar/events/',     dashboard_views.api_calendar_events,       name='api_calendar_events'),
 ]
