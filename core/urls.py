@@ -20,6 +20,7 @@ urlpatterns = [
     path('register/', user_views.register_unified, name='register_unified'),
     path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
     path('api/lookup-user/',    user_views.lookup_user,    name='lookup_user'),
+    path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
     path('logout/', user_views.logout_view, name='logout'),
 
