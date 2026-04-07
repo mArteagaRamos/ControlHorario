@@ -85,14 +85,6 @@ def security(request):
         'show_password_form': show_password_form,
     })
 
-@login_required
-def absence(request):
-    return render(request, 'user_panel/absence.html')
-
-@login_required
-def request_correction(request):
-    return render(request, 'user_panel/requests.html')   
-
 
 # Team management views
 

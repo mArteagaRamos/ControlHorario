@@ -275,13 +275,16 @@ def logout_view(request):
 
 
 # ── AJAX lookup endpoints ──────────────────────────────────────────────────────
-def _company_to_dict(company):
-    return {
+def _company_to_dict(company, include_created=False):
+    result = {
         'id':         str(company.id),
         'name':       company.name,
         'legal_name': company.legal_name,
         'tax_id':     company.tax_id,
     }
+    if include_created and hasattr(company, 'created_at'):
+        result['created_at'] = company.created_at.strftime('%d/%m/%Y') if company.created_at else '--'
+    return result
 
 @login_required
 def lookup_company(request):
@@ -290,6 +293,7 @@ def lookup_company(request):
 
     tax_id = request.GET.get('tax_id', '').strip()
     name  = request.GET.get('name', '').strip()
+    include_created = request.GET.get('include_created', 'true').lower() == 'true'
 
     # ── Búsqueda por nombre (autocompletado) → múltiples resultados ───────────
     if name:
@@ -302,23 +306,23 @@ def lookup_company(request):
                 )
                 [:10]
         )
-        results = [_company_to_dict(c) for c in companies]
+        results = [_company_to_dict(c, include_created=include_created) for c in companies]
         return JsonResponse({'results': results})
- 
+
     # ── Búsqueda por CIF → resultado único ────────────────────────────────────
     if not tax_id:
         return JsonResponse({'error': 'Proporciona tax_id o name'}, status=400)
- 
+
     company = Companies.objects.filter(tax_id__iexact=tax_id).first()
     if not company:
         return JsonResponse({'found': False})
- 
-    return JsonResponse({'found': True, **_company_to_dict(company)})
+
+    return JsonResponse({'found': True, **_company_to_dict(company, include_created=include_created)})
 
 
-def _user_to_dict(user):
+def _user_to_dict(user, include_companies=False):
     """Serializes a Users instance to a dict for JSON responses."""
-    return {
+    result = {
         'id': str(user.id),
         'username': user.username,
         'surname':  user.surname,
@@ -326,6 +330,10 @@ def _user_to_dict(user):
         'email':    user.email,
         'status':   user.status,
     }
+    if include_companies:
+        companies = UserCompany.objects.filter(user=user).select_related('company')
+        result['companies'] = [c.company.name for c in companies]
+    return result
 
 @login_required
 def lookup_user(request):
@@ -334,8 +342,9 @@ def lookup_user(request):
     email      = request.GET.get('email', '').strip()
 
     name     = request.GET.get('name', '').strip()
-    
+
     company_id = request.GET.get('company_id', '').strip()
+    include_companies = request.GET.get('include_companies', 'false').lower() == 'true'
 
 
     if company_id:
@@ -345,12 +354,12 @@ def lookup_user(request):
         if not company:
             return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
         company_filter = {'company': company}
- 
+
     # ── Name search → multiple results ────────────────────────────────────────
     if name:
         if len(name) < 2:
             return JsonResponse({'results': []})
- 
+
         memberships = (
             UserCompany.objects
             .filter(
@@ -359,9 +368,9 @@ def lookup_user(request):
             )
             .select_related('user')[:10]
         )
-        results = [_user_to_dict(m.user) for m in memberships]
+        results = [_user_to_dict(m.user, include_companies=include_companies) for m in memberships]
         return JsonResponse({'results': results})
- 
+
     # ── Email search → single result ───────────────────────────────────────────
     if email:
         membership = (
@@ -372,8 +381,8 @@ def lookup_user(request):
         )
         if not membership:
             return JsonResponse({'found': False})
-        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
- 
+        return JsonResponse({'found': True, **_user_to_dict(membership.user, include_companies=include_companies)})
+
     # ── DNI search → single result ─────────────────────────────────────────────
     if dni:
         membership = (
@@ -384,8 +393,8 @@ def lookup_user(request):
         )
         if not membership:
             return JsonResponse({'found': False})
-        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
- 
+        return JsonResponse({'found': True, **_user_to_dict(membership.user, include_companies=include_companies)})
+
     return JsonResponse({'error': 'Proporciona email, dni o name para buscar'}, status=400)
 
 

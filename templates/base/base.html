@@ -91,17 +91,6 @@
 
     <ul class="nav">
 
-        {% if is_admin or current_role == 'manager' %}
-        <li class="nav-item">
-            <a href="{% url 'manager_logs' %}" class="nav-link">
-                <span>
-                    <i class="bi bi-speedometer2"></i>
-                    Panel de control
-                </span>
-            </a>
-        </li>
-        {% endif %}
-
         <li class="nav-item">
             <a href="{% url 'home_timetracking' %}" class="nav-link">
                 <span>
@@ -110,7 +99,7 @@
                 </span>
             </a>
         </li>
-
+        
         <!-- MY AREA -->
         <li class="nav-item">
             <a class="nav-link collapse-toggle">
@@ -125,8 +114,6 @@
                 <li class="nav-item"><a class="nav-link" href="{% url 'profile' %}">Perfil</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'workday' %}">Jornadas</a></li>
                 <li class="nav-item"><a class="nav-link" href="{% url 'calendar' %}">Calendario</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'absence' %}">Ausencias</a></li>
-                <li class="nav-item"><a class="nav-link" href="{% url 'request_correction' %}">Solicitar corrección</a></li>
             </ul>
         </li>
 
@@ -149,10 +136,32 @@
 
         {% if is_admin or current_role == 'manager' %}
         <li class="nav-item">
+            <a href="{% url 'manager_logs' %}" class="nav-link">
+                <span>
+                    <i class="bi bi-speedometer2"></i>
+                    Corrección de fichajes
+                </span>
+            </a>
+        </li>
+        {% endif %}
+
+        {% if is_admin or current_role == 'manager' %}
+        <li class="nav-item">
             <a href="{% url 'register_unified' %}" class="nav-link">
                 <span>
                     <i class="bi bi-person-plus"></i>
                     Dar de alta
+                </span>
+            </a>
+        </li>
+        {% endif %}
+
+        {% if is_admin %}
+        <li class="nav-item">
+            <a href="{% url 'admin_dashboard' %}" class="nav-link">
+                <span>
+                    <i class="bi bi-shield-lock"></i>
+                    Administrador
                 </span>
             </a>
         </li>

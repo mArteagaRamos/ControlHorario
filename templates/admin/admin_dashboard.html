@@ -1,0 +1,731 @@
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Panel Administrador{% endblock %}
+
+{% block content %}
+<style>
+    .table-scroll-container {
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .table-scroll-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #f8f9fa;
+    }
+    .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
+    .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+    /* Responsive mobile cards */
+    @media (max-width: 767px) {
+        .text-nowrap { white-space: normal !important; }
+        #resultadoTabla thead { display: none; }
+        #resultadoTabla tbody tr.data-row {
+            display: block;
+            margin-bottom: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+            padding: 0.5rem;
+            background-color: #fff;
+        }
+        #resultadoTabla tbody tr.data-row td {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f8f9fa;
+            padding: 0.75rem 0.5rem;
+            text-align: right;
+        }
+        #resultadoTabla tbody tr.data-row td:last-child {
+            border-bottom: none;
+        }
+        #resultadoTabla tbody tr.data-row td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #6c757d;
+            text-align: left;
+            margin-right: 1rem;
+        }
+        .acciones-movil {
+            justify-content: flex-end !important;
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <h2 class="h4 fw-bold mb-4">
+        <i class="bi bi-shield-lock"></i> Panel Administrador
+    </h2>
+
+    <!-- TOGGLE BUTTONS -->
+    <div class="btn-group mb-4 w-100" role="group">
+        <button type="button" id="btn-tipo-empresa" class="btn btn-primary">
+            <i class="bi bi-building"></i> Seleccionar Empresa
+        </button>
+        <button type="button" id="btn-tipo-trabajador" class="btn btn-outline-primary">
+            <i class="bi bi-people"></i> Seleccionar Trabajador
+        </button>
+    </div>
+
+    <!-- EMPRESA FILTERS -->
+    <div id="section-empresa" class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <h5 class="card-title border-bottom pb-2 mb-3">
+                <span class="badge bg-primary me-2">1</span>Buscar Empresa
+            </h5>
+
+            <!-- Filter mode buttons -->
+            <div class="mb-3">
+                <div class="btn-group btn-group-sm w-100" role="group" id="empresa-search-mode-group">
+                    <button type="button" class="btn btn-outline-secondary active" data-cmode="tax_id">
+                        <i class="bi bi-upc me-1"></i>CIF / NIF
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-cmode="name">
+                        <i class="bi bi-building me-1"></i>Nombre
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search inputs below buttons -->
+            <div class="row g-3">
+                <!-- Search by CIF -->
+                <div id="empresa-search-block-tax_id" class="empresa-search-block col-12">
+                    <div class="input-group">
+                        <input type="text" id="empresa-cif-input" class="form-control search-input"
+                               data-search-action="btn-buscar-empresa-cif"
+                               placeholder="Introduce el CIF / NIF" autocomplete="off">
+                        <button type="button" id="btn-buscar-empresa-cif" class="btn btn-outline-secondary">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search by Name with autocomplete -->
+                <div id="empresa-search-block-name" class="empresa-search-block col-12 d-none position-relative">
+                    <input type="text" id="empresa-nombre-input" class="form-control search-input"
+                           placeholder="Escribe nombre o razón social…" autocomplete="off">
+                    <ul id="empresa-nombre-suggestions"
+                        class="list-group position-absolute w-100 shadow-sm d-none"
+                        style="z-index:1050; top:100%; max-height:220px; overflow-y:auto;">
+                    </ul>
+                </div>
+
+                <div class="col-12">
+                    <div id="empresa-feedback" class="form-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRABAJADOR FILTERS -->
+    <div id="section-trabajador" class="card shadow-sm border-0 mb-4 d-none">
+        <div class="card-body">
+            <h5 class="card-title border-bottom pb-2 mb-3">
+                <span class="badge bg-primary me-2">1</span>Buscar Trabajador
+            </h5>
+
+            <!-- Filter mode buttons -->
+            <div class="mb-3">
+                <div class="btn-group btn-group-sm w-100" role="group" id="trabajador-search-mode-group">
+                    <button type="button" class="btn btn-outline-secondary active" data-tmode="email">
+                        <i class="bi bi-envelope me-1"></i>Email
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-tmode="dni">
+                        <i class="bi bi-card-text me-1"></i>DNI
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-tmode="nombre">
+                        <i class="bi bi-person me-1"></i>Nombre
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search inputs below buttons -->
+            <div class="row g-3">
+                <!-- Search by Email -->
+                <div id="trabajador-search-block-email" class="trabajador-search-block col-12">
+                    <div class="input-group">
+                        <input type="text" id="trabajador-email-input" class="form-control search-input"
+                               data-search-action="btn-buscar-trabajador-email"
+                               placeholder="Email del trabajador" autocomplete="off">
+                        <button type="button" id="btn-buscar-trabajador-email" class="btn btn-outline-secondary">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search by DNI -->
+                <div id="trabajador-search-block-dni" class="trabajador-search-block col-12 d-none">
+                    <div class="input-group">
+                        <input type="text" id="trabajador-dni-input" class="form-control search-input"
+                               data-search-action="btn-buscar-trabajador-dni"
+                               placeholder="DNI / NIE del trabajador" autocomplete="off">
+                        <button type="button" id="btn-buscar-trabajador-dni" class="btn btn-outline-secondary">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search by Name with autocomplete -->
+                <div id="trabajador-search-block-nombre" class="trabajador-search-block col-12 d-none position-relative">
+                    <input type="text" id="trabajador-nombre-input" class="form-control search-input"
+                           placeholder="Escribe nombre o apellidos…" autocomplete="off">
+                    <ul id="trabajador-nombre-suggestions"
+                        class="list-group position-absolute w-100 shadow-sm d-none"
+                        style="z-index:1050; top:100%; max-height:220px; overflow-y:auto;">
+                    </ul>
+                </div>
+
+                <div class="col-12">
+                    <div id="trabajador-feedback" class="form-text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULTS TABLE -->
+    <div id="section-resultados" class="card shadow-sm border-0 mb-5 d-none">
+        <div class="card-body">
+            <h5 class="card-title border-bottom pb-2 mb-3" id="resultados-titulo">
+                Resultados
+            </h5>
+
+            <div class="table-responsive table-scroll-container">
+                <table class="table table-hover align-middle text-nowrap" id="resultadoTabla">
+                    <thead class="table-light">
+                        <tr id="tabla-encabezado-empresa" class="d-none">
+                            <th>Empresa</th>
+                            <th>CIF / NIF</th>
+                            <th>Razón Social</th>
+                            <th>Creada</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                        <tr id="tabla-encabezado-trabajador" class="d-none">
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>DNI</th>
+                            <th>Estado</th>
+                            <th>Empresas</th>
+                            <th class="text-end">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cuerpo">
+                        <tr id="no-results-msg" style="display: none;">
+                            <td colspan="6" class="text-center py-4 text-muted">No se encontraron resultados.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Edit Worker -->
+<div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold">Editar Trabajador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'edit_employee' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="editUserId">
+
+                    <div class="row g-3">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Nombre</label>
+                            <input type="text" name="username" id="editNombre" class="form-control" required>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small fw-semibold text-muted mb-1">Apellidos</label>
+                            <input type="text" name="surname" id="editApellidos" class="form-control" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted mb-1">Email (No editable)</label>
+                            <input type="email" id="editEmail" class="form-control bg-light" disabled>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted mb-1">DNI (No editable)</label>
+                            <input type="text" id="editDni" class="form-control bg-light" disabled>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold text-muted mb-1">Estado de la cuenta</label>
+                            <select name="status" id="editEstado" class="form-select" required>
+                                <option value="active">Activo</option>
+                                <option value="inactive">Inactivo</option>
+                                <option value="suspended">Suspendido</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Delete Worker -->
+<div class="modal fade" id="modalEliminarTrabajador" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">Eliminar Trabajador</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'delete_employee' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body text-center p-4">
+                    <input type="hidden" name="user_id" id="deleteUserId">
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block"></i>
+                    <p class="fs-5">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
+                    <p class="text-muted small mb-0">Esta acción desvinculará al trabajador de todas sus empresas, pero mantendrá el historial de sus fichajes por motivos legales.</p>
+                </div>
+                <div class="modal-footer bg-light justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4">Sí, eliminar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
+const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
+const CSRF_TOKEN         = "{{ csrf_token }}";
+
+let currentTipo = 'empresa';  // Current mode: 'empresa' or 'trabajador'
+
+// ── DOM References ────────────────────────────────────────────────────────────
+const btnTipoEmpresa = document.getElementById('btn-tipo-empresa');
+const btnTipoTrabajador = document.getElementById('btn-tipo-trabajador');
+const sectionEmpresa = document.getElementById('section-empresa');
+const sectionTrabajador = document.getElementById('section-trabajador');
+const sectionResultados = document.getElementById('section-resultados');
+
+// Empresa search
+const empresaCifInput = document.getElementById('empresa-cif-input');
+const empresaNombreInput = document.getElementById('empresa-nombre-input');
+const empresaNombreSuggestions = document.getElementById('empresa-nombre-suggestions');
+let empresaNombreDebounceTimer = null;
+
+// Trabajador search
+const trabajadorEmailInput = document.getElementById('trabajador-email-input');
+const trabajadorDniInput = document.getElementById('trabajador-dni-input');
+const trabajadorNombreInput = document.getElementById('trabajador-nombre-input');
+const trabajadorNombreSuggestions = document.getElementById('trabajador-nombre-suggestions');
+let trabajadorNombreDebounceTimer = null;
+
+// ── Toggle Tipo (Empresa/Trabajador) ───────────────────────────────────────
+btnTipoEmpresa.addEventListener('click', () => {
+    currentTipo = 'empresa';
+    btnTipoEmpresa.classList.add('btn-primary');
+    btnTipoEmpresa.classList.remove('btn-outline-primary');
+    btnTipoTrabajador.classList.add('btn-outline-primary');
+    btnTipoTrabajador.classList.remove('btn-primary');
+
+    sectionEmpresa.classList.remove('d-none');
+    sectionTrabajador.classList.add('d-none');
+    clearResults();
+});
+
+btnTipoTrabajador.addEventListener('click', () => {
+    currentTipo = 'trabajador';
+    btnTipoTrabajador.classList.add('btn-primary');
+    btnTipoTrabajador.classList.remove('btn-outline-primary');
+    btnTipoEmpresa.classList.add('btn-outline-primary');
+    btnTipoEmpresa.classList.remove('btn-primary');
+
+    sectionEmpresa.classList.add('d-none');
+    sectionTrabajador.classList.remove('d-none');
+    clearResults();
+});
+
+// ── Empresa Search Mode Tabs ───────────────────────────────────────────────
+document.getElementById('empresa-search-mode-group')?.querySelectorAll('[data-cmode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#empresa-search-mode-group [data-cmode]').forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.classList.toggle('btn-secondary', b === btn);
+            b.classList.toggle('btn-outline-secondary', b !== btn);
+        });
+        document.querySelectorAll('.empresa-search-block').forEach(b => b.classList.add('d-none'));
+        document.getElementById(`empresa-search-block-${btn.dataset.cmode}`)?.classList.remove('d-none');
+        document.getElementById('empresa-feedback').textContent = '';
+        clearResults();
+    });
+});
+
+// ── Trabajador Search Mode Tabs ────────────────────────────────────────────
+document.getElementById('trabajador-search-mode-group')?.querySelectorAll('[data-tmode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('#trabajador-search-mode-group [data-tmode]').forEach(b => {
+            b.classList.toggle('active', b === btn);
+            b.classList.toggle('btn-secondary', b === btn);
+            b.classList.toggle('btn-outline-secondary', b !== btn);
+        });
+        document.querySelectorAll('.trabajador-search-block').forEach(b => b.classList.add('d-none'));
+        document.getElementById(`trabajador-search-block-${btn.dataset.tmode}`)?.classList.remove('d-none');
+        document.getElementById('trabajador-feedback').textContent = '';
+        clearResults();
+    });
+});
+
+// ── Empresa CIF Search ─────────────────────────────────────────────────────
+document.getElementById('btn-buscar-empresa-cif')?.addEventListener('click', async () => {
+    const taxId = empresaCifInput.value.trim();
+    const feedback = document.getElementById('empresa-feedback');
+
+    if (!taxId) {
+        feedback.textContent = 'Introduce un CIF / NIF.';
+        feedback.className = 'form-text text-danger';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${LOOKUP_COMPANY_URL}?tax_id=${encodeURIComponent(taxId)}&include_created=true`);
+        const data = await res.json();
+
+        if (data.found) {
+            displayCompanyResults([data]);
+            feedback.textContent = 'Empresa encontrada.';
+            feedback.className = 'form-text text-success';
+        } else {
+            clearResults();
+            feedback.textContent = 'No existe ninguna empresa con ese CIF.';
+            feedback.className = 'form-text text-danger';
+        }
+    } catch {
+        feedback.textContent = 'Error al buscar la empresa.';
+        feedback.className = 'form-text text-danger';
+    }
+});
+
+// ── Empresa Name Autocomplete ──────────────────────────────────────────────
+empresaNombreInput?.addEventListener('input', () => {
+    clearTimeout(empresaNombreDebounceTimer);
+    const query = empresaNombreInput.value.trim();
+
+    if (query.length < 2) {
+        empresaNombreSuggestions.classList.add('d-none');
+        document.getElementById('empresa-feedback').textContent = '';
+        return;
+    }
+
+    empresaNombreDebounceTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(`${LOOKUP_COMPANY_URL}?name=${encodeURIComponent(query)}&include_created=true`);
+            const data = await res.json();
+            const results = data.results || [];
+
+            empresaNombreSuggestions.innerHTML = '';
+
+            if (results.length === 0) {
+                empresaNombreSuggestions.classList.add('d-none');
+                document.getElementById('empresa-feedback').textContent = 'Sin resultados para esa búsqueda.';
+                document.getElementById('empresa-feedback').className = 'form-text text-warning';
+                return;
+            }
+
+            document.getElementById('empresa-feedback').textContent = '';
+            results.forEach(company => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                li.style.cursor = 'pointer';
+                li.innerHTML = `
+                    <span>
+                        <strong>${company.name}</strong>
+                        <small class="text-muted ms-2">${company.legal_name}</small>
+                    </span>
+                `;
+                li.addEventListener('click', () => {
+                    displayCompanyResults([company]);
+                    empresaNombreInput.value = company.name;
+                    empresaNombreSuggestions.classList.add('d-none');
+                    document.getElementById('empresa-feedback').textContent = 'Empresa seleccionada.';
+                    document.getElementById('empresa-feedback').className = 'form-text text-success';
+                });
+                empresaNombreSuggestions.appendChild(li);
+            });
+
+            empresaNombreSuggestions.classList.remove('d-none');
+        } catch {
+            empresaNombreSuggestions.classList.add('d-none');
+            document.getElementById('empresa-feedback').textContent = 'Error al buscar empresas.';
+            document.getElementById('empresa-feedback').className = 'form-text text-danger';
+        }
+    }, 300);
+});
+
+document.addEventListener('click', (e) => {
+    if (!empresaNombreInput?.contains(e.target) && !empresaNombreSuggestions?.contains(e.target)) {
+        empresaNombreSuggestions?.classList.add('d-none');
+    }
+});
+
+// ── Trabajador Email Search ────────────────────────────────────────────────
+document.getElementById('btn-buscar-trabajador-email')?.addEventListener('click', async () => {
+    const email = trabajadorEmailInput.value.trim();
+    const feedback = document.getElementById('trabajador-feedback');
+
+    if (!email) {
+        feedback.textContent = 'Introduce un email.';
+        feedback.className = 'form-text text-danger';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&include_companies=true`);
+        const data = await res.json();
+
+        if (data.found) {
+            displayWorkerResults([data]);
+            feedback.textContent = 'Trabajador encontrado.';
+            feedback.className = 'form-text text-success';
+        } else {
+            clearResults();
+            feedback.textContent = 'No existe ningún trabajador con ese email.';
+            feedback.className = 'form-text text-danger';
+        }
+    } catch {
+        feedback.textContent = 'Error al buscar el trabajador.';
+        feedback.className = 'form-text text-danger';
+    }
+});
+
+// ── Trabajador DNI Search ──────────────────────────────────────────────────
+document.getElementById('btn-buscar-trabajador-dni')?.addEventListener('click', async () => {
+    const dni = trabajadorDniInput.value.trim();
+    const feedback = document.getElementById('trabajador-feedback');
+
+    if (!dni) {
+        feedback.textContent = 'Introduce un DNI.';
+        feedback.className = 'form-text text-danger';
+        return;
+    }
+
+    try {
+        const res = await fetch(`${LOOKUP_USER_URL}?dni=${encodeURIComponent(dni)}&include_companies=true`);
+        const data = await res.json();
+
+        if (data.found) {
+            displayWorkerResults([data]);
+            feedback.textContent = 'Trabajador encontrado.';
+            feedback.className = 'form-text text-success';
+        } else {
+            clearResults();
+            feedback.textContent = 'No existe ningún trabajador con ese DNI.';
+            feedback.className = 'form-text text-danger';
+        }
+    } catch {
+        feedback.textContent = 'Error al buscar el trabajador.';
+        feedback.className = 'form-text text-danger';
+    }
+});
+
+// ── Trabajador Name Autocomplete ───────────────────────────────────────────
+trabajadorNombreInput?.addEventListener('input', () => {
+    clearTimeout(trabajadorNombreDebounceTimer);
+    const query = trabajadorNombreInput.value.trim();
+
+    if (query.length < 2) {
+        trabajadorNombreSuggestions.classList.add('d-none');
+        document.getElementById('trabajador-feedback').textContent = '';
+        return;
+    }
+
+    trabajadorNombreDebounceTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(`${LOOKUP_USER_URL}?name=${encodeURIComponent(query)}&include_companies=true`);
+            const data = await res.json();
+            const results = data.results || [];
+
+            trabajadorNombreSuggestions.innerHTML = '';
+
+            if (results.length === 0) {
+                trabajadorNombreSuggestions.classList.add('d-none');
+                document.getElementById('trabajador-feedback').textContent = 'Sin resultados para esa búsqueda.';
+                document.getElementById('trabajador-feedback').className = 'form-text text-warning';
+                return;
+            }
+
+            document.getElementById('trabajador-feedback').textContent = '';
+            results.forEach(user => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                li.style.cursor = 'pointer';
+                li.innerHTML = `<strong>${user.username} ${user.surname}</strong>`;
+                li.addEventListener('click', () => {
+                    displayWorkerResults([user]);
+                    trabajadorNombreInput.value = `${user.username} ${user.surname}`;
+                    trabajadorNombreSuggestions.classList.add('d-none');
+                    document.getElementById('trabajador-feedback').textContent = 'Trabajador seleccionado.';
+                    document.getElementById('trabajador-feedback').className = 'form-text text-success';
+                });
+                trabajadorNombreSuggestions.appendChild(li);
+            });
+
+            trabajadorNombreSuggestions.classList.remove('d-none');
+        } catch {
+            trabajadorNombreSuggestions.classList.add('d-none');
+            document.getElementById('trabajador-feedback').textContent = 'Error al buscar trabajadores.';
+            document.getElementById('trabajador-feedback').className = 'form-text text-danger';
+        }
+    }, 300);
+});
+
+document.addEventListener('click', (e) => {
+    if (!trabajadorNombreInput?.contains(e.target) && !trabajadorNombreSuggestions?.contains(e.target)) {
+        trabajadorNombreSuggestions?.classList.add('d-none');
+    }
+});
+
+// ── Display Results ────────────────────────────────────────────────────────
+function displayCompanyResults(companies) {
+    const tabla = document.getElementById('resultadoTabla');
+    const tbody = document.getElementById('tabla-cuerpo');
+    const encabezadoEmpresa = document.getElementById('tabla-encabezado-empresa');
+    const encabezadoTrabajador = document.getElementById('tabla-encabezado-trabajador');
+
+    // Show empresa header, hide trabajador header
+    encabezadoEmpresa.classList.remove('d-none');
+    encabezadoTrabajador.classList.add('d-none');
+
+    tbody.innerHTML = '';
+
+    companies.forEach(company => {
+        const tr = document.createElement('tr');
+        tr.className = 'data-row';
+        tr.innerHTML = `
+            <td data-label="Empresa">${company.name}</td>
+            <td data-label="CIF / NIF">${company.tax_id || '--'}</td>
+            <td data-label="Razón Social">${company.legal_name || '--'}</td>
+            <td data-label="Creada">${company.created_at || '--'}</td>
+            <td data-label="Acciones" class="text-end">
+                <div class="d-flex gap-2 acciones-movil justify-content-end">
+                    <button class="btn btn-sm btn-outline-info" disabled title="Próximamente">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    sectionResultados.classList.remove('d-none');
+    document.getElementById('resultados-titulo').textContent = `Resultados: Empresas (${companies.length})`;
+}
+
+function displayWorkerResults(workers) {
+    const tabla = document.getElementById('resultadoTabla');
+    const tbody = document.getElementById('tabla-cuerpo');
+    const encabezadoEmpresa = document.getElementById('tabla-encabezado-empresa');
+    const encabezadoTrabajador = document.getElementById('tabla-encabezado-trabajador');
+
+    // Show trabajador header, hide empresa header
+    encabezadoEmpresa.classList.add('d-none');
+    encabezadoTrabajador.classList.remove('d-none');
+
+    tbody.innerHTML = '';
+
+    workers.forEach(worker => {
+        const tr = document.createElement('tr');
+        tr.className = 'data-row';
+
+        // Get status badge
+        const statusBadge = worker.status === 'active'
+            ? '<span class="badge bg-success">Activo</span>'
+            : worker.status === 'suspended'
+            ? '<span class="badge bg-danger">Suspendido</span>'
+            : '<span class="badge bg-warning text-dark">Inactivo</span>';
+
+        // Get companies badges
+        const companies = worker.companies || [];
+        const companiesBadges = companies.length > 0
+            ? companies.map(c => `<span class="badge bg-secondary me-1">${c}</span>`).join('')
+            : '<span class="badge bg-secondary">--</span>';
+
+        tr.innerHTML = `
+            <td data-label="Nombre">${worker.username} ${worker.surname}</td>
+            <td data-label="Email">${worker.email}</td>
+            <td data-label="DNI">${worker.dni || '--'}</td>
+            <td data-label="Estado">${statusBadge}</td>
+            <td data-label="Empresas">${companiesBadges}</td>
+            <td data-label="Acciones" class="text-end">
+                <div class="d-flex gap-2 acciones-movil justify-content-end">
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
+                            data-id="${worker.id}"
+                            data-nombre="${worker.username}"
+                            data-apellidos="${worker.surname}"
+                            data-email="${worker.email}"
+                            data-dni="${worker.dni}"
+                            data-estado="${worker.status}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-bs-toggle="modal" data-bs-target="#modalEliminarTrabajador"
+                            data-id="${worker.id}"
+                            data-nombrecompleto="${worker.username} ${worker.surname}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    sectionResultados.classList.remove('d-none');
+    document.getElementById('resultados-titulo').textContent = `Resultados: Trabajadores (${workers.length})`;
+}
+
+function clearResults() {
+    sectionResultados.classList.add('d-none');
+    document.getElementById('tabla-cuerpo').innerHTML = '';
+}
+
+// ── Modal Handling ─────────────────────────────────────────────────────────
+const editarModal = document.getElementById('modalEditarTrabajador');
+if (editarModal) {
+    editarModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        document.getElementById('editUserId').value = button.getAttribute('data-id');
+        document.getElementById('editNombre').value = button.getAttribute('data-nombre');
+        document.getElementById('editApellidos').value = button.getAttribute('data-apellidos');
+        document.getElementById('editEmail').value = button.getAttribute('data-email');
+        document.getElementById('editDni').value = button.getAttribute('data-dni');
+        document.getElementById('editEstado').value = button.getAttribute('data-estado');
+    });
+}
+
+const eliminarModal = document.getElementById('modalEliminarTrabajador');
+if (eliminarModal) {
+    eliminarModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        document.getElementById('deleteUserId').value = button.getAttribute('data-id');
+        document.getElementById('deleteNombre').textContent = button.getAttribute('data-nombrecompleto');
+    });
+}
+
+// ── Enter key handling for search inputs ────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target;
+    if (!input.classList.contains('search-input')) return;
+
+    e.preventDefault();
+    const actionTarget = input.dataset.searchAction;
+    if (actionTarget) {
+        document.getElementById(actionTarget)?.click();
+    }
+});
+</script>
+{% endblock %}

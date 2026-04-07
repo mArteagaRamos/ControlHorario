@@ -379,3 +379,25 @@ def anular_registro(request):
 
     return redirect('manager_logs')
 
+# ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────────
+
+def admin_only_required(view_func):
+    """Decorator to ensure only admin users can access the view"""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return render(request, 'error/sin_loguear.html', status=401)
+
+        if not request.user.is_admin:
+            return render(request, 'error/sin_permisos.html', status=403)
+
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@admin_only_required
+@never_cache
+def admin_dashboard(request):
+    """Admin dashboard to manage companies and workers globally"""
+
+    return render(request, 'admin/admin_dashboard.html')
+

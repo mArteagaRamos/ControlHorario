@@ -29,8 +29,6 @@ urlpatterns = [
     path('calendar/', dashboard_views.calendar, name='calendar'),
     path('profile/', dashboard_views.profile, name='profile'),
     path('security/', dashboard_views.security, name='security'),
-    path('request_correction/', dashboard_views.request_correction, name='request_correction'),
-    path('absence/', dashboard_views.absence, name='absence'),
 
     # Dashboard - Team Management
     path('entity_info/', dashboard_views.entity_info, name='entity_info'),
@@ -48,4 +46,7 @@ urlpatterns = [
     path('manager_employees/', audit_views.manager_employee, name='manager_employee'),
     path('manager_employees/edit/', audit_views.edit_employee, name='edit_employee'),
     path('manager_employees/delete/', audit_views.delete_employee, name='delete_employee'),
+
+    # Admin Dashboard
+    path('admin/', audit_views.admin_dashboard, name='admin_dashboard'),
 ]
