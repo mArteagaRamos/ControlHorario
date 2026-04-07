@@ -62,10 +62,11 @@
                   </button>
                 </div>
  
-                {# Búsqueda por CIF #}
+                {# Search by CIF #}
                 <div id="company-search-block-tax_id" class="company-search-block">
                   <div class="input-group mb-3">
-                    <input type="text" id="cif-lookup-input" class="form-control"
+                    <input type="text" id="cif-lookup-input" class="form-control search-input"
+                           data-search-action="btn-lookup-company"
                            placeholder="Introduce el CIF / NIF de la empresa" autocomplete="off">
                     <button type="button" id="btn-lookup-company" class="btn btn-outline-secondary">
                       Buscar
@@ -73,10 +74,10 @@
                   </div>
                 </div>
  
-                {# Búsqueda por Nombre con autocomplete #}
+                {# Search by Name with autocomplete #}
                 <div id="company-search-block-name" class="company-search-block d-none">
                   <div class="position-relative mb-3">
-                    <input type="text" id="company-lookup-name" class="form-control"
+                    <input type="text" id="company-lookup-name" class="form-control search-input"
                            placeholder="Escribe nombre o razón social…" autocomplete="off">
                     <ul id="company-name-suggestions"
                         class="list-group position-absolute w-100 shadow-sm d-none"
@@ -111,6 +112,19 @@
                   Trabajador
                 </h5>
 
+                {# ⚠️ ADVERTENCIA: Último Manager #}
+                <div id="last-manager-warning" class="alert alert-warning d-none" role="alert">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <div>
+                      <strong>Eres el único Manager de la empresa</strong>
+                      <p class="mb-0 mt-1 small">
+                        No puedes cambiar tu rol a Empleado porque la empresa necesita tener al menos un Manager.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
                 <div id="worker-toggle-group"
                     class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
@@ -142,34 +156,36 @@
                     </button>
                   </div>
  
-                  {# Búsqueda por Email #}
+                  {# Search by Email #}
                   <div id="search-block-email" class="search-block">
                     <div class="input-group mb-3">
-                      <input type="text" id="worker-lookup-email" class="form-control"
+                      <input type="text" id="worker-lookup-email" class="form-control search-input"
+                             data-search-action="worker-lookup-email-btn"
                              placeholder="Email del trabajador" autocomplete="off">
-                      <button type="button" class="btn btn-outline-secondary btn-lookup-exact" data-field="email">
+                      <button type="button" id="worker-lookup-email-btn" class="btn btn-outline-secondary btn-lookup-exact" data-field="email">
                         Buscar
                       </button>
                     </div>
                   </div>
  
-                  {# Búsqueda por DNI #}
+                  {# Search by DNI #}
                   <div id="search-block-dni" class="search-block d-none">
                     <div class="input-group mb-3">
-                      <input type="text" id="worker-lookup-dni" class="form-control"
+                      <input type="text" id="worker-lookup-dni" class="form-control search-input"
+                             data-search-action="worker-lookup-dni-btn"
                              placeholder="DNI / NIE del trabajador" autocomplete="off">
-                      <button type="button" class="btn btn-outline-secondary btn-lookup-exact" data-field="dni">
+                      <button type="button" id="worker-lookup-dni-btn" class="btn btn-outline-secondary btn-lookup-exact" data-field="dni">
                         Buscar
                       </button>
                     </div>
                   </div>
  
-                  {# Búsqueda por Nombre/Apellidos con autocomplete #}
+                  {# Search by Name/Surname with autocomplete #}
                   <div id="search-block-name" class="search-block d-none">
                     <div class="position-relative mb-3">
-                      <input type="text" id="worker-lookup-name" class="form-control"
+                      <input type="text" id="worker-lookup-name" class="form-control search-input"
                              placeholder="Escribe nombre o apellidos…" autocomplete="off">
-                      {# Dropdown de sugerencias #}
+                      {# Suggestions dropdown #}
                       <ul id="name-suggestions"
                           class="list-group position-absolute w-100 shadow-sm d-none"
                           style="z-index:1050; top:100%; max-height:220px; overflow-y:auto;">
@@ -231,6 +247,7 @@
 <script>
 const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
 const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
+const CHECK_LAST_MANAGER_URL = "{% url 'check_last_manager' %}";
 const CSRF_TOKEN         = "{{ csrf_token }}";
 
 // ── DOM references ────────────────────────────────────────────────────────────
@@ -322,6 +339,16 @@ function setWorkerAction(action) {
   document.getElementById('worker-lookup-dni')?.value   && (document.getElementById('worker-lookup-dni').value   = '');
   document.getElementById('worker-lookup-name')?.value  && (document.getElementById('worker-lookup-name').value  = '');
   document.getElementById('worker-lookup-feedback').textContent = '';
+
+  // Reset manager warning and dropdown when toggling
+  const warningDiv = document.getElementById('last-manager-warning');
+  const roleSelect = document.getElementById('id_role');
+  if (warningDiv) warningDiv.classList.add('d-none');
+  if (roleSelect) {
+    roleSelect.disabled = false;
+    roleSelect.classList.remove('is-invalid');
+  }
+
   hideSuggestions();
 }
 
@@ -479,6 +506,48 @@ function fillWorkerForm(data) {
     const el = document.getElementById(id);
     if (el) el.value = value;
   }
+
+  // ✨ Check if this user is the last manager
+  if (data.id) {
+    checkAndHandleLastManager(data.id);
+  }
+}
+
+// ── Check if user is the last manager in company ────────────────────────────
+async function checkAndHandleLastManager(userId) {
+  const companyId = document.getElementById('company_id_input').value.trim();
+  const roleSelect = document.getElementById('id_role');
+  const warningDiv = document.getElementById('last-manager-warning');
+
+  if (!companyId || !roleSelect || !warningDiv) return;
+
+  try {
+    const checkUrl = new URL(CHECK_LAST_MANAGER_URL, window.location.origin);
+    checkUrl.searchParams.set('user_id', userId);
+    checkUrl.searchParams.set('company_id', companyId);
+
+    const res = await fetch(checkUrl.toString());
+    const data = await res.json();
+
+    if (data.is_last_manager) {
+      // Mostrar advertencia
+      warningDiv.classList.remove('d-none');
+      roleSelect.disabled = true;
+      roleSelect.classList.add('is-invalid');
+      // Cambiar el select a su valor actual (manager)
+      roleSelect.value = 'manager';
+    } else {
+      // Ocultar advertencia
+      warningDiv.classList.add('d-none');
+      roleSelect.disabled = false;
+      roleSelect.classList.remove('is-invalid');
+    }
+  } catch (error) {
+    console.error('Error checking last manager status:', error);
+    // Error silencioso - no bloqueamos la UI
+    warningDiv.classList.add('d-none');
+    roleSelect.disabled = false;
+  }
 }
  
 function setFeedback(text, type) {
@@ -628,6 +697,17 @@ function clearFormBlock(blockId) {
       el.value = '';
     }
   });
+
+  // Clear manager warning when clearing worker form
+  if (blockId === 'worker-form-block') {
+    const warningDiv = document.getElementById('last-manager-warning');
+    const roleSelect = document.getElementById('id_role');
+    if (warningDiv) warningDiv.classList.add('d-none');
+    if (roleSelect) {
+      roleSelect.disabled = false;
+      roleSelect.classList.remove('is-invalid');
+    }
+  }
 }
 
 // ── Temporary password generator ──────────────────────────────────────────
@@ -668,5 +748,117 @@ document.addEventListener('DOMContentLoaded', () => {
     input.value = generatePassword();
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// CONTEXTUAL ENTER KEY HANDLING IN FORM INPUTS
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Handles ENTER key press based on input type:
+ * - search-input: executes search (specific button or autocomplete)
+ * - form-input: allows normal submission or prevents it
+ * - others: default behavior
+ */
+document.addEventListener('keydown', (e) => {
+  // Only act on ENTER key
+  if (e.key !== 'Enter') return;
+
+  const input = e.target;
+
+  // If input is within an active autocomplete, ignore
+  if (isWithinActiveAutocomplete(input)) return;
+
+  // ── SEARCH INPUT: execute search ──
+  if (input.classList.contains('search-input')) {
+    e.preventDefault();
+    executeSearch(input);
+    return;
+  }
+
+  // ── FORM INPUT: execute submit
+  if (input.classList.contains('form-input')) {
+    e.preventDefault();
+    const form = input.closest('form');
+    if (form) form.querySelector('button[type="submit"]')?.click();
+    return;
+  }
+});
+
+/**
+ * Executes the appropriate search based on data-search-action
+ */
+function executeSearch(inputEl) {
+  const actionTarget = inputEl.dataset.searchAction;
+
+  if (!actionTarget) return; // No action defined
+
+  // Find associated button and click it
+  const button = document.getElementById(actionTarget)
+              || inputEl.closest('.input-group')?.querySelector('[data-field]');
+
+  if (button) {
+    button.click();
+  }
+}
+
+/**
+ * Checks if input is within an active autocomplete dropdown
+ * (to prevent interfering with dropdown navigation)
+ */
+function isWithinActiveAutocomplete(inputEl) {
+  const autocompletes = [
+    { input: '#worker-lookup-name', dropdown: '#name-suggestions' },
+    { input: '#company-lookup-name', dropdown: '#company-name-suggestions' },
+  ];
+
+  for (const { input, dropdown } of autocompletes) {
+    const inputEl2 = document.querySelector(input);
+    const dropdownEl = document.querySelector(dropdown);
+
+    if (inputEl === inputEl2 && dropdownEl && !dropdownEl.classList.contains('d-none')) {
+      return true; // Dropdown is open
+    }
+  }
+
+  return false;
+}
+
+/**
+ * OPTIONAL: Setup search inputs with explicit button linking
+ * Structure: <input class="search-input" data-search-action="btn-id">
+ */
+function setupSearchInputs() {
+  document.querySelectorAll('.search-input').forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const targetButtonId = input.dataset.searchAction;
+        document.getElementById(targetButtonId)?.click();
+      }
+    });
+  });
+}
+
+// Execute on load
+document.addEventListener('DOMContentLoaded', () => {
+  setupSearchInputs();
+});
+
+/**
+ * OPTIONAL: Block form submission with ENTER in normal form inputs
+ * Uncomment if you want to prevent ENTER from submitting
+ * (only allow through "Save" button)
+ */
+// function blockFormSubmitOnEnter() {
+//   document.querySelectorAll('form input:not(.search-input)').forEach(input => {
+//     input.addEventListener('keydown', (e) => {
+//       if (e.key === 'Enter' && !e.ctrlKey) {
+//         e.preventDefault();
+//       }
+//     });
+//   });
+// }
+// blockFormSubmitOnEnter();
+
 </script>
 {% endblock %}

@@ -16,6 +16,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
 </head>
 <body>
 
@@ -82,79 +83,77 @@
 </nav>
 
 <!-- SIDEBAR -->
-<div class="d-flex">
+<div class="main-container">
 
-<aside id="sidebar" class="sidebar d-flex flex-column p-3 text-white" style="align-self:stretch;">
+<aside id="sidebar" class="sidebar">
 
-    <span class="fs-5 mb-4">Menú</span>
+    <span class="menu-title">Menú</span>
 
-    <ul class="nav nav-pills flex-column mb-auto">
+    <ul class="nav">
 
         {% if is_admin or current_role == 'manager' %}
-        <li>
-            <a href="{% url 'manager_logs' %}" class="nav-link text-white">
-                <i class="bi bi-speedometer2 me-2"></i>
-                Panel de control
+        <li class="nav-item">
+            <a href="{% url 'manager_logs' %}" class="nav-link">
+                <span>
+                    <i class="bi bi-speedometer2"></i>
+                    Panel de control
+                </span>
             </a>
         </li>
         {% endif %}
 
-        <li>
-            <a href="{% url 'home_timetracking' %}" class="nav-link text-white">
-                <i class="bi bi-pencil-square me-2"></i>
-                Registrar actividad
+        <li class="nav-item">
+            <a href="{% url 'home_timetracking' %}" class="nav-link">
+                <span>
+                    <i class="bi bi-pencil-square"></i>
+                    Registrar actividad
+                </span>
             </a>
         </li>
 
         <!-- MY AREA -->
-        <li>
-            <a class="nav-link text-white d-flex justify-content-between align-items-center"
-               data-bs-toggle="collapse"
-               href="#submenuUsuario">
+        <li class="nav-item">
+            <a class="nav-link collapse-toggle">
                 <span>
-                    <i class="bi bi-person me-2"></i>
+                    <i class="bi bi-person"></i>
                     Mi Área
                 </span>
-                <i class="bi bi-chevron-down small"></i>
+                <i class="bi bi-chevron-down small chevron"></i>
             </a>
 
-            <div class="collapse" id="submenuUsuario">
-                <ul class="nav flex-column ms-3 mt-1 small">
-                    <li><a class="nav-link text-white-50" href="{% url 'profile' %}">Perfil</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'workday' %}">Jornadas</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'calendar' %}">Calendario</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'absence' %}">Ausencias</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'request_correction' %}">Solicitar corrección</a></li>
-                </ul>
-            </div>
+            <ul class="nav submenu">
+                <li class="nav-item"><a class="nav-link" href="{% url 'profile' %}">Perfil</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'workday' %}">Jornadas</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'calendar' %}">Calendario</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'absence' %}">Ausencias</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'request_correction' %}">Solicitar corrección</a></li>
+            </ul>
         </li>
 
         <!-- TEAM -->
-        <li>
-            <a class="nav-link text-white d-flex justify-content-between align-items-center"
-               data-bs-toggle="collapse"
-               href="#submenuEquipo">
+        <li class="nav-item">
+            <a class="nav-link collapse-toggle">
                 <span>
-                    <i class="bi bi-people me-2"></i>
+                    <i class="bi bi-people"></i>
                     Equipo
                 </span>
-                <i class="bi bi-chevron-down small"></i>
+                <i class="bi bi-chevron-down small chevron"></i>
             </a>
 
-            <div class="collapse" id="submenuEquipo">
-                <ul class="nav flex-column ms-3 mt-1 small">
-                    <li><a class="nav-link text-white-50" href="{% url 'manager_employee' %}">Personal</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'entity_info' %}">Información empresa</a></li>
-                    <li><a class="nav-link text-white-50" href="{% url 'notes' %}">Notas</a></li>
-                </ul>
-            </div>
+            <ul class="nav submenu">
+                <li class="nav-item"><a class="nav-link" href="{% url 'manager_employee' %}">Personal</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'entity_info' %}">Información empresa</a></li>
+                <li class="nav-item"><a class="nav-link" href="{% url 'notes' %}">Notas</a></li>
+            </ul>
         </li>
 
         {% if is_admin or current_role == 'manager' %}
-        <li>
-            <a href="{% url 'register_unified' %}" class="nav-link text-white">
-                <i class="bi bi-person-plus me-2"></i>
-                Dar de alta
+        <li class="nav-item">
+            <a href="{% url 'register_unified' %}" class="nav-link">
+                <span>
+                    <i class="bi bi-person-plus"></i>
+                    Dar de alta
+                </span>
             </a>
         </li>
         {% endif %}
@@ -163,15 +162,17 @@
 
     <hr>
 
-    <a href="{% url 'logout' %}" class="nav-link text-danger">
-        <i class="bi bi-box-arrow-right me-2"></i>
-        Log out
-    </a>
+    <div class="logout-section">
+        <a href="{% url 'logout' %}" class="logout-link">
+            <i class="bi bi-box-arrow-right"></i>
+            Log out
+        </a>
+    </div>
 
 </aside>
 
 <!-- CONTENT -->
-<main class="p-4" style="width: 100%;">
+<main class="main-content">
     <!-- MESSAGES -->
     {% if messages %}
     <div class="container mt-3">
@@ -188,7 +189,7 @@
 
     <!-- BREADCRUMBS -->
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb bg-light p-2 rounded">
+        <ol class="breadcrumb bg-body-secondary p-2 rounded">
             {% if breadcrumbs %}
                 {% for crumb in breadcrumbs %}
                     {% if crumb.url %}
@@ -216,11 +217,34 @@
 {% bootstrap_javascript %}
 
 <script>
+// Toggle principal para mobile
 const toggleBtn = document.getElementById('menu-toggle');
 const sidebar = document.getElementById('sidebar');
 
 toggleBtn?.addEventListener('click', () => {
     sidebar.classList.toggle('active');
+});
+
+// Cerrar sidebar cuando se hace click en un link en mobile
+const navLinks = document.querySelectorAll('.sidebar .nav-link:not(.collapse-toggle)');
+navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+        if (window.innerWidth < 768) {
+            sidebar.classList.remove('active');
+        }
+    });
+});
+
+// Menús colapsables
+const collapseLinks = document.querySelectorAll('.collapse-toggle');
+collapseLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const submenu = link.nextElementSibling;
+        const chevron = link.querySelector('.chevron');
+        submenu.classList.toggle('active');
+        chevron.classList.toggle('rotated');
+    });
 });
 </script>
 

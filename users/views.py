@@ -8,6 +8,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+from django.db import transaction
+from django.db.models import Q, Count
 from uuid import uuid4
 from .forms import (
     LoginForm, CompanyForm, CompanySelectLoginForm,
@@ -17,11 +19,63 @@ from .email_utils import send_new_user_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from django.views.decorators.cache import never_cache
-from django.db.models import Q
 
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+def validate_manager_role_change(user, company, new_role):
+    """
+    Validates that changing a user's role won't leave the company without managers.
+
+    Args:
+        user: Users instance being edited
+        company: Companies instance context
+        new_role: The new role being assigned (RoleChoices value)
+
+    Returns:
+        Tuple: (is_valid: bool, message: str or None)
+        If valid, returns (True, None)
+        If invalid, returns (False, error_message)
+    """
+    try:
+        with transaction.atomic():
+            # Only validate if changing TO something other than manager
+            if new_role == UserCompany.RoleChoices.MANAGER:
+                return (True, None)
+
+            # Get current membership (lock the row to avoid race conditions)
+            current_membership = (
+                UserCompany.objects
+                .select_for_update()
+                .filter(user=user, company=company)
+                .first()
+            )
+
+            # If no membership or not currently a manager, no restriction
+            if not current_membership or current_membership.role == UserCompany.RoleChoices.EMPLOYEE:
+                return (True, None)
+
+            # User IS a manager and wants to change to employee
+            # Count other managers in the company (excluding this user)
+            other_managers_count = (
+                UserCompany.objects
+                .filter(
+                    company=company,
+                    role=UserCompany.RoleChoices.MANAGER
+                )
+                .exclude(user=user)
+                .count()
+            )
+
+            if other_managers_count == 0:
+                return (False, 'No se puede cambiar el rol: es el único Manager de la empresa.')
+
+            return (True, None)
+    except Exception as e:
+        # If transaction fails, fail safely and log
+        return (False, f'Error al validar el rol: {str(e)}')
+
 
 def compute_worked_seconds(entry):
     if not entry.clock_in or not entry.clock_out:
@@ -266,6 +320,7 @@ def lookup_company(request):
 def _user_to_dict(user):
     """Serializes a Users instance to a dict for JSON responses."""
     return {
+        'id': str(user.id),
         'username': user.username,
         'surname':  user.surname,
         'dni':      user.dni,
@@ -334,6 +389,69 @@ def lookup_user(request):
  
     return JsonResponse({'error': 'Proporciona email, dni o name para buscar'}, status=400)
 
+
+@login_required
+def check_last_manager(request):
+    """
+    Check if a user is the last manager in their company.
+    Used for frontend UX: deshabilitar dropdown de rol si es el único manager.
+
+    Params:
+        user_id: UUID del usuario a verificar
+        company_id: UUID de la empresa (opcional, usa request.company si no se proporciona)
+    """
+    user_id = request.GET.get('user_id', '').strip()
+    company_id = request.GET.get('company_id', '').strip()
+
+    if not user_id:
+        return JsonResponse({'error': 'user_id es obligatorio'}, status=400)
+
+    if not company_id:
+        company = getattr(request, 'company', None)
+        if not company:
+            return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
+        company_id = str(company.id)
+
+    try:
+        # Buscar si el usuario tiene un rol en esa empresa
+        membership = UserCompany.objects.filter(
+            user_id=user_id,
+            company_id=company_id
+        ).first()
+
+        if not membership:
+            return JsonResponse({
+                'is_manager': False,
+                'is_last_manager': False,
+                'other_managers': 0
+            })
+
+        # Si no es manager, no hay restricción
+        if membership.role != UserCompany.RoleChoices.MANAGER:
+            return JsonResponse({
+                'is_manager': False,
+                'is_last_manager': False,
+                'other_managers': -1  # N/A
+            })
+
+        # Contar otros managers en la empresa
+        other_managers = UserCompany.objects.filter(
+            company_id=company_id,
+            role=UserCompany.RoleChoices.MANAGER
+        ).exclude(user_id=user_id).count()
+
+        is_last_manager = (other_managers == 0)
+
+        return JsonResponse({
+            'is_manager': True,
+            'is_last_manager': is_last_manager,
+            'other_managers': other_managers
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error al verificar estado de manager: {str(e)}'
+        }, status=500)
 
 
 # ── Register unified ─────────────────────────────────────────────────────────
@@ -465,10 +583,18 @@ def register_unified(request):
             ).first()
             if membership:
                 if role and membership.role != role:
-                    membership.role = role
-                    membership.save(update_fields=['role'])
-                # Send email to existing user registering in new company
-                send_existing_user_email(worker_user, company_obj, role)
+                    # Validate that changing roles won't leave company without managers
+                    is_valid, error_message = validate_manager_role_change(worker_user, company_obj, role)
+                    if not is_valid:
+                        errors.append(error_message)
+                    else:
+                        membership.role = role
+                        membership.save(update_fields=['role'])
+                        # Send email to existing user registering in new company
+                        send_existing_user_email(worker_user, company_obj, role)
+                else:
+                    # Send email to existing user registering in new company
+                    send_existing_user_email(worker_user, company_obj, role)
             else:
                 UserCompany.objects.create(
                     id=uuid4(),
@@ -481,8 +607,11 @@ def register_unified(request):
                     send_new_user_email(worker_user, temp_password, company_obj)
                 else:
                     send_existing_user_email(worker_user, company_obj, role)
-            messages.success(request, 'Trabajador registrado correctamente.')
-            return redirect('home_timetracking')
+
+            # Only show success if no validation errors occurred
+            if not errors:
+                messages.success(request, 'Trabajador registrado correctamente.')
+                return redirect('home_timetracking')
 
         for error in errors:
             messages.error(request, error)
