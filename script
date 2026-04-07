@@ -165,9 +165,69 @@ CREATE INDEX idx_users_search_composite ON users USING gin (surname gin_trgm_ops
 CREATE INDEX idx_users_search_email ON users USING gin (email gin_trgm_ops);
 
 
+
+
+-- ── Calendario y gestión de ausencias ────────────────────────────────────────
+
+CREATE TYPE leave_type   AS ENUM ('vacation', 'sick', 'personal', 'maternity', 'other');
+CREATE TYPE leave_status AS ENUM ('pending', 'approved', 'rejected', 'canceled');
+
+-- Horario laboral individual por empleado
+-- Permite sobreescribir el horario global de company_settings para un empleado concreto
+CREATE TABLE work_schedules (
+    id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id   UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    -- Días laborables: array de enteros ISO (1=Lun … 7=Dom), ej: ARRAY[1,2,3,4,5]
+    work_days    INTEGER[] NOT NULL DEFAULT ARRAY[1,2,3,4,5],
+    start_time   TIME NOT NULL,
+    end_time     TIME NOT NULL,
+    valid_from   DATE NOT NULL DEFAULT CURRENT_DATE,
+    valid_to     DATE,           -- NULL = vigente indefinidamente
+    created_by   UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_schedule_dates   CHECK (valid_to IS NULL OR valid_to >= valid_from),
+    CONSTRAINT chk_schedule_times   CHECK (end_time > start_time)
+);
+
+-- Solicitudes de ausencia / vacaciones
+CREATE TABLE leave_requests (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id    UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    leave_type    leave_type NOT NULL DEFAULT 'other',
+    start_date    DATE NOT NULL,
+    end_date      DATE NOT NULL,
+    reason        TEXT,
+    status        leave_status NOT NULL DEFAULT 'pending',
+    reviewed_by   UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at   TIMESTAMPTZ,
+    review_note   TEXT,          -- comentario del manager al aprobar/rechazar
+    created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT chk_leave_dates CHECK (end_date >= start_date)
+);
+
+-- Índices
+CREATE INDEX idx_work_schedules_user    ON work_schedules(user_id, company_id);
+CREATE INDEX idx_work_schedules_dates   ON work_schedules(company_id, valid_from, valid_to);
+CREATE INDEX idx_leave_requests_user    ON leave_requests(user_id, company_id);
+CREATE INDEX idx_leave_requests_dates   ON leave_requests(company_id, start_date, end_date);
+CREATE INDEX idx_leave_requests_status  ON leave_requests(company_id, status) WHERE status = 'pending';
+
+-- Ampliar audit_log para cubrir las nuevas tablas
+-- (solo necesitas añadir los valores al ENUM si no usas texto libre)
+-- Tu audit_action ya tiene 'create', 'update', 'voided' — es suficiente.
+
+
+
+
+
 -- ── Tablón de anuncios ────────────────────────────────────────────────────────
 
-CREATE TYPE note_type AS ENUM ('urgente', 'general', 'tarea', 'felicitacion');
+CREATE TYPE note_type AS ENUM ('urgent', 'general', 'task', 'other');
 
 CREATE TABLE notes (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

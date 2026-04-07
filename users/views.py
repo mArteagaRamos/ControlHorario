@@ -20,6 +20,7 @@ from django.views.decorators.cache import never_cache
 from django.db.models import Q
 
 
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def compute_worked_seconds(entry):

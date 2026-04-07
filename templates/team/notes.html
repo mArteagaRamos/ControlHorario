@@ -2,3 +2,35 @@
 {% load django_bootstrap5 %}
 
 {% block title %}Notes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Tablón de anuncios</h2>
+
+    {% for note in notes %}
+    <div class="card mb-3 {% if note.pinned %}border-warning{% endif %}">
+        <div class="card-header d-flex justify-content-between">
+            <span>
+                {% if note.pinned %}<i class="bi bi-pin-fill text-warning me-1"></i>{% endif %}
+                <strong>{{ note.title }}</strong>
+            </span>
+            <span class="badge 
+                {% if note.type == 'urgent' %}bg-danger
+                {% elif note.type == 'task' %}bg-primary
+                {% elif note.type == 'other' %}bg-secondary
+                {% else %}bg-success{% endif %}">
+                {{ note.get_type_display }}
+            </span>
+        </div>
+        <div class="card-body">
+            <p>{{ note.body }}</p>
+            <small class="text-muted">
+                {{ note.author }} · {{ note.created_at|date:"d/m/Y H:i" }}
+            </small>
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-muted">No hay anuncios.</p>
+    {% endfor %}
+</div>
+{% endblock %}
