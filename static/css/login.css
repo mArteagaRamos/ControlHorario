@@ -1,55 +1,154 @@
+/* ── Layout ───────────────────────────────────── */
 body {
-    background: #f4f7fb;
+    background: #f0ede8;
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
+/* ── Card ─────────────────────────────────────── */
 .login-card {
     width: 100%;
-    max-width: 420px;
+    max-width: 380px;
     margin: auto;
 }
 
 .login-card .card {
-    border: 0;
-    border-radius: 0.75rem;
-    box-shadow: 0 0.35rem 0.75rem rgba(0, 0, 0, 0.12);
+    border: 0.5px solid rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: none;
+    overflow: hidden;
 }
 
+/* ── Header ───────────────────────────────────── */
 .login-card .card-header {
-    background-color: #0d6efd;
+    background-color: #2b2b2b;
     color: white;
-    border-radius: 0.75rem 0.75rem 0 0;
+    border-radius: 0;
+    border-bottom: none;
+    padding: 2rem 2rem 1.5rem;
+    text-align: center;
 }
 
+.login-card .card-header .login-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.login-card .card-header .login-logo img {
+    height: 26px;
+    opacity: 0.9;
+}
+
+.login-card .card-header h5 {
+    font-size: 15px;
+    font-weight: 500;
+    color: white;
+    margin: 0 0 0.2rem;
+    letter-spacing: 0.01em;
+}
+
+.login-card .card-header p {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.45);
+    margin: 0;
+}
+
+/* ── Body ─────────────────────────────────────── */
+.login-card .card-body {
+    background: #ffffff;
+    padding: 1.75rem 2rem 2rem;
+}
+
+.login-card label {
+    font-size: 12px;
+    color: #888780;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.35rem;
+}
+
+.login-card .form-control {
+    height: 38px;
+    background: #fafaf9;
+    border: 0.5px solid rgba(0, 0, 0, 0.18);
+    border-radius: 6px;
+    font-size: 14px;
+    color: #2c2c2a;
+    box-shadow: none;
+    transition: border-color 0.15s;
+}
+
+.login-card .form-control:focus {
+    background: #ffffff;
+    border-color: rgba(0, 0, 0, 0.4);
+    box-shadow: none;
+}
+
+.login-card .form-control::placeholder {
+    color: #b4b2a9;
+}
+
+/* ── Botón ────────────────────────────────────── */
+.login-card .btn-primary {
+    background: #2b2b2b;
+    border: none;
+    border-radius: 6px;
+    height: 38px;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    width: 100%;
+    margin-top: 0.5rem;
+    transition: background 0.15s;
+}
+
+.login-card .btn-primary:hover,
+.login-card .btn-primary:focus {
+    background: #3a3a3a;
+    box-shadow: none;
+}
+
+.login-card .btn-primary:active {
+    background: #1a1a1a;
+}
+
+/* ── Toast ────────────────────────────────────── */
 .toast-custom {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #212529;
-  color: white;
-  padding: 12px 18px;
-  border-radius: 8px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.toast-custom.show {
-  opacity: 1;
-}
-.hidden {
-  display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2b2b2b;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 6px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
 }
 
-/* Keep validation feedback focused on errors: avoid green/tick success state. */
+.toast-custom.show {
+    opacity: 1;
+}
+
+.hidden {
+    display: none;
+}
+
+/* ── Validación: solo errores ─────────────────── */
 .form-control.is-valid,
 .was-validated .form-control:valid,
 .form-select.is-valid,
 .was-validated .form-select:valid,
 .form-check-input.is-valid,
 .was-validated .form-check-input:valid {
-    border-color: var(--bs-border-color) !important;
+    border-color: rgba(0, 0, 0, 0.18) !important;
     background-image: none !important;
     box-shadow: none !important;
 }

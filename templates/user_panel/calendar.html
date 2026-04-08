@@ -36,7 +36,7 @@
       <!-- Solicitudes pendientes -->
       <div class="card mb-3 shadow-sm">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-          ⏳ Pendientes
+           Pendientes
           <span class="badge bg-warning text-dark" id="pendingBadge">{{ pending_count }}</span>
         </div>
         <div class="card-body p-2" id="pendingContainer">
@@ -45,32 +45,65 @@
       </div>
       {% endif %}
  
-      <!-- Solicitar ausencia -->
+<!-- ── Solicitar VACACIONES ──────────────────────────────────────── -->
       <div class="card shadow-sm mb-3">
-        <div class="card-header fw-semibold">Nueva solicitud</div>
+        <div class="card-header fw-semibold">Solicitar vacaciones</div>
         <div class="card-body">
           <div class="mb-2">
             <label class="form-label form-label-sm mb-1">Tipo</label>
-            <select id="leaveType" class="form-select form-select-sm">
-              {% for value, label in leave_types %}
+            <select id="vacationType" class="form-select form-select-sm">
+              {% for value, label in vacation_types %}
               <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="mb-2">
             <label class="form-label form-label-sm mb-1">Desde</label>
-            <input type="date" id="leaveStart" class="form-control form-control-sm">
+            <input type="date" id="vacationStart" class="form-control form-control-sm">
           </div>
           <div class="mb-2">
             <label class="form-label form-label-sm mb-1">Hasta</label>
-            <input type="date" id="leaveEnd" class="form-control form-control-sm">
+            <input type="date" id="vacationEnd" class="form-control form-control-sm">
           </div>
           <div class="mb-3">
             <label class="form-label form-label-sm mb-1">Motivo <small class="text-muted">(opcional)</small></label>
-            <textarea id="leaveReason" class="form-control form-control-sm" rows="2"></textarea>
+            <textarea id="vacationReason" class="form-control form-control-sm" rows="2"></textarea>
           </div>
-          <button class="btn btn-primary btn-sm w-100" id="btnSendLeave">Enviar solicitud</button>
-          <div id="leaveMsg" class="mt-2 small"></div>
+          <button class="btn btn-primary btn-sm w-100" id="btnSendVacation" type="button">
+            Solicitar vacaciones
+          </button>
+          <div id="vacationMsg" class="mt-2 small"></div>
+        </div>
+      </div>
+ 
+      <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Solicitar ausencia</div>
+        <div class="card-body">
+          <div class="mb-2">
+            <label class="form-label form-label-sm mb-1">Tipo</label>
+            <select id="absenceType" class="form-select form-select-sm">
+              {% for value, label in absence_types %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label form-label-sm mb-1">Desde</label>
+            <input type="date" id="absenceStart" class="form-control form-control-sm">
+          </div>
+          <div class="mb-2">
+            <label class="form-label form-label-sm mb-1">Hasta</label>
+            <input type="date" id="absenceEnd" class="form-control form-control-sm">
+          </div>
+          <div class="mb-3">
+            <label class="form-label form-label-sm mb-1">Motivo <small class="text-muted">(opcional)</small></label>
+            <textarea id="absenceReason" class="form-control form-control-sm" rows="2"></textarea>
+          </div>
+          <button class="btn btn-warning btn-sm w-100" id="btnSendAbsence" type="button">
+            Solicitar ausencia
+          </button>
+          <div id="absenceMsg" class="mt-2 small"></div>
         </div>
       </div>
  
@@ -181,47 +214,91 @@
     if (IS_MANAGER) loadPending();
   });
  
-  // ── Selector de empleado ──────────────────────────────────────────────────
-  document.getElementById('teamSelector')?.addEventListener('change', function () {
-    currentUserId = this.value || null;
-    calendarObj.refetchEvents();
+    // ── Botón vacaciones ───────────────────────────────────────────────────
+    document.getElementById('btnSendVacation').addEventListener('click', function () {
+      sendLeaveRequest({
+        typeId:    'vacationType',
+        startId:   'vacationStart',
+        endId:     'vacationEnd',
+        reasonId:  'vacationReason',
+        msgId:     'vacationMsg',
+        btnEl:     this,
+      });
+    });
+ 
+    // ── Botón ausencias ────────────────────────────────────────────────────
+    document.getElementById('btnSendAbsence').addEventListener('click', function () {
+      sendLeaveRequest({
+        typeId:    'absenceType',
+        startId:   'absenceStart',
+        endId:     'absenceEnd',
+        reasonId:  'absenceReason',
+        msgId:     'absenceMsg',
+        btnEl:     this,
+      });
+    });
   });
  
-  // ── Solicitar ausencia ────────────────────────────────────────────────────
-  document.getElementById('btnSendLeave').addEventListener('click', async function () {
-    const start  = document.getElementById('leaveStart').value;
-    const end    = document.getElementById('leaveEnd').value;
-    const type   = document.getElementById('leaveType').value;
-    const reason = document.getElementById('leaveReason').value;
-    const msgEl  = document.getElementById('leaveMsg');
+  // ── Función genérica de envío ──────────────────────────────────────────────
+  async function sendLeaveRequest({ typeId, startId, endId, reasonId, msgId, btnEl }) {
+    const start  = document.getElementById(startId).value;
+    const end    = document.getElementById(endId).value;
+    const type   = document.getElementById(typeId).value;
+    const reason = document.getElementById(reasonId).value;
+    const msgEl  = document.getElementById(msgId);
  
     if (!start || !end) {
       msgEl.innerHTML = '<span class="text-danger">Las fechas son obligatorias.</span>';
       return;
     }
+    if (end < start) {
+      msgEl.innerHTML = '<span class="text-danger">La fecha fin no puede ser anterior a la fecha inicio.</span>';
+      return;
+    }
  
-    this.disabled = true;
+    btnEl.disabled = true;
+    msgEl.innerHTML = '<span class="text-muted">Enviando…</span>';
+ 
     try {
       const res = await fetch(LEAVE_URL, {
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-        body:    JSON.stringify({ start_date: start, end_date: end, leave_type: type, reason }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken':  CSRF_TOKEN,
+        },
+        body: JSON.stringify({ start_date: start, end_date: end, leave_type: type, reason }),
       });
+ 
       const data = await res.json();
-      if (data.ok) {
-        msgEl.innerHTML = '<span class="text-success">✔ Solicitud enviada</span>';
+ 
+      if (res.ok && data.ok) {
+        msgEl.innerHTML = '<span class="text-success">✔ Solicitud enviada correctamente</span>';
         calendarObj.refetchEvents();
         if (IS_MANAGER) loadPending();
-        ['leaveStart', 'leaveEnd', 'leaveReason'].forEach(id => document.getElementById(id).value = '');
+        // Limpiar formulario
+        document.getElementById(startId).value  = '';
+        document.getElementById(endId).value    = '';
+        document.getElementById(reasonId).value = '';
       } else {
-        msgEl.innerHTML = `<span class="text-danger">${data.error || 'Error al enviar'}</span>`;
+        // Muestra el error real del backend
+        msgEl.innerHTML = `<span class="text-danger">${data.error || `Error ${res.status}`}</span>`;
       }
-    } catch {
-      msgEl.innerHTML = '<span class="text-danger">Error de red</span>';
+    } catch (err) {
+      msgEl.innerHTML = `<span class="text-danger">Error de red: ${err.message}</span>`;
     } finally {
-      this.disabled = false;
+      btnEl.disabled = false;
     }
-  });
+  }
+ 
+  // ── Selector de empleado (manager) ────────────────────────────────────────
+  const teamSelector = document.getElementById('teamSelector');
+  if (teamSelector) {
+    teamSelector.addEventListener('change', function () {
+      currentUserId = this.value || null;
+      calendarObj.refetchEvents();
+    });
+  }
+ 
  
   // ── Modal de detalle de evento ────────────────────────────────────────────
   function showEventModal(event) {

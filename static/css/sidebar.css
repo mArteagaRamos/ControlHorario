@@ -17,6 +17,108 @@ nav.navbar {
     overflow: hidden;
 }
 
+
+/* ── Navbar custom ─────────────────────────────── */
+.navbar-custom {
+    display: flex;
+    flex-shrink: 0;
+    height: 56px;
+    background-color: #2b2b2b;
+    border-bottom: 1px solid #1a1a1a;
+}
+
+/* Zona izquierda: se corresponde con el ancho del aside (15%) */
+.navbar-aside-zone {
+    width: 15%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    border-right: 1px solid #1a1a1a;
+}
+
+/* Zona derecha: ocupa el resto, igual que el main-content */
+.navbar-main-zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    min-width: 0;
+}
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.navbar-brand:hover {
+    color: #d0d0d0;
+}
+
+.navbar-brand small {
+    color: #888;
+    font-weight: 400;
+}
+
+.navbar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: white;
+    margin-left: auto;
+    padding-left: 1rem;
+}
+
+.navbar-user small {
+    color: #888;
+}
+
+.navbar-user a {
+    color: white;
+    text-decoration: none;
+}
+
+.navbar-user a:hover {
+    color: #d0d0d0;
+}
+
+.btn-menu-toggle {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.btn-menu-toggle:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+/* Responsive: en mobile la zona-aside ocupa solo lo justo para el botón */
+@media (max-width: 767px) {
+    .navbar-aside-zone {
+        width: auto;
+        padding: 0 0.75rem;
+        border-right: none;
+    }
+}
+
+/* Tablets: el aside es 25%, la navbar debe coincidir */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .navbar-aside-zone {
+        width: 25%;
+    }
+}
+
+
 /* Sidebar */
 .sidebar {
     background-color: #2b2b2b;

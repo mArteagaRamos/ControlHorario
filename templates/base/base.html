@@ -21,33 +21,34 @@
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-dark bg-dark px-3">
-    <div class="container-fluid d-flex justify-content-between align-items-center flex-nowrap">
+<nav class="navbar-custom">
 
-        <!-- Responsive Menu Button small screens-->
-        <button class="btn btn-outline-light d-md-none" id="menu-toggle">
+    <!-- Zona aside: logo reloj fijo en la esquina -->
+    <div class="navbar-aside-zone">
+        <a href="{% url 'home_timetracking' %}" class="navbar-logo">
+            <img src="{% static 'img/icon_clock.png' %}" height="36">
+        </a>
+        <!-- Botón menú solo en mobile -->
+        <button class="btn-menu-toggle d-md-none" id="menu-toggle">
             <i class="bi bi-list"></i>
         </button>
+    </div>
+
+    <!-- Zona main: company + user -->
+    <div class="navbar-main-zone">
 
         <!-- Company -->
         {% if company_count > 1 %}
-        <div class="dropdown mx-auto mx-md-0">
-            <a class="navbar-brand d-flex align-items-center gap-2 dropdown-toggle text-white text-decoration-none"
-               href="#"
-               data-bs-toggle="dropdown">
-
-                <img src="{% static 'img/icon_clock.png' %}" height="40">
-
+        <div class="dropdown">
+            <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
-                    <span class="fw-semibold">{{ current_company.name }}</span>
+                    <span>{{ current_company.name }}</span>
                 {% endif %}
             </a>
-
             <ul class="dropdown-menu dropdown-menu-dark">
                 {% for membership in memberships %}
                     <li>
-                        <a class="dropdown-item"
-                           href="{% url 'switch_company' membership.company.id %}">
+                        <a class="dropdown-item" href="{% url 'switch_company' membership.company.id %}">
                             {{ membership.company.name }}
                         </a>
                     </li>
@@ -55,22 +56,21 @@
             </ul>
         </div>
         {% else %}
-        <a class="navbar-brand d-flex align-items-center gap-2 text-white text-decoration-none"
-           href="{% url 'home_timetracking' %}">
+        <a class="navbar-brand" href="{% url 'home_timetracking' %}">
             <img src="{% static 'img/icon_clock.png' %}" height="40">
             {% if current_company %}
-                <span class="fw-semibold">{{ current_company.name }}</span>
+                <span>{{ current_company.name }}</span>
             {% endif %}
         </a>
         {% endif %}
 
         <!-- User -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="navbar-user">
             {% if request.user.is_authenticated %}
-                <span class="text-white d-none d-md-inline-block">
+                <span class="d-none d-md-inline-block">
                     {{ request.user.username }} {{ request.user.surname }}
                     {% if current_role %}
-                        <small class="text-secondary">({{ current_role }})</small>
+                        <small>({{ current_role }})</small>
                     {% endif %}
                 </span>
             {% endif %}
