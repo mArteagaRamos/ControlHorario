@@ -1,6 +1,7 @@
 from datetime import timedelta
 from urllib import request
 
+from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -91,19 +92,33 @@ def security(request):
 @login_required
 @manager_or_admin_required
 def entity_info(request):
-    company_id = request.session.get('company_id')
-    if not company_id:
-        messages.error(request, 'No tienes empresa asignada.')
-        return redirect('home_timetracking')
+    # 1. Determine which company to view
+    company_id = request.GET.get('company_id') or request.session.get('company_id')
 
-    company = Companies.objects.filter(id=company_id).first()
-    if not company:
-        messages.error(request, 'Empresa no encontrada.')
-        return redirect('home_timetracking')
-    
+    if company_id:
+        # Admin is inspecting a specific company
+        company = Companies.objects.filter(id=company_id).first()
+        if not company:
+            messages.error(request, 'Empresa no encontrada.')
+            return redirect('home_timetracking')
+
+        # Validate permissions: must be admin
+        if not request.user.is_admin:
+            return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+
+        request.session['company_id'] = company_id
+        is_inspecting = True
+    else:
+        # Get the user's company membership
+        user_membership = UserCompany.objects.filter(user=request.user).first()
+        if not user_membership:
+            messages.error(request, 'No tienes empresa asignada.')
+            return redirect('home_timetracking')
+        company = user_membership.company
+
     membership = UserCompany.objects.filter(
-    user=request.user, 
-    company=company
+        user=request.user,
+        company=company
     ).first()
 
     # Global admin can always edit, regardless of their role in the company
@@ -120,7 +135,7 @@ def entity_info(request):
 
 
     if request.method == 'POST' and can_edit:
- 
+
         # Update company info
         company.name       = request.POST.get('name', company.name).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
@@ -129,7 +144,7 @@ def entity_info(request):
         company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
 
         # Workday settings
-        
+
         if settings_obj:
             work_start = request.POST.get('work_start')
             if work_start:
@@ -165,15 +180,13 @@ def entity_info(request):
 
         #messages.success(request, "Información de la empresa actualizada correctamente.")
         return redirect('entity_info')
-             
-    return render(request, 'team/entity_info.html',{
 
+    return render(request, 'team/entity_info.html',{
         'company': company,
         'user_role': user_role,
         'settings': settings_obj,
         'weekdays': WEEKDAY,
-
-                  })
+    })
 
 @login_required
 def staff(request):

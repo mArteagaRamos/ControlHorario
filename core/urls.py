@@ -48,5 +48,6 @@ urlpatterns = [
     path('manager_employees/delete/', audit_views.delete_employee, name='delete_employee'),
 
     # Admin Dashboard
-    path('admin/', audit_views.admin_dashboard, name='admin_dashboard'),
+    path('admin/', user_views.admin_dashboard, name='admin_dashboard'),
 ]
+

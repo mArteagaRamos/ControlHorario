@@ -611,9 +611,12 @@ function displayCompanyResults(companies) {
             <td data-label="Creada">${company.created_at || '--'}</td>
             <td data-label="Acciones" class="text-end">
                 <div class="d-flex gap-2 acciones-movil justify-content-end">
-                    <button class="btn btn-sm btn-outline-info" disabled title="Próximamente">
-                        <i class="bi bi-eye"></i>
-                    </button>
+                    <a href="/entity_info/?company_id=${company.id}" class="btn btn-sm btn-outline-info">
+                        Información
+                    </a>
+                    <a href="/manager_employees/?company_id=${company.id}" class="btn btn-sm btn-outline-info">
+                        Personal
+                    </a>
                 </div>
             </td>
         `;

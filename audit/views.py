@@ -6,7 +6,7 @@ from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
-from users.models import CorrectionRequests, UserCompany, Users
+from users.models import Companies, CorrectionRequests, UserCompany, Users
 from timetracking.models import TimeEntries
 from django.db.models import OuterRef, Subquery
 import uuid
@@ -50,7 +50,7 @@ def manager_or_admin_required(view_func):
 def manager_logs(request):
     # 1. Get the manager's company
     membership = UserCompany.objects.filter(
-        user=request.user, 
+        user=request.user,
         role=UserCompany.RoleChoices.MANAGER
     ).first()
 
@@ -70,7 +70,7 @@ def manager_logs(request):
     ).values('role')[:1]
 
     incidencias = CorrectionRequests.objects.filter(
-        time_entry__company=company, 
+        time_entry__company=company,
         status='pending'
     ).select_related('time_entry', 'requester').order_by('-request_date')
 
@@ -91,7 +91,7 @@ def manager_logs(request):
     fecha = request.GET.get('fecha')
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
-    solo_incidencias = request.GET.get('solo_incidencias')  
+    solo_incidencias = request.GET.get('solo_incidencias')
 
     if empleado_id:
         registros = registros.filter(user_id=empleado_id)
@@ -100,7 +100,7 @@ def manager_logs(request):
     if desde:
         registros = registros.filter(clock_in__time__gte=desde)
     if hasta:
-        registros = registros.filter(clock_out__time__lte=hasta) 
+        registros = registros.filter(clock_out__time__lte=hasta)
     if solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
@@ -281,25 +281,43 @@ def editar_registro(request):
 @login_required 
 @never_cache
 def manager_employee(request):
-    # 1. Get current user's membership (whether manager or employee)
-    user_membership = UserCompany.objects.filter(user=request.user).first()
+    # 1. Determine which company to view
+    company_id = request.GET.get('company_id') or request.session.get('company_id')
+    is_inspecting = False
 
-    if not user_membership:
-        return HttpResponseForbidden("No estás asignado a ninguna empresa.")
+    if company_id:
+        # Admin is inspecting a specific company
+        company = Companies.objects.filter(id=company_id).first()
+        if not company:
+            return HttpResponseForbidden("Empresa no encontrada.")
 
-    company = user_membership.company
-    
-    # Check if they are a manager or admin to pass it to the template
-    is_manager = (user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
+        # Validate permissions: must be admin
+        if not request.user.is_admin:
+            return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
 
-    # 2. Get ALL memberships (employees) for that company
+        request.session['company_id'] = company_id
+        is_inspecting = True
+    else:
+        # Get the user's own company membership
+        user_membership = UserCompany.objects.filter(user=request.user).first()
+        if not user_membership:
+            return HttpResponseForbidden("No estás asignado a ninguna empresa.")
+        company = user_membership.company
+
+    # 2. Check if they are a manager or admin to pass it to the template
+    user_membership = UserCompany.objects.filter(user=request.user, company=company).first()
+    is_manager = (user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
+
+    # 3. Get ALL memberships (employees) for that company
     memberships = UserCompany.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
 
     return render(request, 'audit/manager_employee.html', {
         'memberships': memberships,
-        'is_manager': is_manager
+        'is_manager': is_manager,
+        'company': company,
+        'is_inspecting': is_inspecting
     })
 
 @manager_or_admin_required
@@ -378,26 +396,3 @@ def anular_registro(request):
     registro.save()
 
     return redirect('manager_logs')
-
-# ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────────
-
-def admin_only_required(view_func):
-    """Decorator to ensure only admin users can access the view"""
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
-
-        if not request.user.is_admin:
-            return render(request, 'error/sin_permisos.html', status=403)
-
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
-
-@admin_only_required
-@never_cache
-def admin_dashboard(request):
-    """Admin dashboard to manage companies and workers globally"""
-
-    return render(request, 'admin/admin_dashboard.html')
-
