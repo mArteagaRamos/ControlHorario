@@ -4,6 +4,94 @@
 
 {% block title %}Calendar{% endblock %}
 
+{% block extra_head %}
+<style>
+  /* 1. Tipografía más limpia y moderna */
+  .fc {
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #3c4043;
+  }
+
+  /* 2. Suavizar los bordes de la cuadrícula */
+  .fc-theme-standard td, .fc-theme-standard th {
+    border-color: #dadce0;
+  }
+
+  /* 3. Cabecera de los días (Lun, Mar, Mié...) estilo Google */
+  .fc-col-header-cell-cushion {
+    text-transform: capitalize;
+    font-weight: 500;
+    color: #70757a;
+    padding: 8px 0 !important;
+    text-decoration: none;
+  }
+  .fc-col-header-cell-cushion:hover {
+    text-decoration: none;
+    color: #3c4043;
+  }
+
+  /* 4. Resaltar el día de HOY con el círculo azul */
+  .fc-day-today {
+    background-color: #ffffff !important; /* Quitamos el fondo amarillo feo por defecto */
+  }
+  .fc-day-today .fc-daygrid-day-number {
+    background-color: #1a73e8;
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 4px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  /* 5. Números de los días normales */
+  .fc-daygrid-day-number {
+    color: #3c4043;
+    text-decoration: none;
+    padding: 8px;
+  }
+  .fc-daygrid-day-number:hover {
+    text-decoration: none;
+    background-color: #f1f3f4;
+    border-radius: 50%;
+  }
+
+  /* 6. Botones del menú (Mes, Semana, Hoy...) más modernos */
+  .fc .fc-button-primary {
+    background-color: #ffffff;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    text-transform: capitalize;
+    box-shadow: none !important;
+    font-weight: 500;
+  }
+  .fc .fc-button-primary:hover {
+    background-color: #f1f3f4;
+    color: #202124;
+  }
+  .fc .fc-button-primary:not(:disabled).fc-button-active, 
+  .fc .fc-button-primary:not(:disabled):active {
+    background-color: #e8eaed;
+    color: #1a73e8;
+    border-color: #dadce0;
+  }
+
+  /* 7. Eventos (las "pastillas" de vacaciones/ausencias) */
+  .fc-event {
+    border-radius: 4px;
+    border: none;
+    padding: 2px 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
   <div class="row g-4 align-items-start">
@@ -180,6 +268,8 @@
       height:       'auto',
       nowIndicator: true,
       firstDay:     1,   // lunes
+      dayMaxEvents: true,     // Muestra "+2 más" si hay muchos eventos en un día
+      eventDisplay: 'block',  // Hace que los eventos se vean como bloques de color sólido
       events: function (info, successCb, failureCb) {
         const params = new URLSearchParams({
           start: info.startStr.slice(0, 10),
