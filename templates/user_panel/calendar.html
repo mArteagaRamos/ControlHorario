@@ -45,13 +45,13 @@
       </div>
       {% endif %}
  
-<!-- ── Solicitar VACACIONES ──────────────────────────────────────── -->
+      <!-- ── Solicitar VACATION ────────────────────────────────────────── -->
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar vacaciones</div>
         <div class="card-body">
           <div class="mb-2">
-            <label class="form-label form-label-sm mb-1">Tipo</label>
-            <select id="vacationType" class="form-select form-select-sm">
+            <label class="form-label form-label-sm mb-1">Motivo</label>
+            <select id="vacationReason" class="form-select form-select-sm">
               {% for value, label in vacation_types %}
               <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
@@ -66,8 +66,8 @@
             <input type="date" id="vacationEnd" class="form-control form-control-sm">
           </div>
           <div class="mb-3">
-            <label class="form-label form-label-sm mb-1">Motivo <small class="text-muted">(opcional)</small></label>
-            <textarea id="vacationReason" class="form-control form-control-sm" rows="2"></textarea>
+            <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
+            <textarea id="vacationNote" class="form-control form-control-sm" rows="2"></textarea>
           </div>
           <button class="btn btn-primary btn-sm w-100" id="btnSendVacation" type="button">
             Solicitar vacaciones
@@ -75,14 +75,15 @@
           <div id="vacationMsg" class="mt-2 small"></div>
         </div>
       </div>
- 
+
       <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
+
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar ausencia</div>
         <div class="card-body">
           <div class="mb-2">
-            <label class="form-label form-label-sm mb-1">Tipo</label>
-            <select id="absenceType" class="form-select form-select-sm">
+            <label class="form-label form-label-sm mb-1">Motivo</label>
+            <select id="absenceReason" class="form-select form-select-sm">
               {% for value, label in absence_types %}
               <option value="{{ value }}">{{ label }}</option>
               {% endfor %}
@@ -97,8 +98,8 @@
             <input type="date" id="absenceEnd" class="form-control form-control-sm">
           </div>
           <div class="mb-3">
-            <label class="form-label form-label-sm mb-1">Motivo <small class="text-muted">(opcional)</small></label>
-            <textarea id="absenceReason" class="form-control form-control-sm" rows="2"></textarea>
+            <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
+            <textarea id="absenceNote" class="form-control form-control-sm" rows="2"></textarea>
           </div>
           <button class="btn btn-warning btn-sm w-100" id="btnSendAbsence" type="button">
             Solicitar ausencia
@@ -107,24 +108,23 @@
         </div>
       </div>
  
-      <!-- Leyenda -->
       <div class="card shadow-sm">
         <div class="card-body py-2 px-3">
-          <div class="d-flex align-items-center mb-1 gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#3b82f6"></span>
-            <small>Horario laboral</small>
-          </div>
           <div class="d-flex align-items-center mb-1 gap-2">
             <span class="d-inline-block rounded" style="width:14px;height:14px;background:#f59e0b"></span>
             <small>Solicitud pendiente</small>
           </div>
           <div class="d-flex align-items-center mb-1 gap-2">
             <span class="d-inline-block rounded" style="width:14px;height:14px;background:#10b981"></span>
-            <small>Ausencia aprobada</small>
+            <small>Aprobada</small>
+          </div>
+          <div class="d-flex align-items-center mb-1 gap-2">
+            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#ef4444"></span>
+            <small>Rechazada</small>
           </div>
           <div class="d-flex align-items-center gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#ef4444"></span>
-            <small>Solicitud rechazada</small>
+            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#6b7280"></span>
+            <small>Cancelada</small>
           </div>
         </div>
       </div>
@@ -217,10 +217,11 @@
     // ── Botón vacaciones ───────────────────────────────────────────────────
     document.getElementById('btnSendVacation').addEventListener('click', function () {
       sendLeaveRequest({
-        typeId:    'vacationType',
+        leaveType: 'vacation',
+        reasonId:  'vacationReason',
         startId:   'vacationStart',
         endId:     'vacationEnd',
-        reasonId:  'vacationReason',
+        noteId:    'vacationNote',
         msgId:     'vacationMsg',
         btnEl:     this,
       });
@@ -229,10 +230,11 @@
     // ── Botón ausencias ────────────────────────────────────────────────────
     document.getElementById('btnSendAbsence').addEventListener('click', function () {
       sendLeaveRequest({
-        typeId:    'absenceType',
+        leaveType: 'absence',
+        reasonId:  'absenceReason',
         startId:   'absenceStart',
         endId:     'absenceEnd',
-        reasonId:  'absenceReason',
+        noteId:    'absenceNote',
         msgId:     'absenceMsg',
         btnEl:     this,
       });
@@ -240,11 +242,10 @@
   });
  
   // ── Función genérica de envío ──────────────────────────────────────────────
-  async function sendLeaveRequest({ typeId, startId, endId, reasonId, msgId, btnEl }) {
-    const start  = document.getElementById(startId).value;
+async function sendLeaveRequest({ leaveType, reasonId, startId, endId, noteId, msgId, btnEl }) {    const start  = document.getElementById(startId).value;
     const end    = document.getElementById(endId).value;
-    const type   = document.getElementById(typeId).value;
-    const reason = document.getElementById(reasonId).value;
+    const leave_reason = document.getElementById(reasonId).value;
+    const reason_note  = document.getElementById(noteId).value;
     const msgEl  = document.getElementById(msgId);
  
     if (!start || !end) {
@@ -349,6 +350,7 @@
     new bootstrap.Modal(document.getElementById('eventModal')).show();
   }
  
+  //          MANAGER ACTIONS
   // ── Cancelar solicitud (empleado) ─────────────────────────────────────────
   async function cancelLeave(leaveId) {
     if (!confirm('¿Cancelar esta solicitud?')) return;
