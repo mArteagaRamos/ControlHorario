@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
 
@@ -309,6 +311,8 @@ function showToast(message) {
         }, 5000);
     </script>
 {% endif %}
+
+{% block extra_scripts %}{% endblock %}
 
 </body>
 </html>

@@ -4,26 +4,19 @@
 
 {% block title %}Calendar{% endblock %}
 
-{% block extra_head %}
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-<link href="{% static 'css/calendar.css' %}" rel="stylesheet">
-{% endblock %}
- 
 {% block content %}
 <div class="container-fluid py-4">
   <div class="row g-4 align-items-start">
- 
-    <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+
     <div class="col-md-3 calendar-sidebar">
- 
+
       {% if is_manager %}
-      <!-- Selector de empleado -->
       <div class="card mb-3 shadow-sm">
-        <div class="card-header fw-semibold">Ver empleado</div>
+        <div class="card-header fw-semibold">Ver calendario</div>
         <div class="card-body pb-2">
           <select id="teamSelector" class="form-select form-select-sm">
-            <option value="">— Mi calendario —</option>
+            <option value="all">— Todos los empleados —</option>
+            <option value="me">— Mi calendario —</option>
             {% for uc in team %}
             <option value="{{ uc.user.id }}">
               {{ uc.user.get_full_name|default:uc.user.email }}
@@ -32,8 +25,7 @@
           </select>
         </div>
       </div>
- 
-      <!-- Solicitudes pendientes -->
+
       <div class="card mb-3 shadow-sm">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
            Pendientes
@@ -44,8 +36,7 @@
         </div>
       </div>
       {% endif %}
- 
-<!-- ── Solicitar VACACIONES ──────────────────────────────────────── -->
+
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar vacaciones</div>
         <div class="card-body">
@@ -75,8 +66,7 @@
           <div id="vacationMsg" class="mt-2 small"></div>
         </div>
       </div>
- 
-      <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
+
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar ausencia</div>
         <div class="card-body">
@@ -106,8 +96,7 @@
           <div id="absenceMsg" class="mt-2 small"></div>
         </div>
       </div>
- 
-      <!-- Leyenda -->
+
       <div class="card shadow-sm">
         <div class="card-body py-2 px-3">
           <div class="d-flex align-items-center mb-1 gap-2">
@@ -128,10 +117,9 @@
           </div>
         </div>
       </div>
- 
-    </div><!-- /sidebar -->
- 
-    <!-- ── Calendario ─────────────────────────────────────────────────── -->
+
+    </div>
+    
     <div class="col-md-9">
       <div class="card shadow-sm">
         <div class="card-body">
@@ -139,11 +127,10 @@
         </div>
       </div>
     </div>
- 
-  </div><!-- /row -->
-</div><!-- /container -->
- 
-<!-- ── Modal: detalle de evento ──────────────────────────────────────────── -->
+
+  </div>
+</div>
+
 <div class="modal fade" id="eventModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -157,30 +144,31 @@
   </div>
 </div>
 {% endblock %}
- 
- 
+
 {% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+
 <script>
   const IS_MANAGER  = {{ is_manager|yesno:"true,false" }};
   const CSRF_TOKEN  = '{{ csrf_token }}';
   const EVENTS_URL  = '{% url "api_calendar_events" %}';
   const LEAVE_URL   = '{% url "api_leave_create" %}';
   const PENDING_URL = '{% url "api_leave_pending" %}';
-  // Base para construir URLs de cancel/review dinámicamente
   const LEAVE_CANCEL_URL = '{% url "api_leave_cancel" leave_id="00000000-0000-0000-0000-000000000000" %}';
   const LEAVE_REVIEW_URL = '{% url "api_leave_review" leave_id="00000000-0000-0000-0000-000000000000" %}';
- 
-  let currentUserId = null;   // null = yo mismo
+
+  // Manager entra y ve "all" por defecto. Trabajador entra y ve sus propias ("me")
+  let currentUserId = IS_MANAGER ? 'all' : 'me'; 
   let calendarObj   = null;
- 
+
   function leaveUrl(template, leaveId) {
     return template.replace('00000000-0000-0000-0000-000000000000', leaveId);
   }
- 
+
   // ── Inicialización FullCalendar ────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
     const calEl = document.getElementById('calendar');
- 
+
     calendarObj = new FullCalendar.Calendar(calEl, {
       locale:       'es',
       initialView:  'dayGridMonth',
@@ -197,8 +185,14 @@
           start: info.startStr.slice(0, 10),
           end:   info.endStr.slice(0, 10),
         });
-        if (currentUserId) params.set('user_id', currentUserId);
- 
+        
+        // Configuración de los parámetros según la selección o el rol
+        if (currentUserId === 'all') {
+            params.set('all_users', 'true');
+        } else if (currentUserId && currentUserId !== 'me') {
+            params.set('user_id', currentUserId);
+        }
+
         fetch(`${EVENTS_URL}?${params}`)
           .then(r => r.json())
           .then(successCb)
@@ -208,12 +202,11 @@
         showEventModal(info.event);
       },
     });
- 
+
     calendarObj.render();
- 
+
     if (IS_MANAGER) loadPending();
-  });
- 
+
     // ── Botón vacaciones ───────────────────────────────────────────────────
     document.getElementById('btnSendVacation').addEventListener('click', function () {
       sendLeaveRequest({
@@ -225,7 +218,7 @@
         btnEl:     this,
       });
     });
- 
+
     // ── Botón ausencias ────────────────────────────────────────────────────
     document.getElementById('btnSendAbsence').addEventListener('click', function () {
       sendLeaveRequest({
@@ -238,7 +231,7 @@
       });
     });
   });
- 
+
   // ── Función genérica de envío ──────────────────────────────────────────────
   async function sendLeaveRequest({ typeId, startId, endId, reasonId, msgId, btnEl }) {
     const start  = document.getElementById(startId).value;
@@ -246,7 +239,7 @@
     const type   = document.getElementById(typeId).value;
     const reason = document.getElementById(reasonId).value;
     const msgEl  = document.getElementById(msgId);
- 
+
     if (!start || !end) {
       msgEl.innerHTML = '<span class="text-danger">Las fechas son obligatorias.</span>';
       return;
@@ -255,10 +248,10 @@
       msgEl.innerHTML = '<span class="text-danger">La fecha fin no puede ser anterior a la fecha inicio.</span>';
       return;
     }
- 
+
     btnEl.disabled = true;
     msgEl.innerHTML = '<span class="text-muted">Enviando…</span>';
- 
+
     try {
       const res = await fetch(LEAVE_URL, {
         method:  'POST',
@@ -268,19 +261,17 @@
         },
         body: JSON.stringify({ start_date: start, end_date: end, leave_type: type, reason }),
       });
- 
+
       const data = await res.json();
- 
+
       if (res.ok && data.ok) {
         msgEl.innerHTML = '<span class="text-success">✔ Solicitud enviada correctamente</span>';
         calendarObj.refetchEvents();
         if (IS_MANAGER) loadPending();
-        // Limpiar formulario
         document.getElementById(startId).value  = '';
         document.getElementById(endId).value    = '';
         document.getElementById(reasonId).value = '';
       } else {
-        // Muestra el error real del backend
         msgEl.innerHTML = `<span class="text-danger">${data.error || `Error ${res.status}`}</span>`;
       }
     } catch (err) {
@@ -289,27 +280,26 @@
       btnEl.disabled = false;
     }
   }
- 
+
   // ── Selector de empleado (manager) ────────────────────────────────────────
   const teamSelector = document.getElementById('teamSelector');
   if (teamSelector) {
     teamSelector.addEventListener('change', function () {
-      currentUserId = this.value || null;
+      currentUserId = this.value;
       calendarObj.refetchEvents();
     });
   }
- 
- 
+
   // ── Modal de detalle de evento ────────────────────────────────────────────
   function showEventModal(event) {
     const props  = event.extendedProps;
     const title  = document.getElementById('eventModalTitle');
     const body   = document.getElementById('eventModalBody');
     const footer = document.getElementById('eventModalFooter');
- 
+
     title.textContent = event.title;
     footer.innerHTML  = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
- 
+
     if (props.type === 'leave') {
       const statusLabels = {
         pending:  'Pendiente',
@@ -324,17 +314,17 @@
           ${event.startStr.slice(0, 10)} → ${event.endStr ? event.endStr.slice(0, 10) : ''}
         </p>
       `;
- 
-      // Botón cancelar (solo si es pendiente y el evento es del propio usuario)
-      if (props.status === 'pending' && !currentUserId) {
+
+      // Evita que un manager que está viendo "todos" cancele la solicitud de un trabajador.
+      const isMyCalendar = (!IS_MANAGER || currentUserId === 'me');
+      if (props.status === 'pending' && isMyCalendar) {
         footer.innerHTML = `
           <button class="btn btn-danger btn-sm me-auto"
                   onclick="cancelLeave('${props.leave_id}')">Cancelar solicitud</button>
           <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
         `;
       }
- 
-      // Manager: botones aprobar / rechazar
+
       if (IS_MANAGER && props.status === 'pending') {
         footer.innerHTML = `
           <button class="btn btn-success btn-sm" onclick="reviewLeave('${props.leave_id}','approve')">✔ Aprobar</button>
@@ -345,10 +335,10 @@
     } else {
       body.innerHTML = `<p class="mb-0 text-muted">Jornada laboral del día.</p>`;
     }
- 
+
     new bootstrap.Modal(document.getElementById('eventModal')).show();
   }
- 
+
   // ── Cancelar solicitud (empleado) ─────────────────────────────────────────
   async function cancelLeave(leaveId) {
     if (!confirm('¿Cancelar esta solicitud?')) return;
@@ -361,13 +351,13 @@
       calendarObj.refetchEvents();
     }
   }
- 
+
   // ── Aprobar / rechazar (manager) ──────────────────────────────────────────
   async function reviewLeave(leaveId, action) {
     const note = action === 'reject'
       ? prompt('Motivo del rechazo (opcional):') ?? ''
       : '';
- 
+
     const res = await fetch(leaveUrl(LEAVE_REVIEW_URL, leaveId), {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
@@ -379,21 +369,21 @@
       loadPending();
     }
   }
- 
+
   // ── Cargar pendientes (manager) ───────────────────────────────────────────
   async function loadPending() {
     const container = document.getElementById('pendingContainer');
     const badge     = document.getElementById('pendingBadge');
     if (!container) return;
- 
+
     const data = await fetch(PENDING_URL).then(r => r.json()).catch(() => []);
     badge.textContent = data.length;
- 
+
     if (data.length === 0) {
       container.innerHTML = '<p class="text-muted small ps-2 mb-0">Sin solicitudes pendientes.</p>';
       return;
     }
- 
+
     container.innerHTML = data.map(l => `
       <div class="pending-card">
         <div class="fw-semibold">${l.user}</div>
