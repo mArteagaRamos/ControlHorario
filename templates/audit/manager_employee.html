@@ -280,6 +280,7 @@
                 {% csrf_token %}
                 <div class="modal-body text-center p-4">
                     <input type="hidden" name="user_id" id="deleteUserId">
+                    <input type="hidden" name="company_id" value="{{ company.id }}">
                     <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block"></i>
                     <p class="fs-5">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
                     <p class="text-muted small mb-0">Esta acción desvinculará al empleado, pero mantendrá el historial de sus fichajes por motivos legales.</p>

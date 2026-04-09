@@ -51,5 +51,10 @@ urlpatterns = [
 
     # Admin Dashboard
     path('admin/', user_views.admin_dashboard, name='admin_dashboard'),
+
+    # Soft Delete Management (Admin only)
+    path('admin/deleted-records/', user_views.deleted_records, name='deleted_records'),
+    path('admin/restore-record/', user_views.restore_record, name='restore_record'),
+    path('admin/permanently-delete-record/', user_views.permanently_delete_record, name='permanently_delete_record'),
 ]
 

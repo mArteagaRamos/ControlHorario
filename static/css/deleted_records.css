@@ -1,0 +1,85 @@
+/* Deleted Records Admin Panel Styles */
+
+.table-scroll-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.table-scroll-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 4px;
+}
+
+.badge-deleted {
+    background-color: #dc3545;
+    font-size: 0.85rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-buttons form {
+    display: inline;
+}
+
+/* Responsive Design */
+@media (max-width: 767px) {
+    .text-nowrap {
+        white-space: normal !important;
+    }
+
+    table thead {
+        display: none;
+    }
+
+    table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        padding: 0.5rem;
+    }
+
+    table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f8f9fa;
+        padding: 0.75rem 0.5rem;
+        text-align: right;
+    }
+
+    table tbody td:last-child {
+        border-bottom: none;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    table tbody td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6c757d;
+        text-align: left;
+        margin-right: 1rem;
+    }
+
+    .action-buttons {
+        width: 100%;
+    }
+}

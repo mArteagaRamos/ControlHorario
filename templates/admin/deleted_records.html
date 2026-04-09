@@ -1,0 +1,546 @@
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+{% load static %}
+
+{% block title %}Registros Eliminados - Panel Administrador{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/deleted_records.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold">
+            <i class="bi bi-trash3"></i> Registros Eliminados
+            <span class="badge bg-danger">{{ total_deleted }}</span>
+        </h2>
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Volver al Panel
+        </a>
+    </div>
+
+    {% if messages %}
+        <div class="alert alert-dismissible fade show" role="alert">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if total_deleted == 0 %}
+        <div class="alert alert-info" role="alert">
+            <i class="bi bi-info-circle"></i> No hay registros eliminados.
+        </div>
+    {% else %}
+        <!-- TABS DE TIPOS DE REGISTROS -->
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            {% if deleted_users.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="tab-users" data-bs-toggle="tab"
+                            data-bs-target="#section-users" type="button" role="tab">
+                        <i class="bi bi-person"></i> Usuarios
+                        <span class="badge bg-secondary">{{ deleted_users.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_companies.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if not deleted_users.count %}active{% endif %}" id="tab-companies"
+                            data-bs-toggle="tab" data-bs-target="#section-companies" type="button" role="tab">
+                        <i class="bi bi-building"></i> Empresas
+                        <span class="badge bg-secondary">{{ deleted_companies.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_user_companies.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if not deleted_users.count and not deleted_companies.count %}active{% endif %}"
+                            id="tab-memberships" data-bs-toggle="tab" data-bs-target="#section-memberships" type="button" role="tab">
+                        <i class="bi bi-link"></i> Membresías
+                        <span class="badge bg-secondary">{{ deleted_user_companies.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_corrections.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-corrections" data-bs-toggle="tab"
+                            data-bs-target="#section-corrections" type="button" role="tab">
+                        <i class="bi bi-exclamation-triangle"></i> Incidencias
+                        <span class="badge bg-secondary">{{ deleted_corrections.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_time_entries.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-entries" data-bs-toggle="tab"
+                            data-bs-target="#section-entries" type="button" role="tab">
+                        <i class="bi bi-clock"></i> Fichajes
+                        <span class="badge bg-secondary">{{ deleted_time_entries.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_time_events.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-events" data-bs-toggle="tab"
+                            data-bs-target="#section-events" type="button" role="tab">
+                        <i class="bi bi-calendar-event"></i> Eventos
+                        <span class="badge bg-secondary">{{ deleted_time_events.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+            {% if deleted_company_settings.count %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tab-settings" data-bs-toggle="tab"
+                            data-bs-target="#section-settings" type="button" role="tab">
+                        <i class="bi bi-gear"></i> Configuración
+                        <span class="badge bg-secondary">{{ deleted_company_settings.count }}</span>
+                    </button>
+                </li>
+            {% endif %}
+        </ul>
+
+        <!-- TAB CONTENT -->
+        <div class="tab-content">
+            <!-- USUARIOS ELIMINADOS -->
+            {% if deleted_users.count %}
+                <div class="tab-pane fade show active" id="section-users" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Nombre de Usuario</th>
+                                            <th>Empresas</th>
+                                            <th>Estado</th>
+                                            <th>Eliminado el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in deleted_users %}
+                                            <tr>
+                                                <td data-label="Email">{{ item.user.email }}</td>
+                                                <td data-label="Nombre de Usuario">{{ item.user.username }}</td>
+                                                <td data-label="Empresas">
+                                                    {% if item.companies %}
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                            {% for company in item.companies %}
+                                                                <span class="badge bg-info">{{ company.name }}</span>
+                                                            {% endfor %}
+                                                        </div>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Sin empresas</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td data-label="Estado">
+                                                    <span class="badge badge-deleted">{{ item.user.status }}</span>
+                                                </td>
+                                                <td data-label="Eliminado el">
+                                                    <small>{{ item.user.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="users">
+                                                            <input type="hidden" name="record_id" value="{{ item.user.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="users">
+                                                            <input type="hidden" name="record_id" value="{{ item.user.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- EMPRESAS ELIMINADAS -->
+            {% if deleted_companies.count %}
+                <div class="tab-pane fade {% if not deleted_users.count %}show active{% endif %}" id="section-companies" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Razón Social</th>
+                                            <th>CIF/NIF</th>
+                                            <th>Eliminada el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for company in deleted_companies %}
+                                            <tr>
+                                                <td data-label="Nombre">{{ company.name }}</td>
+                                                <td data-label="Razón Social">{{ company.legal_name }}</td>
+                                                <td data-label="CIF/NIF">{{ company.tax_id|default:"--" }}</td>
+                                                <td data-label="Eliminada el">
+                                                    <small>{{ company.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="companies">
+                                                            <input type="hidden" name="record_id" value="{{ company.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="companies">
+                                                            <input type="hidden" name="record_id" value="{{ company.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- MEMBRESÍAS ELIMINADAS -->
+            {% if deleted_user_companies.count %}
+                <div class="tab-pane fade {% if not deleted_users.count and not deleted_companies.count %}show active{% endif %}" id="section-memberships" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Usuario</th>
+                                            <th>Empresa</th>
+                                            <th>Rol</th>
+                                            <th>Eliminada el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for membership in deleted_user_companies %}
+                                            <tr>
+                                                <td data-label="Usuario">{{ membership.user.email }}</td>
+                                                <td data-label="Empresa">{{ membership.company.name }}</td>
+                                                <td data-label="Rol">
+                                                    <span class="badge bg-info">{{ membership.role }}</span>
+                                                </td>
+                                                <td data-label="Eliminada el">
+                                                    <small>{{ membership.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="user_companies">
+                                                            <input type="hidden" name="record_id" value="{{ membership.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="user_companies">
+                                                            <input type="hidden" name="record_id" value="{{ membership.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- INCIDENCIAS ELIMINADAS -->
+            {% if deleted_corrections.count %}
+                <div class="tab-pane fade" id="section-corrections" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Solicitante</th>
+                                            <th>Estado</th>
+                                            <th>Fecha Solicitud</th>
+                                            <th>Eliminada el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for correction in deleted_corrections %}
+                                            <tr>
+                                                <td data-label="Solicitante">{{ correction.requester.email }}</td>
+                                                <td data-label="Estado">
+                                                    <span class="badge bg-warning">{{ correction.status }}</span>
+                                                </td>
+                                                <td data-label="Fecha Solicitud">
+                                                    <small>{{ correction.request_date|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Eliminada el">
+                                                    <small>{{ correction.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="corrections">
+                                                            <input type="hidden" name="record_id" value="{{ correction.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="corrections">
+                                                            <input type="hidden" name="record_id" value="{{ correction.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- FICHAJES ELIMINADOS -->
+            {% if deleted_time_entries.count %}
+                <div class="tab-pane fade" id="section-entries" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Usuario</th>
+                                            <th>Empresa</th>
+                                            <th>Fecha</th>
+                                            <th>Entrada</th>
+                                            <th>Salida</th>
+                                            <th>Eliminado el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in deleted_time_entries %}
+                                            <tr>
+                                                <td data-label="Usuario">{{ entry.user.email }}</td>
+                                                <td data-label="Empresa">{{ entry.company.name }}</td>
+                                                <td data-label="Fecha">{{ entry.date }}</td>
+                                                <td data-label="Entrada">
+                                                    <small>{{ entry.clock_in|date:"H:i" }}</small>
+                                                </td>
+                                                <td data-label="Salida">
+                                                    <small>{{ entry.clock_out|date:"H:i"|default:"--" }}</small>
+                                                </td>
+                                                <td data-label="Eliminado el">
+                                                    <small>{{ entry.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="time_entries">
+                                                            <input type="hidden" name="record_id" value="{{ entry.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="time_entries">
+                                                            <input type="hidden" name="record_id" value="{{ entry.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- EVENTOS ELIMINADOS -->
+            {% if deleted_time_events.count %}
+                <div class="tab-pane fade" id="section-events" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tipo Evento</th>
+                                            <th>Actor</th>
+                                            <th>Fecha</th>
+                                            <th>Eliminado el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for event in deleted_time_events %}
+                                            <tr>
+                                                <td data-label="Tipo Evento">{{ event.event_type }}</td>
+                                                <td data-label="Actor">{{ event.actor.email|default:"Sistema" }}</td>
+                                                <td data-label="Fecha">
+                                                    <small>{{ event.timestamp|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Eliminado el">
+                                                    <small>{{ event.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="time_events">
+                                                            <input type="hidden" name="record_id" value="{{ event.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="time_events">
+                                                            <input type="hidden" name="record_id" value="{{ event.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- CONFIGURACIÓN ELIMINADA -->
+            {% if deleted_company_settings.count %}
+                <div class="tab-pane fade" id="section-settings" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body">
+                            <div class="table-scroll-container">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Empresa</th>
+                                            <th>Hora Inicio</th>
+                                            <th>Hora Fin</th>
+                                            <th>Eliminada el</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for setting in deleted_company_settings %}
+                                            <tr>
+                                                <td data-label="Empresa">{{ setting.company.name }}</td>
+                                                <td data-label="Hora Inicio">{{ setting.work_start }}</td>
+                                                <td data-label="Hora Fin">{{ setting.work_end }}</td>
+                                                <td data-label="Eliminada el">
+                                                    <small>{{ setting.deleted_at|date:"d/m/Y H:i" }}</small>
+                                                </td>
+                                                <td data-label="Acciones">
+                                                    <div class="action-buttons">
+                                                        <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="company_settings">
+                                                            <input type="hidden" name="record_id" value="{{ setting.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-success"
+                                                                    title="Restaurar">
+                                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="{% url 'permanently_delete_record' %}" style="display: inline;">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="record_type" value="company_settings">
+                                                            <input type="hidden" name="record_id" value="{{ setting.id }}">
+                                                            <button type="submit" class="btn btn-sm btn-danger"
+                                                                    onclick="return confirm('¿Eliminar permanentemente?')"
+                                                                    title="Eliminar permanentemente">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
