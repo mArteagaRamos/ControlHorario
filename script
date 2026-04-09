@@ -118,6 +118,9 @@ ADD COLUMN IF NOT EXISTS new_clock_out TIMESTAMPTZ;
 ALTER TABLE users
 ADD COLUMN is_authenticated BOOLEAN DEFAULT false not null;
 
+ALTER TABLE users
+RENAME COLUMN flag TO is_authenticated;
+
 ALTER TABLE audit_log 
 RENAME COLUMN actor_id TO user_id;
 

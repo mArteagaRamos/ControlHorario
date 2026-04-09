@@ -1,6 +1,7 @@
 # ---------- Backend Views: users/views.py ----------
 
 import json
+from functools import wraps
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
@@ -10,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q, Count
+from django.views.decorators.http import require_POST
 from uuid import uuid4
 from .forms import (
     LoginForm, CompanyForm, CompanySelectLoginForm,
@@ -276,13 +278,16 @@ def logout_view(request):
 
 
 # ── AJAX lookup endpoints ──────────────────────────────────────────────────────
-def _company_to_dict(company):
-    return {
+def _company_to_dict(company, include_created=False):
+    result = {
         'id':         str(company.id),
         'name':       company.name,
         'legal_name': company.legal_name,
         'tax_id':     company.tax_id,
     }
+    if include_created and hasattr(company, 'created_at'):
+        result['created_at'] = company.created_at.strftime('%d/%m/%Y') if company.created_at else '--'
+    return result
 
 @login_required
 def lookup_company(request):
@@ -291,6 +296,7 @@ def lookup_company(request):
 
     tax_id = request.GET.get('tax_id', '').strip()
     name  = request.GET.get('name', '').strip()
+    include_created = request.GET.get('include_created', 'true').lower() == 'true'
 
     # ── Búsqueda por nombre (autocompletado) → múltiples resultados ───────────
     if name:
@@ -303,23 +309,23 @@ def lookup_company(request):
                 )
                 [:10]
         )
-        results = [_company_to_dict(c) for c in companies]
+        results = [_company_to_dict(c, include_created=include_created) for c in companies]
         return JsonResponse({'results': results})
- 
+
     # ── Búsqueda por CIF → resultado único ────────────────────────────────────
     if not tax_id:
         return JsonResponse({'error': 'Proporciona tax_id o name'}, status=400)
- 
+
     company = Companies.objects.filter(tax_id__iexact=tax_id).first()
     if not company:
         return JsonResponse({'found': False})
- 
-    return JsonResponse({'found': True, **_company_to_dict(company)})
+
+    return JsonResponse({'found': True, **_company_to_dict(company, include_created=include_created)})
 
 
-def _user_to_dict(user):
+def _user_to_dict(user, include_companies=False):
     """Serializes a Users instance to a dict for JSON responses."""
-    return {
+    result = {
         'id': str(user.id),
         'username': user.username,
         'surname':  user.surname,
@@ -327,66 +333,100 @@ def _user_to_dict(user):
         'email':    user.email,
         'status':   user.status,
     }
+    if include_companies:
+        companies = UserCompany.objects.filter(user=user).select_related('company')
+        result['companies'] = [
+            {'id': str(c.company.id), 'name': c.company.name, 'tax_id': c.company.tax_id or '--'}
+            for c in companies
+        ]
+    return result
 
 @login_required
 def lookup_user(request):
     dni      = request.GET.get('dni', '').strip()
-
     email      = request.GET.get('email', '').strip()
-
     name     = request.GET.get('name', '').strip()
-    
     company_id = request.GET.get('company_id', '').strip()
+    include_companies = request.GET.get('include_companies', 'false').lower() == 'true'
 
+    # Check if user is admin
+    is_admin = request.user.is_admin
 
+    # Build company filter
     if company_id:
+        # Explicit company_id provided
         company_filter = {'company_id': company_id}
+    elif is_admin and name:
+        # Admin doing name search: search all users WITHOUT company filter
+        company_filter = None
     else:
+        # Regular user or non-name search: use their current company
         company = getattr(request, 'company', None)
         if not company:
             return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
         company_filter = {'company': company}
- 
+
     # ── Name search → multiple results ────────────────────────────────────────
     if name:
         if len(name) < 2:
             return JsonResponse({'results': []})
- 
-        memberships = (
-            UserCompany.objects
-            .filter(
-                Q(user__username__icontains=name) | Q(user__surname__icontains=name),
-                **company_filter,
+
+        if company_filter is None:
+            # Admin search: all users matching criteria
+            users = (
+                Users.objects
+                .filter(Q(username__icontains=name) | Q(surname__icontains=name))[:10]
             )
-            .select_related('user')[:10]
-        )
-        results = [_user_to_dict(m.user) for m in memberships]
+            results = [_user_to_dict(u, include_companies=include_companies) for u in users]
+        else:
+            # Regular search with company filter
+            memberships = (
+                UserCompany.objects
+                .filter(
+                    Q(user__username__icontains=name) | Q(user__surname__icontains=name),
+                    **company_filter,
+                )
+                .select_related('user')[:10]
+            )
+            results = [_user_to_dict(m.user, include_companies=include_companies) for m in memberships]
         return JsonResponse({'results': results})
- 
+
     # ── Email search → single result ───────────────────────────────────────────
     if email:
-        membership = (
-            UserCompany.objects
-            .filter(user__email__iexact=email, **company_filter)
-            .select_related('user')
-            .first()
-        )
-        if not membership:
-            return JsonResponse({'found': False})
-        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
- 
+        if company_filter is None:
+            user = Users.objects.filter(email__iexact=email).first()
+            if not user:
+                return JsonResponse({'found': False})
+            return JsonResponse({'found': True, **_user_to_dict(user, include_companies=include_companies)})
+        else:
+            membership = (
+                UserCompany.objects
+                .filter(user__email__iexact=email, **company_filter)
+                .select_related('user')
+                .first()
+            )
+            if not membership:
+                return JsonResponse({'found': False})
+            return JsonResponse({'found': True, **_user_to_dict(membership.user, include_companies=include_companies)})
+
     # ── DNI search → single result ─────────────────────────────────────────────
     if dni:
-        membership = (
-            UserCompany.objects
-            .filter(user__dni__iexact=dni, **company_filter)
-            .select_related('user')
-            .first()
-        )
-        if not membership:
-            return JsonResponse({'found': False})
-        return JsonResponse({'found': True, **_user_to_dict(membership.user)})
- 
+        if company_filter is None:
+            user = Users.objects.filter(dni__iexact=dni).first()
+            if not user:
+                return JsonResponse({'found': False})
+            return JsonResponse({'found': True, **_user_to_dict(user, include_companies=include_companies)})
+        else:
+            membership = (
+                UserCompany.objects
+                .filter(user__dni__iexact=dni, **company_filter)
+                .select_related('user')
+                .first()
+            )
+            if not membership:
+                return JsonResponse({'found': False})
+            return JsonResponse({'found': True, **_user_to_dict(membership.user, include_companies=include_companies)})
+
     return JsonResponse({'error': 'Proporciona email, dni o name para buscar'}, status=400)
 
 
@@ -487,9 +527,20 @@ def register_unified(request):
         is_new_user = False
         temp_password = None
 
+        # Get effective context (delegation info if any)
+        delegation_context = {}
+        if request.user.is_admin:
+            from audit.views import get_effective_context
+            delegation_context = get_effective_context(request)
+
         # ── 1. Resolve company ────────────────────────────────────────────────
         if is_admin:
-            if company_mode == 'create':
+            # Check if using delegated company
+            if delegation_context.get('is_delegating') and delegation_context.get('delegated_company_id'):
+                company_obj = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+                if not company_obj:
+                    errors.append('Empresa delegada no encontrada.')
+            elif company_mode == 'create':
                 tax_id           = request.POST.get('tax_id', '').strip()
                 existing_company = (
                     Companies.objects.filter(tax_id__iexact=tax_id).first()
@@ -565,7 +616,7 @@ def register_unified(request):
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
-                    worker_user.is_authenticated     = False
+                    worker_user.is_authenticated = False
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
                         worker_user.set_password(temp_password)
@@ -640,7 +691,7 @@ def switch_company(request, company_id):
         messages.error(request, 'No tienes acceso a esta empresa.')
     else:
         request.session['company_id'] = str(company_id)
-    return redirect('workday')
+    return redirect('home_timetracking')
 
 
 # ── User panel ───────────────────────────────────────────────────────────
@@ -648,24 +699,36 @@ def switch_company(request, company_id):
 @login_required
 @never_cache
 def workday(request):
-    user = Users.objects.filter(email=request.user.email).first()
+    from audit.views import get_effective_context
 
-    if not user:
-        messages.error(request, 'Usuario no encontrado en el sistema.')
-        return redirect('home_timetracking')
+    delegation_context = get_effective_context(request)
 
-    company = request.company
-    if not company:
-        messages.error(request, 'No tienes empresa asignada.')
-        return redirect('home_timetracking')
+    # Determine which user to work with
+    if delegation_context['is_delegating']:
+        user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+        if not user or not company:
+            messages.error(request, 'Usuario o empresa delegada no encontrada.')
+            return redirect('home_timetracking')
+    else:
+        user = Users.objects.filter(email=request.user.email).first()
+        company = request.company
+
+        if not user:
+            messages.error(request, 'Usuario no encontrado en el sistema.')
+            return redirect('home_timetracking')
+
+        if not company:
+            messages.error(request, 'No tienes empresa asignada.')
+            return redirect('home_timetracking')
 
     if request.method == 'POST':
         action = request.POST.get('action')
 
         if action == 'request_correction':
-            entry_id          = request.POST.get('entry_id')
-            reason            = request.POST.get('reason', '').strip()
-            new_clock_in_str  = request.POST.get('new_clock_in')
+            entry_id = request.POST.get('entry_id')
+            reason = request.POST.get('reason', '').strip()
+            new_clock_in_str = request.POST.get('new_clock_in')
             new_clock_out_str = request.POST.get('new_clock_out')
 
             entry = TimeEntries.objects.filter(id=entry_id, user=user).first()
@@ -674,7 +737,7 @@ def workday(request):
                 # ── SECURITY CHECK: Avoid duplicates ─────────────────────
                 # Verify whether a 'pending' incident already exists for this record
                 incidencia_existente = CorrectionRequests.objects.filter(
-                    time_entry=entry, 
+                    time_entry=entry,
                     status='pending'
                 ).exists()
 
@@ -685,7 +748,6 @@ def workday(request):
 
                 new_in = parse_local_datetime(new_clock_in_str) if new_clock_in_str else None
                 new_out = parse_local_datetime(new_clock_out_str) if new_clock_out_str else None
-
 
                 if (new_clock_in_str and new_in is None) or \
                    (new_clock_out_str and new_out is None):
@@ -717,9 +779,9 @@ def workday(request):
                 return redirect('workday')
 
         elif action == 'edit_correction':
-            request_id        = request.POST.get('request_id')
-            reason            = request.POST.get('reason', '').strip()
-            new_clock_in_str  = request.POST.get('new_clock_in')
+            request_id = request.POST.get('request_id')
+            reason = request.POST.get('reason', '').strip()
+            new_clock_in_str = request.POST.get('new_clock_in')
             new_clock_out_str = request.POST.get('new_clock_out')
 
             # Buscamos la solicitud (asegurándonos de que es de este usuario y sigue pendiente)
@@ -741,7 +803,7 @@ def workday(request):
                     return HttpResponse('Datos inválidos o solicitud no encontrada.', status=400)
                 messages.error(request, 'Error al actualizar la solicitud.')
                 return redirect('workday')
-            
+
         return redirect('workday')
 
     # ── GET: build data for the template ──────────────────────────────────
@@ -758,34 +820,124 @@ def workday(request):
     entry_rows = []
     for e in entries:
         worked_seconds = compute_worked_seconds(e)
-        hours          = worked_seconds // 3600
-        minutes        = (worked_seconds % 3600) // 60
+        hours = worked_seconds // 3600
+        minutes = (worked_seconds % 3600) // 60
         entry_rows.append({
-            'id':        e.id,
-            'date':      format_date_spanish(e.date),
-            'date_iso':  e.date.isoformat() if e.date else None,
-            'clock_in':  e.clock_in,
+            'id': e.id,
+            'date': format_date_spanish(e.date),
+            'date_iso': e.date.isoformat() if e.date else None,
+            'clock_in': e.clock_in,
             'clock_out': e.clock_out,
-            'status':    e.status,
-            'worked':    f"{hours}:{minutes:02d}",
+            'status': e.status,
+            'worked': f"{hours}:{minutes:02d}",
         })
 
     request_rows = []
     for r in correction_requests:
         entry_date = r.time_entry.date if r.time_entry else None
         request_rows.append({
-            'id':              r.id,
-            'entry_date':      format_date_spanish(entry_date),
-            'entry_date_iso':  entry_date.isoformat() if entry_date else None,
-            'request_date':    format_date_spanish(r.request_date.date() if r.request_date else None),
-            'new_clock_in':    r.new_clock_in  if hasattr(r, 'new_clock_in')  else None,
-            'new_clock_out':   r.new_clock_out if hasattr(r, 'new_clock_out') else None,
-            'reason':          r.reason,
+            'id': r.id,
+            'entry_date': format_date_spanish(entry_date),
+            'entry_date_iso': entry_date.isoformat() if entry_date else None,
+            'request_date': format_date_spanish(r.request_date.date() if r.request_date else None),
+            'new_clock_in': r.new_clock_in if hasattr(r, 'new_clock_in') else None,
+            'new_clock_out': r.new_clock_out if hasattr(r, 'new_clock_out') else None,
+            'reason': r.reason,
             'correction_note': r.correction_note,
-            'status':          r.status,
+            'status': r.status,
         })
 
-    return render(request, 'user_panel/workday.html', {
-        'entry_rows':   entry_rows,
+    context = {
+        'entry_rows': entry_rows,
         'request_rows': request_rows,
-    })
+    }
+    context.update(delegation_context)
+
+    return render(request, 'user_panel/workday.html', context)
+
+
+# ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
+
+def admin_only_required(view_func):
+    """Decorator to ensure only admin users can access the view"""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return render(request, 'error/sin_loguear.html', status=401)
+
+        if not request.user.is_admin:
+            return render(request, 'error/sin_permisos.html', status=403)
+
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@admin_only_required
+@never_cache
+def admin_dashboard(request):
+    """Admin dashboard to manage companies and workers globally"""
+
+    return render(request, 'admin/admin_dashboard.html')
+
+
+# ── DELEGATED WORKER SYSTEM ────────────────────────────────────────────────
+
+@admin_only_required
+@require_POST
+def select_delegated_worker(request):
+    """
+    Admin selecciona un trabajador para delegar las acciones.
+    Guarda user_id, name y company_id en sesión.
+
+    POST params:
+        worker_id: UUID del usuario a delegar
+        company_id: UUID de la empresa donde se actúa
+    """
+    worker_id = request.POST.get('worker_id', '').strip()
+    company_id = request.POST.get('company_id', '').strip()
+
+    if not worker_id:
+        return JsonResponse({'error': 'worker_id es obligatorio'}, status=400)
+
+    if not company_id:
+        return JsonResponse({'error': 'company_id es obligatorio'}, status=400)
+
+    # Validar que el usuario existe
+    delegated_user = Users.objects.filter(id=worker_id).first()
+    if not delegated_user:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+    # Validar que la empresa existe
+    delegated_company = Companies.objects.filter(id=company_id).first()
+    if not delegated_company:
+        return JsonResponse({'error': 'Empresa no encontrada'}, status=404)
+
+    # Validar que el usuario pertenece a esa empresa
+    membership = UserCompany.objects.filter(
+        user=delegated_user,
+        company=delegated_company
+    ).first()
+    if not membership:
+        return JsonResponse({'error': 'El usuario no pertenece a esa empresa'}, status=403)
+
+    # Guardar en sesión
+    request.session['delegated_user_id'] = str(worker_id)
+    request.session['delegated_user_name'] = delegated_user.username
+    request.session['delegated_company_id'] = str(company_id)
+    request.session['delegated_user_role'] = membership.role
+
+    return JsonResponse({'success': True})
+
+
+@admin_only_required
+@require_POST
+def clear_delegated_worker(request):
+    """
+    Admin cancela la delegación de usuario.
+    Limpia las variables de sesión asociadas.
+    """
+    request.session.pop('delegated_user_id', None)
+    request.session.pop('delegated_user_name', None)
+    request.session.pop('delegated_company_id', None)
+    request.session.pop('delegated_user_role', None)
+
+    return JsonResponse({'success': True})

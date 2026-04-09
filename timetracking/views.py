@@ -93,19 +93,29 @@ def auto_close_entry_if_expired(entry, company):
 @never_cache
 @login_required
 def time_entries(request):
+    from audit.views import get_effective_context
 
-    # Get the authenticated user
-    django_user = request.user
-    user = Users.objects.filter(email=django_user.email).first()
-    
-    if not user:
-        messages.error(request, 'Usuario no encontrado en el sistema.')
-        return redirect('home_timetracking')
+    delegation_context = get_effective_context(request)
 
-    company = request.company
-    if not company:
-        messages.error(request, 'No tienes una empresa asignada.')
-        return redirect('home_timetracking')
+    # Get the effective user (delegated or authenticated)
+    if delegation_context['is_delegating']:
+        user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+        if not user or not company:
+            messages.error(request, 'Usuario o empresa delegada no encontrada.')
+            return redirect('home_timetracking')
+    else:
+        django_user = request.user
+        user = Users.objects.filter(email=django_user.email).first()
+
+        if not user:
+            messages.error(request, 'Usuario no encontrado en el sistema.')
+            return redirect('home_timetracking')
+
+        company = request.company
+        if not company:
+            messages.error(request, 'No tienes una empresa asignada.')
+            return redirect('home_timetracking')
 
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
 
@@ -147,30 +157,29 @@ def time_entries(request):
         elif action == 'clock_out':
             if not active_entry:
                 messages.error(request, 'No active clock-in entry found to clock out.')
-             
-            
+
             else:
-                    # Check if this entry should be auto-closed by company policy
-                    was_auto_closed = auto_close_entry_if_expired(active_entry, company)
+                # Check if this entry should be auto-closed by company policy
+                was_auto_closed = auto_close_entry_if_expired(active_entry, company)
 
-                    if was_auto_closed:
-                        messages.info(request, 'Entry auto-closed because it exceeded maximum open hours.')
-                    else:
-                        active_entry.clock_out = timezone.now()
-                        active_entry.status = TimeEntries.EntryStatus.CONFIRMED
+                if was_auto_closed:
+                    messages.info(request, 'Entry auto-closed because it exceeded maximum open hours.')
+                else:
+                    active_entry.clock_out = timezone.now()
+                    active_entry.status = TimeEntries.EntryStatus.CONFIRMED
 
-                        active_entry.total_seconds = compute_worked_seconds(active_entry)
+                    active_entry.total_seconds = compute_worked_seconds(active_entry)
 
-                        active_entry.save(update_fields=['clock_out', 'status', 'total_seconds'])
-                        TimeEntryEvent.objects.create(
-                            id=uuid4(),
-                            time_entry=active_entry,
-                            event_type=TimeEntryEvent.EventType.CLOCK_OUT,
-                            timestamp=timezone.now(),
-                            actor=user,
-                        )
-                        messages.success(request, 'Clock-out registered.')
-             
+                    active_entry.save(update_fields=['clock_out', 'status', 'total_seconds'])
+                    TimeEntryEvent.objects.create(
+                        id=uuid4(),
+                        time_entry=active_entry,
+                        event_type=TimeEntryEvent.EventType.CLOCK_OUT,
+                        timestamp=timezone.now(),
+                        actor=user,
+                    )
+                    messages.success(request, 'Clock-out registered.')
+
         #PAUSE START
 
         elif action == 'pause_start':
@@ -237,7 +246,7 @@ def time_entries(request):
         last_event is not None and
         last_event.event_type == TimeEntryEvent.EventType.PAUSE_START
     )
-    
+
     pause_seconds = 0
     paused_elapsed = 0
 
@@ -255,7 +264,7 @@ def time_entries(request):
             clock_in = active_entry.clock_in
             if timezone.is_naive(clock_in):
                 clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
-            
+
             current_pause_start = TimeEntryEvent.objects.filter(
                 time_entry=active_entry,
                 event_type=TimeEntryEvent.EventType.PAUSE_START
@@ -269,8 +278,8 @@ def time_entries(request):
 
             elapsed = int((frozen_at - clock_in).total_seconds())
             paused_elapsed = max(0, elapsed - pause_seconds)
-            
-    return render(request, 'dashboard/home_timetracking.html', {
+
+    context = {
         'time_entries': page_obj,
         'page_obj': page_obj,
         'events': events,
@@ -278,5 +287,7 @@ def time_entries(request):
         'is_paused': is_paused,
         'pause_seconds': pause_seconds,
         'paused_elapsed': paused_elapsed,
+    }
+    context.update(delegation_context)
 
-    })
+    return render(request, 'dashboard/home_timetracking.html', context)

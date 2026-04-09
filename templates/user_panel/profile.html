@@ -1,46 +1,131 @@
 {% extends 'base/base.html' %}
 {% load django_bootstrap5 %}
 
-{% block title %}Profile{% endblock %}
+{% block title %}Mi Perfil{% endblock %}
 
 {% block content %}
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
 <div class="row justify-content-center">
-	<div class="col-12 col-lg-7 col-xl-6">
-		<div class="card shadow-sm border-0">
-			<div class="card-body p-4 p-md-5">
-				<div class="mb-4">
-					<p class="text-uppercase text-muted small mb-1">Mi perfil</p>
-					<h1 class="h3 mb-2">Cambiar contraseña</h1>
-					<p class="text-muted mb-0">
-						Pulsa el enlace para desplegar el formulario de cambio de contraseña.
-					</p>
-				</div>
-
-				<a
-					class="btn btn-outline-primary"
-					data-bs-toggle="collapse"
-					href="#passwordChangeCollapse"
-					role="button"
-					aria-expanded="{% if show_password_form %}true{% else %}false{% endif %}"
-					aria-controls="passwordChangeCollapse"
-				>
-					Mostrar formulario para cambiar contraseña
-				</a>
-
-				<div class="collapse {% if show_password_form %}show{% endif %} mt-4" id="passwordChangeCollapse">
-					<form method="post" novalidate>
-						{% csrf_token %}
-						{% bootstrap_form password_form %}
-
-						<div class="d-grid d-sm-flex gap-2 mt-4">
-							<button type="submit" class="btn btn-primary">
-								Guardar nueva contraseña
-							</button>
+	<div class="col-12 col-lg-10 col-xl-10">
+		<!-- Sección de dos columnas -->
+		<div class="row g-4 mb-4">
+			<!-- COLUMNA 1: DATOS PERSONALES -->
+			<div class="col-12 col-lg-6">
+				<div class="card shadow-sm border-0 h-100">
+					<div class="card-body p-4 p-md-5">
+						<div class="mb-4">
+							<p class="text-uppercase text-muted small mb-1">Perfil</p>
+							<h2 class="h4 mb-2">Datos personales</h2>
+							<p class="text-muted mb-0 small">
+								Edita tu información personal y guarda los cambios.
+							</p>
 						</div>
-					</form>
+
+						<form method="post" novalidate>
+							{% csrf_token %}
+							<input type="hidden" name="form_type" value="personal_data">
+
+							{% bootstrap_form personal_form %}
+
+							<div class="d-grid d-sm-flex gap-2 mt-4">
+								<button type="submit" class="btn btn-primary">
+									Guardar cambios
+								</button>
+								<a href="{% url 'profile' %}" class="btn btn-outline-secondary">
+									Cancelar
+								</a>
+							</div>
+						</form>
+					</div>
 				</div>
+			</div>
+
+			<!-- COLUMNA 2: EMPRESAS ASOCIADAS -->
+			<div class="col-12 col-lg-6">
+				<div class="card shadow-sm border-0 h-100">
+					<div class="card-body p-4 p-md-5">
+						<div class="mb-4">
+							<p class="text-uppercase text-muted small mb-1">Membresía</p>
+							<h2 class="h4 mb-2">Empresas asociadas</h2>
+							<p class="text-muted mb-0 small">
+								Visualiza todas las empresas a las que perteneces y tu rol en cada una.
+							</p>
+						</div>
+
+						{% if companies %}
+							<div class="table-responsive">
+								<table class="table table-hover mb-0 small">
+									<thead class="table-light">
+										<tr>
+											<th scope="col">Empresa</th>
+											<th scope="col">Rol</th>
+											<th scope="col">Unión</th>
+										</tr>
+									</thead>
+									<tbody>
+										{% for membership in companies %}
+											<tr>
+												<td>
+													<div>
+														<h6 class="mb-0 small">{{ membership.company.name }}</h6>
+														<small class="text-muted d-block" style="font-size: 0.75rem;">{{ membership.company.legal_name }}</small>
+													</div>
+												</td>
+												<td>
+													{% if membership.role == 'manager' %}
+														<span class="badge bg-info">Manager</span>
+													{% else %}
+														<span class="badge bg-secondary">Empleado</span>
+													{% endif %}
+												</td>
+												<td>
+													<small class="text-muted">{{ membership.joined_at|date:"d/m/Y" }}</small>
+												</td>
+											</tr>
+										{% endfor %}
+									</tbody>
+								</table>
+							</div>
+						{% else %}
+							<div class="alert alert-info mb-0" role="alert">
+								<small><i class="bi bi-info-circle"></i> No perteneces a ninguna empresa todavía.</small>
+							</div>
+						{% endif %}
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Botón de seguridad en fila completa -->
+		<div class="row">
+			<div class="col-12">
+				<a href="{% url 'security' %}" class="btn btn-outline-warning w-100">
+					<i class="bi bi-shield-lock"></i> Ir a configuración de seguridad
+				</a>
 			</div>
 		</div>
 	</div>
 </div>
+
+<script>
+async function clearDelegation() {
+    const response = await fetch("{% url 'clear_delegated_worker' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    if (response.ok) {
+        location.reload();
+    }
+}
+</script>
+
 {% endblock %}
