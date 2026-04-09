@@ -125,29 +125,27 @@ ALTER TABLE user_company_membership RENAME TO user_company;
 
 -- ADICIÓN POST DEMO
 
--- 1. Añadir columna DNI y normalizar nombres de columnas si es necesario
+Añadir columna DNI y normalizar nombres de columnas si es necesario
 ALTER TABLE users 
 ADD COLUMN dni VARCHAR(20) UNIQUE;
 
--- 2. Limpieza y Normalización a MAYÚSCULAS
--- Nota: Usamos TRIM para quitar espacios accidentales
+-- Limpieza y Normalización a MAYÚSCULAS
 UPDATE users SET 
     username = UPPER(TRIM(username)),
     surname = UPPER(TRIM(surname)),
     email = UPPER(TRIM(email));
 
--- 3. Forzar que las nuevas entradas sean siempre en mayúsculas (Opcional pero recomendado)
--- Puedes añadir un CHECK o manejarlo por software, aquí ajustamos la restricción unique
+-- Forzar que las nuevas entradas sean siempre en mayúsculas (Opcional pero recomendado)
 ALTER TABLE users ADD CONSTRAINT unique_user_dni UNIQUE (dni);
 
 
--- 1. Normalización de datos existentes
+-- Normalización de datos existentes
 UPDATE companies SET 
     name = UPPER(TRIM(name)),
     legal_name = UPPER(TRIM(legal_name)),
     tax_id = UPPER(TRIM(tax_id));
 
--- 2. Aplicar restricciones de unicidad para evitar duplicados
+-- Aplicar restricciones de unicidad para evitar duplicados
 ALTER TABLE companies 
 ADD CONSTRAINT unique_company_name UNIQUE (name),
 ADD CONSTRAINT unique_company_legal_name UNIQUE (legal_name);
@@ -165,63 +163,86 @@ CREATE INDEX idx_users_search_composite ON users USING gin (surname gin_trgm_ops
 CREATE INDEX idx_users_search_email ON users USING gin (email gin_trgm_ops);
 
 
+--CREACIÓN DE TIPOS ENUM 
+CREATE TYPE leave_type AS ENUM ('vacation', 'absence');
 
-
--- ── Calendario y gestión de ausencias ────────────────────────────────────────
-
-CREATE TYPE leave_type   AS ENUM ('vacation', 'sick', 'personal', 'maternity', 'other');
-CREATE TYPE leave_status AS ENUM ('pending', 'approved', 'rejected', 'canceled');
-
--- Horario laboral individual por empleado
--- Permite sobreescribir el horario global de company_settings para un empleado concreto
-CREATE TABLE work_schedules (
-    id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    company_id   UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    -- Días laborables: array de enteros ISO (1=Lun … 7=Dom), ej: ARRAY[1,2,3,4,5]
-    work_days    INTEGER[] NOT NULL DEFAULT ARRAY[1,2,3,4,5],
-    start_time   TIME NOT NULL,
-    end_time     TIME NOT NULL,
-    valid_from   DATE NOT NULL DEFAULT CURRENT_DATE,
-    valid_to     DATE,           -- NULL = vigente indefinidamente
-    created_by   UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at   TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT chk_schedule_dates   CHECK (valid_to IS NULL OR valid_to >= valid_from),
-    CONSTRAINT chk_schedule_times   CHECK (end_time > start_time)
+CREATE TYPE leave_reason AS ENUM (
+    'annual',               -- Vacaciones anuales
+    'sick',                 -- Baja por enfermedad
+    'maternity',            -- Maternidad / Paternidad
+    'wedding',              -- Matrimonio
+    'bereavement',          -- Fallecimiento familiar
+    'medical_appointment',  -- Cita médica
+    'legal_duty',           -- Deber público/legal
+    'personal',             -- Asuntos propios
+    'other'                 -- Otros
 );
 
--- Solicitudes de ausencia / vacaciones
+-- CREACIÓN DE LA TABLA CON RELACIONES 
 CREATE TABLE leave_requests (
-    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    company_id    UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    leave_type    leave_type NOT NULL DEFAULT 'other',
-    start_date    DATE NOT NULL,
-    end_date      DATE NOT NULL,
-    reason        TEXT,
-    status        leave_status NOT NULL DEFAULT 'pending',
-    reviewed_by   UUID REFERENCES users(id) ON DELETE SET NULL,
-    reviewed_at   TIMESTAMPTZ,
-    review_note   TEXT,          -- comentario del manager al aprobar/rechazar
-    created_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Usa la extensión ya creada [cite: 1, 26]
+    
 
-    CONSTRAINT chk_leave_dates CHECK (end_date >= start_date)
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
+    company_id          UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE, 
+    
+    leave_type          leave_type NOT NULL DEFAULT 'absence',
+    leave_reason        leave_reason NOT NULL DEFAULT 'other',
+    reason_note         TEXT,          
+    
+    start_date          DATE NOT NULL,
+    end_date            DATE NOT NULL,
+    
+
+    status              leave_status NOT NULL DEFAULT 'pending', 
+    
+
+    attachment_path     VARCHAR(500),  
+    attachment_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    force_proof         BOOLEAN NOT NULL DEFAULT FALSE, 
+    
+
+    reviewed_by         UUID REFERENCES users(id) ON DELETE SET NULL,          
+    reviewed_at         TIMESTAMPTZ,
+    review_note         TEXT,
+    
+    created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Validación de coherencia de fechas [cite: 30]
+    CONSTRAINT chk_dates CHECK (end_date >= start_date)
 );
 
--- Índices
-CREATE INDEX idx_work_schedules_user    ON work_schedules(user_id, company_id);
-CREATE INDEX idx_work_schedules_dates   ON work_schedules(company_id, valid_from, valid_to);
-CREATE INDEX idx_leave_requests_user    ON leave_requests(user_id, company_id);
-CREATE INDEX idx_leave_requests_dates   ON leave_requests(company_id, start_date, end_date);
-CREATE INDEX idx_leave_requests_status  ON leave_requests(company_id, status) WHERE status = 'pending';
+--  RESTRICCIÓN DE JUSTIFICANTES
 
--- Ampliar audit_log para cubrir las nuevas tablas
--- (solo necesitas añadir los valores al ENUM si no usas texto libre)
--- Tu audit_action ya tiene 'create', 'update', 'voided' — es suficiente.
+ALTER TABLE leave_requests
+    ADD CONSTRAINT chk_requires_proof CHECK (
+        (
+            leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+            AND force_proof = FALSE
+        )
+        OR attachment_path IS NOT NULL
+        OR status = 'pending'
+    );
 
 
+CREATE INDEX idx_leave_requests_user ON leave_requests(user_id);
+CREATE INDEX idx_leave_requests_company_status ON leave_requests(company_id, status) WHERE status = 'pending';
+CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
+
+
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_leave_requests_updated_at ON leave_requests;
+CREATE TRIGGER trg_leave_requests_updated_at
+    BEFORE UPDATE ON leave_requests
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 
 

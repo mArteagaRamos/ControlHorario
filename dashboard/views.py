@@ -12,9 +12,9 @@ from django.utils.dateparse import parse_date
 from users.forms import ProfilePasswordChangeForm
 from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
-from dashboard.models import LeaveRequest, WorkSchedule, Note
+from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
-from django.db.models import Q
+
 
 # ── helpers ────────────────────────────────────────────────────────────────────
  
@@ -61,40 +61,25 @@ def calendar(request):
             company=company, status=LeaveRequest.LeaveStatus.PENDING
         ).count()
  
+     # Tipos de solicitud separados por leave_type para los dos formularios del sidebar
+    vacation_types = [
+        (v, l) for v, l in LeaveRequest.LeaveReason.choices
+        if v in ('annual', 'personal', 'other')
+    ]
+    absence_types = [
+        (v, l) for v, l in LeaveRequest.LeaveReason.choices
+        if v not in ('annual',)
+    ]
+    
     return render(request, 'user_panel/calendar.html', {
         'is_manager':    is_manager,
         'team':          team,
         'leave_types':   LeaveRequest.LeaveType.choices,
         'pending_count': pending_count,
+        'vacation_types': vacation_types,  
+        'absence_types':  absence_types,    
     })
 # User management views
-
-@login_required
-def calendar(request):
-    company = _get_company(request)
-    is_manager = _is_manager(request, company)
- 
-    team = []
-    if is_manager and company:
-        team = (
-            UserCompany.objects
-            .filter(company=company)
-            .exclude(user=request.user)
-            .select_related('user')
-        )
- 
-    pending_count = 0
-    if is_manager and company:
-        pending_count = LeaveRequest.objects.filter(
-            company=company, status=LeaveRequest.LeaveStatus.PENDING
-        ).count()
- 
-    return render(request, 'user_panel/calendar.html', {
-        'is_manager':    is_manager,
-        'team':          team,
-        'leave_types':   LeaveRequest.LeaveType.choices,
-        'pending_count': pending_count,
-    })
 
 @login_required
 def profile(request):
@@ -236,8 +221,8 @@ def api_calendar_events(request):
         if not UserCompany.objects.filter(user=target_user, company=company).exists():
             return JsonResponse({'error': 'Empleado no pertenece a esta empresa'}, status=403)
  
-    start_str = request.GET.get('start', str(date.today()))
-    end_str   = request.GET.get('end',   str(date.today() + timedelta(days=30)))
+    start_str = request.GET.get('start', '')
+    end_str   = request.GET.get('end',  '')
     try:
         start = date.fromisoformat(start_str[:10])
         end   = date.fromisoformat(end_str[:10])
@@ -246,56 +231,7 @@ def api_calendar_events(request):
  
     events = []
  
-    # ── 1. Horario laboral ─────────────────────────────────────────────────────
-    schedules = WorkSchedule.objects.filter(
-        user=target_user, company=company,
-        valid_from__lte=end,
-    ).filter(
-        Q(valid_to__isnull=True) | Q(valid_to__gte=start)
-    )
- 
-    company_settings = CompanySettings.objects.filter(company=company).first()
- 
-    cursor = start
-    while cursor <= end:
-        iso_weekday = cursor.isoweekday()  # 1=Mon … 7=Sun
- 
-        sched = next(
-            (
-                s for s in schedules
-                if s.valid_from <= cursor
-                   and (s.valid_to is None or s.valid_to >= cursor)
-                   and iso_weekday in (s.work_days or [])
-            ),
-            None,
-        )
- 
-        if sched is None and company_settings:
-            weekend = [(d if d != 0 else 7) for d in (company_settings.weekend_days or [])]
-            if iso_weekday not in weekend:
-                events.append({
-                    'id':        f'work-{cursor}',
-                    'title':     f'🕐 {company_settings.work_start.strftime("%H:%M")} – {company_settings.work_end.strftime("%H:%M")}',
-                    'start':     f'{cursor}T{company_settings.work_start}',
-                    'end':       f'{cursor}T{company_settings.work_end}',
-                    'color':     '#3b82f6',
-                    'classNames': ['event-work'],
-                    'extendedProps': {'type': 'work'},
-                })
-        elif sched:
-            events.append({
-                'id':        f'work-{cursor}',
-                'title':     f'🕐 {sched.start_time.strftime("%H:%M")} – {sched.end_time.strftime("%H:%M")}',
-                'start':     f'{cursor}T{sched.start_time}',
-                'end':       f'{cursor}T{sched.end_time}',
-                'color':     '#3b82f6',
-                'classNames': ['event-work'],
-                'extendedProps': {'type': 'work'},
-            })
- 
-        cursor += timedelta(days=1)
- 
-    # ── 2. Ausencias / vacaciones ──────────────────────────────────────────────
+    # ── Ausencias / solicitudes ────────────────────────────────────────────────
     STATUS_COLOR = {
         'pending':  '#f59e0b',
         'approved': '#10b981',
@@ -319,7 +255,7 @@ def api_calendar_events(request):
                 'type':     'leave',
                 'status':   leave.status,
                 'leave_id': str(leave.id),
-                'reason':   leave.reason or '',
+                'reason':   leave.reason_note or '',
             },
         })
  
@@ -343,7 +279,8 @@ def api_leave_request_create(request):
     start_date = data.get('start_date')
     end_date   = data.get('end_date')
     leave_type = data.get('leave_type', 'other')
-    reason     = data.get('reason', '')
+    leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
+    reason_note  = data.get('reason_note', '')
  
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
@@ -358,16 +295,20 @@ def api_leave_request_create(request):
         return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
  
     if leave_type not in LeaveRequest.LeaveType.values:
-        return JsonResponse({'error': 'Tipo de ausencia no válido'}, status=400)
+        return JsonResponse({'error': 'Tipo de solicitud no válido'}, status=400)
+ 
+    if leave_reason not in LeaveRequest.LeaveReason.values:
+        return JsonResponse({'error': 'Motivo no válido'}, status=400)
  
     leave = LeaveRequest.objects.create(
-        user=request.user,
-        company=company,
-        leave_type=leave_type,
-        start_date=start,
-        end_date=end,
-        reason=reason,
-        status=LeaveRequest.LeaveStatus.PENDING,
+        user         = request.user,
+        company      = company,
+        leave_type   = leave_type,
+        leave_reason = leave_reason,
+        reason_note  = reason_note,
+        start_date   = start,
+        end_date     = end,
+        status       = LeaveRequest.LeaveStatus.PENDING,
     )
  
     return JsonResponse({
@@ -413,9 +354,10 @@ def api_leave_pending(request):
             'id':         str(l.id),
             'user':       l.user.get_full_name() or l.user.email,
             'leave_type': l.get_leave_type_display(),
+            'leave_reason': l.get_leave_reason_display(),
             'start_date': str(l.start_date),
             'end_date':   str(l.end_date),
-            'reason':     l.reason or '',
+            'reason_note':     l.reason_note or '',
             'created_at': l.created_at.strftime('%d/%m/%Y'),
         }
         for l in leaves
@@ -457,50 +399,6 @@ def api_leave_review(request, leave_id):
     leave.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'])
  
     return JsonResponse({'ok': True, 'new_status': leave.status})
- 
- 
-# ── API: crear horario individual (manager) ───────────────────────────────────
- 
-@login_required
-@manager_or_admin_required
-@require_POST
-def api_schedule_create(request):
-    """Manager crea / actualiza horario individual para un empleado."""
-    company = _get_company(request)
- 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
- 
-    user_id    = data.get('user_id')
-    work_days  = data.get('work_days', [1, 2, 3, 4, 5])
-    start_time = data.get('start_time')
-    end_time   = data.get('end_time')
-    valid_from = data.get('valid_from', str(date.today()))
-    valid_to   = data.get('valid_to')
- 
-    if not all([user_id, start_time, end_time]):
-        return JsonResponse({'error': 'Faltan campos obligatorios'}, status=400)
- 
-    employee = get_object_or_404(Users, id=user_id)
- 
-    # Verificar que el empleado pertenece a la empresa
-    if not UserCompany.objects.filter(user=employee, company=company).exists():
-        return JsonResponse({'error': 'Empleado no pertenece a esta empresa'}, status=403)
- 
-    schedule = WorkSchedule.objects.create(
-        user=employee,
-        company=company,
-        work_days=work_days,
-        start_time=start_time,
-        end_time=end_time,
-        valid_from=valid_from,
-        valid_to=valid_to or None,
-        created_by=request.user,
-    )
- 
-    return JsonResponse({'ok': True, 'id': str(schedule.id)}, status=201)
  
  
 # ── Vistas de equipo ───────────────────────────────────────────────────────────
