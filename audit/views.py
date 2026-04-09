@@ -33,7 +33,7 @@ def manager_or_admin_required(view_func):
 
         is_admin = request.user.is_admin
         is_manager = UserCompany.objects.filter(
-            user=request.user, 
+            user=request.user,
             role=UserCompany.RoleChoices.MANAGER
         ).exists()
 
@@ -41,23 +41,80 @@ def manager_or_admin_required(view_func):
             return view_func(request, *args, **kwargs)
         else:
             return render(request, 'error/sin_permisos.html', status=403)
-            
+
     return _wrapped_view
 
-# Main manager view to see the clock-in logs of their company, with filters and incidents
+
+# ── HELPER: Contexto de delegación de usuario ────────────────────────────────
+
+def get_effective_context(request):
+    """
+    Retorna un diccionario con el contexto unificado de delegación de usuario.
+
+    Usado por las vistas para determinar si hay un usuario delegado activo
+    y pasar información al template para mostrar el banner.
+
+    Retorna dict:
+    {
+        'delegated_user_id': str(UUID) or None,
+        'delegated_user_name': str or None,
+        'delegated_company_id': str(UUID) or None,
+        'delegated_user_role': 'manager' or 'employee' or None,
+        'is_delegating': bool,
+    }
+    """
+    context = {
+        'delegated_user_id': None,
+        'delegated_user_name': None,
+        'delegated_company_id': None,
+        'delegated_user_role': None,
+        'is_delegating': False,
+    }
+
+    # Solo si es admin y hay delegado activo en sesión
+    if not request.user.is_admin:
+        return context
+
+    delegated_user_id = request.session.get('delegated_user_id')
+    if not delegated_user_id:
+        return context
+
+    context.update({
+        'delegated_user_id': delegated_user_id,
+        'delegated_user_name': request.session.get('delegated_user_name'),
+        'delegated_company_id': request.session.get('delegated_company_id'),
+        'delegated_user_role': request.session.get('delegated_user_role'),
+        'is_delegating': True,
+    })
+
+    return context
+
+
 @manager_or_admin_required
 @never_cache
 def manager_logs(request):
-    # 1. Get the manager's company
-    membership = UserCompany.objects.filter(
-        user=request.user,
-        role=UserCompany.RoleChoices.MANAGER
-    ).first()
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
 
-    if not membership:
-        return HttpResponse("No tienes permisos de manager o no estás asignado a una empresa.")
+    # 1. Determine which company to work with
+    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
 
-    company = membership.company
+    if company_id:
+        # Using delegated company
+        company = Companies.objects.filter(id=company_id).first()
+        if not company:
+            return HttpResponseForbidden("Empresa delegada no encontrada.")
+    else:
+        # Get the manager's company
+        membership = UserCompany.objects.filter(
+            user=request.user,
+            role=UserCompany.RoleChoices.MANAGER
+        ).first()
+
+        if not membership:
+            return HttpResponse("No tienes permisos de manager o no estás asignado a una empresa.")
+
+        company = membership.company
 
     # 2. Get the employees of this company
     empleados_ids = UserCompany.objects.filter(company=company).values_list('user_id', flat=True)
@@ -129,24 +186,38 @@ def manager_logs(request):
             'solo_incidencias': solo_incidencias or '',
         }
     }
+    # Add delegation context
+    context.update(delegation_context)
+
     return render(request, 'audit/manager_logs.html', context)  
 
 # View for the manager to accept or deny an incident, with their resolution note
 @manager_or_admin_required
 def resolver_incidencia(request):
     if request.method == 'POST':
+        # Get effective context (delegation info if any)
+        delegation_context = get_effective_context(request)
+
         incidencia_id = request.POST.get('incidencia_id')
-        accion = request.POST.get('accion') 
+        accion = request.POST.get('accion')
         # Capture the note coming from the modal form
-        nota_resolucion = request.POST.get('nota_resolucion', '') 
+        nota_resolucion = request.POST.get('nota_resolucion', '')
 
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
-        ficha_original = incidencia.time_entry 
+        ficha_original = incidencia.time_entry
+
+        # --- Determine who is approving ─────────────────────────────────────
+        # If delegating and delegated user is manager: use them
+        # Otherwise: use request.user
+        if delegation_context['is_delegating'] and delegation_context['delegated_user_role'] == UserCompany.RoleChoices.MANAGER:
+            approver_user = Users.objects.get(id=delegation_context['delegated_user_id'])
+        else:
+            approver_user = request.user
 
         # --- AUDIT FIELDS ASSIGNMENT ---
-        incidencia.approver = request.user          # Saves who does it
-        incidencia.approval_date = timezone.now()    # Saves when it's done
-        incidencia.correction_note = nota_resolucion # Saves the reason (the note)
+        incidencia.approver = approver_user
+        incidencia.approval_date = timezone.now()
+        incidencia.correction_note = nota_resolucion
 
         if accion == 'aceptar':
             # 1. Mark the original as 'corrected'
@@ -168,19 +239,19 @@ def resolver_incidencia(request):
                 clock_in=incidencia.new_clock_in,
                 clock_out=incidencia.new_clock_out,
                 status=TimeEntries.EntryStatus.CONFIRMED,
-                notes=f"Aceptado por {request.user.username}. Motivo: {incidencia.reason}",
+                notes=f"Aceptado por {approver_user.username}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
-        
+
         elif accion == 'denegar':
             incidencia.status = 'rejected'
 
         # Save all changes (including approver, date and note)
         incidencia.save()
-        
+
         return redirect('manager_logs')
-        
+
     return HttpResponse("Método no permitido.")
 
 # View for exporting filtered logs to CSV, with format compatible with Excel and formatted seconds
@@ -229,14 +300,17 @@ def exportar_logs(request):
 
     return response
     
-# View for the manager to manually edit a record (in case of incident or error), creating a new corrected record and voiding the original   
+# View for the manager to manually edit a record (in case of incident or error), creating a new corrected record and voiding the original
 @manager_or_admin_required
-def editar_registro(request):   
+def editar_registro(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     if request.method == 'POST':
         registro_id = request.POST.get('registro_id')
         registro_original = get_object_or_404(TimeEntries, id=registro_id)
 
-        hora_entrada = request.POST.get('clock_in') # Now receives values like "YYYY-MM-DDTHH:MM"
+        hora_entrada = request.POST.get('clock_in')  # Now receives values like "YYYY-MM-DDTHH:MM"
         hora_salida = request.POST.get('clock_out')
 
         # 1. Void the current one
@@ -249,7 +323,7 @@ def editar_registro(request):
             new_in = timezone.make_aware(naive_in, timezone.get_current_timezone())
         except ValueError:
             return HttpResponse("Hora de entrada no válida.", status=400)
-        
+
         new_out = None
         segundos = 0
         if hora_salida:
@@ -258,51 +332,68 @@ def editar_registro(request):
                 new_out = timezone.make_aware(naive_out, timezone.get_current_timezone())
             except ValueError:
                 return HttpResponse("Hora de salida no válida.", status=400)
-            
+
             # Calculate seconds for the new record
             delta = new_out - new_in
             segundos = int(delta.total_seconds())
 
+        # Determine who edited the record
+        if delegation_context['is_delegating']:
+            editor_user = Users.objects.get(id=delegation_context['delegated_user_id'])
+        else:
+            editor_user = registro_original.user
+
         TimeEntries.objects.create(
             id=uuid.uuid4(),
-            user=registro_original.user,
-            company=registro_original.company,
-            date=registro_original.date, # Keep the original logical date of the shift
+            user=editor_user,
+            company=delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else registro_original.company,
+            date=registro_original.date,  # Keep the original logical date of the shift
             clock_in=new_in,
             clock_out=new_out,
             status=TimeEntries.EntryStatus.CONFIRMED,
-            notes="Editado manualmente por el manager",
+            notes=f"Editado manualmente por {(request.user.username if not delegation_context['is_delegating'] else delegation_context['delegated_user_name'])}",
             total_seconds=max(0, segundos)
         )
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
 
 
-@login_required 
+@login_required
 @never_cache
 def manager_employee(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     # 1. Determine which company to view
-    company_id = request.GET.get('company_id') or request.session.get('company_id')
-    is_inspecting = False
+    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
 
     if company_id:
-        # Admin is inspecting a specific company
+        # Using delegated company
         company = Companies.objects.filter(id=company_id).first()
         if not company:
-            return HttpResponseForbidden("Empresa no encontrada.")
-
-        # Validate permissions: must be admin
-        if not request.user.is_admin:
-            return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
-
-        request.session['company_id'] = company_id
-        is_inspecting = True
+            return HttpResponseForbidden("Empresa delegada no encontrada.")
     else:
-        # Get the user's own company membership
-        user_membership = UserCompany.objects.filter(user=request.user).first()
-        if not user_membership:
-            return HttpResponseForbidden("No estás asignado a ninguna empresa.")
-        company = user_membership.company
+        # Original logic: from URL or session
+        company_id = request.GET.get('company_id') or request.session.get('company_id')
+
+        if company_id:
+            # Admin is inspecting a specific company
+            company = Companies.objects.filter(id=company_id).first()
+            if not company:
+                return HttpResponseForbidden("Empresa no encontrada.")
+
+            # Validate permissions: must be admin
+            if not request.user.is_admin:
+                return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+
+            request.session['company_id'] = company_id
+            delegation_context['is_inspecting'] = True
+        else:
+            # Get the user's own company membership
+            user_membership = UserCompany.objects.filter(user=request.user).first()
+            if not user_membership:
+                return HttpResponseForbidden("No estás asignado a ninguna empresa.")
+            company = user_membership.company
 
     # 2. Check if they are a manager or admin to pass it to the template
     user_membership = UserCompany.objects.filter(user=request.user, company=company).first()
@@ -313,22 +404,36 @@ def manager_employee(request):
         company=company
     ).select_related('user').order_by('-joined_at')
 
-    return render(request, 'audit/manager_employee.html', {
+    context = {
         'memberships': memberships,
         'is_manager': is_manager,
         'company': company,
-        'is_inspecting': is_inspecting
-    })
+        'is_inspecting': delegation_context.get('is_inspecting', False),
+    }
+    context.update(delegation_context)
+
+    return render(request, 'audit/manager_employee.html', context)
 
 @manager_or_admin_required
 @require_POST
 def edit_employee(request):
-    # 1. Get current manager's company
-    membership_manager = UserCompany.objects.filter(
-        user=request.user, 
-        role=UserCompany.RoleChoices.MANAGER
-    ).first()
-    company = membership_manager.company
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
+    # 1. Determine which company to use
+    if delegation_context['is_delegating']:
+        company_id = delegation_context['delegated_company_id']
+        company = Companies.objects.get(id=company_id)
+    else:
+        # Get current manager's company
+        membership_manager = UserCompany.objects.filter(
+            user=request.user,
+            role=UserCompany.RoleChoices.MANAGER
+        ).first()
+        company = membership_manager.company if membership_manager else None
+
+    if not company:
+        return HttpResponseForbidden("No se pudo determinar la empresa.")
 
     # 2. Collect form data
     user_id = request.POST.get('user_id')
@@ -337,7 +442,7 @@ def edit_employee(request):
     role = request.POST.get('role')
     status = request.POST.get('status')
 
-    # 3. Validate that the employee belongs to the manager's company
+    # 3. Validate that the employee belongs to the company
     membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
     user = membership.user
 
@@ -356,12 +461,23 @@ def edit_employee(request):
 @manager_or_admin_required
 @require_POST
 def delete_employee(request):
-    # 1. Get current manager's company
-    membership_manager = UserCompany.objects.filter(
-        user=request.user, 
-        role=UserCompany.RoleChoices.MANAGER
-    ).first()
-    company = membership_manager.company
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
+    # 1. Determine which company to use
+    if delegation_context['is_delegating']:
+        company_id = delegation_context['delegated_company_id']
+        company = Companies.objects.get(id=company_id)
+    else:
+        # Get current manager's company
+        membership_manager = UserCompany.objects.filter(
+            user=request.user,
+            role=UserCompany.RoleChoices.MANAGER
+        ).first()
+        company = membership_manager.company if membership_manager else None
+
+    if not company:
+        return HttpResponseForbidden("No se pudo determinar la empresa.")
 
     # 2. Collect ID of user to delete
     user_id = request.POST.get('user_id')
@@ -369,7 +485,7 @@ def delete_employee(request):
     # 3. Find the membership and delete it
     # With this we "unlink" the user from the company without deleting their historical clock-ins or global account
     membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
-    
+
     # Prevent a manager from accidentally deleting themselves
     if user_id == str(request.user.id):
         return redirect('manager_employee')
@@ -381,18 +497,27 @@ def delete_employee(request):
 @manager_or_admin_required
 @require_POST
 def anular_registro(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     registro_id = request.POST.get('registro_id')
-    
+
     if not registro_id:
         return HttpResponse("ID de registro no proporcionado.", status=400)
 
     registro = get_object_or_404(TimeEntries, id=registro_id)
 
-    registro.status = 'voided' 
-    
-    registro.total_seconds = 0 
-    registro.notes = f"{registro.notes}\n[Anulado por el manager {request.user.username}]"
-    
+    # Determine who is voiding the record
+    if delegation_context['is_delegating']:
+        voiding_username = delegation_context['delegated_user_name']
+    else:
+        voiding_username = request.user.username
+
+    registro.status = 'voided'
+
+    registro.total_seconds = 0
+    registro.notes = f"{registro.notes}\n[Anulado por {voiding_username}]"
+
     registro.save()
 
     return redirect('manager_logs')

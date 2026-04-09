@@ -21,6 +21,16 @@
     .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 </style>
 
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: relative; max-width: 350px; z-index: 1050;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="h4 fw-bold mb-0">Correción de fichajes</h2>
@@ -437,5 +447,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Clear delegation function
+async function clearDelegation() {
+    const response = await fetch("{% url 'clear_delegated_worker' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    if (response.ok) {
+        location.reload();
+    }
+}
 </script>
 {% endblock %}

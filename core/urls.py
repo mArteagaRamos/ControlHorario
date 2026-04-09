@@ -21,6 +21,8 @@ urlpatterns = [
     path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
     path('api/lookup-user/',    user_views.lookup_user,    name='lookup_user'),
     path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
+    path('api/select-delegated-worker/', user_views.select_delegated_worker, name='select_delegated_worker'),
+    path('api/clear-delegated-worker/', user_views.clear_delegated_worker, name='clear_delegated_worker'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
     path('logout/', user_views.logout_view, name='logout'),
 

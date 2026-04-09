@@ -297,6 +297,27 @@
     </div>
 </div>
 
+<!-- Modal Select Company -->
+<div class="modal fade" id="modalSeleccionarEmpresa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title fw-bold">Seleccionar Empresa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">Elige la empresa para la cual trabajar:</p>
+                <div id="companiesList" class="list-group">
+                    <!-- Las empresas se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
 const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
@@ -653,8 +674,17 @@ function displayWorkerResults(workers) {
         // Get companies badges
         const companies = worker.companies || [];
         const companiesBadges = companies.length > 0
-            ? companies.map(c => `<span class="badge bg-secondary me-1">${c}</span>`).join('')
+            ? companies.map(c => `<span class="badge bg-secondary me-1">${c.name || c}</span>`).join('')
             : '<span class="badge bg-secondary">--</span>';
+
+        // Determinar si el botón debe estar deshabilitado
+        const isDisabledSelect = companies.length === 0;
+        const selectButtonClass = isDisabledSelect ? 'btn-outline-secondary disabled' : 'btn-outline-success btn-select-worker';
+        const selectButtonText = isDisabledSelect ? 'Sin empresas' : 'Seleccionar';
+        const selectButtonDataAttrs = isDisabledSelect
+            ? ''
+            : `data-worker-id="${worker.id}" data-companies='${JSON.stringify(companies)}'`;
+        const selectButtonDisabled = isDisabledSelect ? 'disabled' : '';
 
         tr.innerHTML = `
             <td data-label="Nombre">${worker.username} ${worker.surname}</td>
@@ -672,13 +702,17 @@ function displayWorkerResults(workers) {
                             data-email="${worker.email}"
                             data-dni="${worker.dni}"
                             data-estado="${worker.status}">
-                        <i class="bi bi-pencil"></i>
+                        <i class="bi bi-pencil"></i> Editar
                     </button>
                     <button type="button" class="btn btn-sm btn-outline-danger"
                             data-bs-toggle="modal" data-bs-target="#modalEliminarTrabajador"
                             data-id="${worker.id}"
                             data-nombrecompleto="${worker.username} ${worker.surname}">
                         <i class="bi bi-trash"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm ${selectButtonClass}"
+                            ${selectButtonDataAttrs} ${selectButtonDisabled}>
+                        ${selectButtonText}
                     </button>
                 </div>
             </td>
@@ -729,6 +763,91 @@ document.addEventListener('keydown', (e) => {
     if (actionTarget) {
         document.getElementById(actionTarget)?.click();
     }
+});
+
+// ── Delegated Worker Selection ─────────────────────────────────────────
+async function handleSelectWorker(workerId, companies) {
+    /**
+     * Maneja la selección inteligente de empresa:
+     * - 0 empresas: error (no debería llegar aquí por botón deshabilitado)
+     * - 1 empresa: selecciona automáticamente
+     * - N empresas: muestra modal para que elija
+     */
+    if (!companies || companies.length === 0) {
+        alert('Este trabajador no pertenece a ninguna empresa.');
+        return;
+    }
+
+    if (companies.length === 1) {
+        // Auto-select the only company
+        selectWorker(workerId, companies[0].id);
+    } else {
+        // Show modal for selection
+        const companiesList = document.getElementById('companiesList');
+        companiesList.innerHTML = '';
+
+        companies.forEach(company => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+            button.innerHTML = `
+                <div>
+                    <strong>${company.name}</strong>
+                    <small class="text-muted d-block">${company.tax_id}</small>
+                </div>
+                <i class="bi bi-chevron-right text-secondary"></i>
+            `;
+            button.onclick = (e) => {
+                e.preventDefault();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalSeleccionarEmpresa'));
+                modal.hide();
+                selectWorker(workerId, company.id);
+            };
+            companiesList.appendChild(button);
+        });
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('modalSeleccionarEmpresa'));
+        modal.show();
+    }
+}
+
+async function selectWorker(workerId, companyId) {
+    /**
+     * Envía la selección de trabajador y empresa al backend.
+     * Redirige a /home/ tras éxito.
+     */
+    const formData = new FormData();
+    formData.append('worker_id', workerId);
+    formData.append('company_id', companyId);
+
+    try {
+        const response = await fetch("{% url 'select_delegated_worker' %}", {
+            method: 'POST',
+            headers: {'X-CSRFToken': CSRF_TOKEN},
+            body: formData
+        });
+
+        if (response.ok) {
+            window.location.href = '/home/';
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'No se pudo seleccionar el trabajador.'));
+        }
+    } catch (err) {
+        alert('Error al seleccionar trabajador: ' + err);
+    }
+}
+
+// Event listeners for select worker buttons
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-select-worker');
+    if (!btn) return;
+
+    const workerId = btn.getAttribute('data-worker-id');
+    const companies = JSON.parse(btn.getAttribute('data-companies'));
+
+    handleSelectWorker(workerId, companies);
 });
 </script>
 {% endblock %}

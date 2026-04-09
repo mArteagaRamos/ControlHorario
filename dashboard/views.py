@@ -1,6 +1,7 @@
 from datetime import timedelta
 from urllib import request
 
+from django.db import IntegrityError
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -38,7 +39,16 @@ def profile(request):
     """
     User profile page: display and edit personal data, view associated companies.
     """
-    user = request.user
+    from audit.views import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to view profile for
+    if delegation_context['is_delegating']:
+        user = Users.objects.get(id=delegation_context['delegated_user_id'])
+    else:
+        user = request.user
+
     personal_form = UserPersonalDataForm(instance=user)
 
     if request.method == 'POST':
@@ -48,7 +58,7 @@ def profile(request):
             personal_form = UserPersonalDataForm(request.POST, instance=user)
             if personal_form.is_valid():
                 personal_form.save()
-                messages.success(request, 'Tus datos personales se han actualizado correctamente.')
+                messages.success(request, 'Los datos personales se han actualizado correctamente.')
                 return redirect('profile')
             else:
                 messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
@@ -56,10 +66,13 @@ def profile(request):
     # Get all companies user belongs to
     companies = UserCompany.objects.filter(user=user).select_related('company').order_by('-joined_at')
 
-    return render(request, 'user_panel/profile.html', {
+    context = {
         'personal_form': personal_form,
         'companies': companies,
-    })
+    }
+    context.update(delegation_context)
+
+    return render(request, 'user_panel/profile.html', context)
 
 
 @login_required
@@ -67,24 +80,38 @@ def security(request):
     """
     Security settings page: change password.
     """
-    password_form = ProfilePasswordChangeForm(user=request.user)
+    from audit.views import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to manage password for
+    if delegation_context['is_delegating']:
+        user = Users.objects.get(id=delegation_context['delegated_user_id'])
+    else:
+        user = request.user
+
+    password_form = ProfilePasswordChangeForm(user=user)
     show_password_form = False
 
     if request.method == 'POST':
-        password_form = ProfilePasswordChangeForm(user=request.user, data=request.POST)
+        password_form = ProfilePasswordChangeForm(user=user, data=request.POST)
         show_password_form = True
         if password_form.is_valid():
-            user = password_form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, 'Tu contraseña se ha actualizado correctamente.')
+            saved_user = password_form.save()
+            if not delegation_context['is_delegating']:
+                update_session_auth_hash(request, saved_user)
+            messages.success(request, 'La contraseña se ha actualizado correctamente.')
             return redirect('security')
 
         messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
 
-    return render(request, 'user_panel/security.html', {
+    context = {
         'password_form': password_form,
         'show_password_form': show_password_form,
-    })
+    }
+    context.update(delegation_context)
+
+    return render(request, 'user_panel/security.html', context)
 
 
 # Team management views
@@ -92,29 +119,42 @@ def security(request):
 @login_required
 @manager_or_admin_required
 def entity_info(request):
+    from audit.views import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
     # 1. Determine which company to view
-    company_id = request.GET.get('company_id') or request.session.get('company_id')
+    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
 
     if company_id:
-        # Admin is inspecting a specific company
+        # Using delegated company
         company = Companies.objects.filter(id=company_id).first()
         if not company:
-            messages.error(request, 'Empresa no encontrada.')
+            messages.error(request, 'Empresa delegada no encontrada.')
             return redirect('home_timetracking')
-
-        # Validate permissions: must be admin
-        if not request.user.is_admin:
-            return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
-
-        request.session['company_id'] = company_id
-        is_inspecting = True
     else:
-        # Get the user's company membership
-        user_membership = UserCompany.objects.filter(user=request.user).first()
-        if not user_membership:
-            messages.error(request, 'No tienes empresa asignada.')
-            return redirect('home_timetracking')
-        company = user_membership.company
+        # Original logic
+        company_id = request.GET.get('company_id') or request.session.get('company_id')
+
+        if company_id:
+            # Admin is inspecting a specific company
+            company = Companies.objects.filter(id=company_id).first()
+            if not company:
+                messages.error(request, 'Empresa no encontrada.')
+                return redirect('home_timetracking')
+
+            # Validate permissions: must be admin
+            if not request.user.is_admin:
+                return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+
+            request.session['company_id'] = company_id
+        else:
+            # Get the user's company membership
+            user_membership = UserCompany.objects.filter(user=request.user).first()
+            if not user_membership:
+                messages.error(request, 'No tienes empresa asignada.')
+                return redirect('home_timetracking')
+            company = user_membership.company
 
     membership = UserCompany.objects.filter(
         user=request.user,
@@ -133,15 +173,39 @@ def entity_info(request):
 
     settings_obj = CompanySettings.objects.filter(company=company).first()
 
-
     if request.method == 'POST' and can_edit:
 
         # Update company info
-        company.name       = request.POST.get('name', company.name).strip()
+        company.name = request.POST.get('name', company.name).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
-        company.tax_id     = request.POST.get('tax_id', '').strip() or None
+        posted_tax_id = request.POST.get('tax_id', '').strip() or None
+
+        if posted_tax_id and Companies.objects.filter(tax_id=posted_tax_id).exclude(id=company.id).exists():
+            messages.error(request, 'El CIF/NIF indicado ya existe en otra empresa.')
+            context = {
+                'company': company,
+                'user_role': user_role,
+                'settings': settings_obj,
+                'weekdays': WEEKDAY,
+            }
+            context.update(delegation_context)
+            return render(request, 'team/entity_info.html', context)
+
+        company.tax_id = posted_tax_id
         company.updated_at = timezone.now()
-        company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
+
+        try:
+            company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
+        except IntegrityError:
+            messages.error(request, 'No se pudo guardar la empresa porque el CIF/NIF ya está en uso.')
+            context = {
+                'company': company,
+                'user_role': user_role,
+                'settings': settings_obj,
+                'weekdays': WEEKDAY,
+            }
+            context.update(delegation_context)
+            return render(request, 'team/entity_info.html', context)
 
         # Workday settings
 
@@ -156,7 +220,7 @@ def entity_info(request):
 
             tolerance_min = request.POST.get('max_tolerance')
             if tolerance_min is not None and tolerance_min != '':
-               settings_obj.max_tolerance = timedelta(minutes=int(tolerance_min))
+                settings_obj.max_tolerance = timedelta(minutes=int(tolerance_min))
 
             auto_close = request.POST.get('auto_close_hours')
             if auto_close is not None and auto_close != '':
@@ -178,15 +242,17 @@ def entity_info(request):
             settings_obj.updated_at = timezone.now()
             settings_obj.save()
 
-        #messages.success(request, "Información de la empresa actualizada correctamente.")
         return redirect('entity_info')
 
-    return render(request, 'team/entity_info.html',{
+    context = {
         'company': company,
         'user_role': user_role,
         'settings': settings_obj,
         'weekdays': WEEKDAY,
-    })
+    }
+    context.update(delegation_context)
+
+    return render(request, 'team/entity_info.html', context)
 
 @login_required
 def staff(request):

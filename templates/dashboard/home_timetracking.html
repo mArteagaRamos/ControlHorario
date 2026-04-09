@@ -5,6 +5,16 @@
 {% block title %}Timer{% endblock %}
 
 {% block content %}
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
 {% load static %} {% block extra_css %}
   <link rel="stylesheet" href="{% static 'css/time_entries.css' %}">
 {% endblock %}
@@ -29,7 +39,9 @@
     {% else %}
       Buenas noches
     {% endif %}
-    {% if request.user.is_authenticated %}
+    {% if is_delegating %}
+      <span class="home-username">, {{ delegated_user_name }}</span>
+    {% elif request.user.is_authenticated %}
       <span class="home-username">, {{ request.user.username }}</span>
     {% endif %}
   </h2>
@@ -144,10 +156,19 @@
             },
             body: new URLSearchParams({action}).toString(),
         });
-        if (res.ok) window.location.reload(); 
+        if (res.ok) window.location.reload();
     }
 
-
+    // Clear delegation function
+    async function clearDelegation() {
+        const response = await fetch("{% url 'clear_delegated_worker' %}", {
+            method: 'POST',
+            headers: {'X-CSRFToken': document.getElementById('csrfToken').value}
+        });
+        if (response.ok) {
+            location.reload();
+        }
+    }
 
   </script>
 

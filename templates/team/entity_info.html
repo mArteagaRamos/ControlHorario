@@ -4,6 +4,16 @@
 {% block title %}Información de Empresa{% endblock %}
 
 {% block content %}
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
 <div class="container py-4">
 
   {% if user_role == 'manager' or user_role == 'admin' %}
@@ -19,7 +29,6 @@
     </div>
     <div class="d-flex align-items-center gap-2">
       {% if user_role == 'manager' or user_role == 'admin' %}
-        <span class="badge text-bg-primary">Manager</span>
         <button id="editToggleBtn" type="button" class="btn btn-sm btn-dark" onclick="toggleEdit()">
           Editar
         </button>
@@ -174,6 +183,17 @@
         const btn = document.getElementById('editToggleBtn');
         btn.textContent = editing ? 'Cancelar' : 'Editar';
         btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
+      }
+
+      // Clear delegation function
+      async function clearDelegation() {
+        const response = await fetch("{% url 'clear_delegated_worker' %}", {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        });
+        if (response.ok) {
+            location.reload();
+        }
       }
     </script>
     {% endif %}

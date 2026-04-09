@@ -12,6 +12,16 @@
 </div>
 {% endif %}
 
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 20rem;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
 <style>
     /* Your previous styles... */
     .table-scroll-container {
@@ -355,5 +365,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Clear delegation function
+async function clearDelegation() {
+    const response = await fetch("{% url 'clear_delegated_worker' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    if (response.ok) {
+        location.reload();
+    }
+}
 </script>
 {% endblock %}
