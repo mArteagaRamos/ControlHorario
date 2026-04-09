@@ -57,9 +57,14 @@
 </style>
 
 <div class="container-fluid py-4">
-    <h2 class="h4 fw-bold mb-4">
-        <i class="bi bi-shield-lock"></i> Panel Administrador
-    </h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 fw-bold">
+            <i class="bi bi-shield-lock"></i> Panel Administrador
+        </h2>
+        <a href="{% url 'deleted_records' %}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-trash3"></i> Registros Eliminados
+        </a>
+    </div>
 
     <!-- TOGGLE BUTTONS -->
     <div class="btn-group mb-4 w-100" role="group">
@@ -282,11 +287,32 @@
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}
-                <div class="modal-body text-center p-4">
+                <div class="modal-body p-4">
                     <input type="hidden" name="user_id" id="deleteUserId">
-                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block"></i>
-                    <p class="fs-5">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
-                    <p class="text-muted small mb-0">Esta acción desvinculará al trabajador de todas sus empresas, pero mantendrá el historial de sus fichajes por motivos legales.</p>
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block text-center"></i>
+                    <p class="fs-5 text-center">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
+
+                    <!-- Section for single company (hidden by default) -->
+                    <div id="singleCompanySection" class="d-none mb-3">
+                        <p class="text-muted small mb-2">Pertenece a una empresa:</p>
+                        <p class="mb-0">
+                            <span class="badge bg-info" id="singleCompanyName"></span>
+                        </p>
+                        <input type="hidden" name="company_ids" id="singleCompanyId">
+                    </div>
+
+                    <!-- Section for multiple companies -->
+                    <div id="multipleCompaniesSection" class="d-none">
+                        <p class="text-muted small mb-3">Selecciona de cuál(es) empresa(s) deseas eliminar al trabajador:</p>
+                        <div id="companiesCheckboxes" class="mb-3"></div>
+                        <small class="text-muted d-block mb-3">
+                            <i class="bi bi-info-circle"></i> Puedes seleccionar una o varias empresas
+                        </small>
+                    </div>
+
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-info-circle"></i> Esta acción desvinculará al trabajador de las empresas seleccionadas, pero mantendrá el historial de sus fichajes por motivos legales.
+                    </p>
                 </div>
                 <div class="modal-footer bg-light justify-content-center">
                     <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
@@ -707,6 +733,7 @@ function displayWorkerResults(workers) {
                     <button type="button" class="btn btn-sm btn-outline-danger"
                             data-bs-toggle="modal" data-bs-target="#modalEliminarTrabajador"
                             data-id="${worker.id}"
+                            data-companies='${JSON.stringify(companies)}'
                             data-nombrecompleto="${worker.username} ${worker.surname}">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -747,8 +774,96 @@ const eliminarModal = document.getElementById('modalEliminarTrabajador');
 if (eliminarModal) {
     eliminarModal.addEventListener('show.bs.modal', function(event) {
         const button = event.relatedTarget;
-        document.getElementById('deleteUserId').value = button.getAttribute('data-id');
-        document.getElementById('deleteNombre').textContent = button.getAttribute('data-nombrecompleto');
+        const userId = button.getAttribute('data-id');
+        const nombre = button.getAttribute('data-nombrecompleto');
+        const companiesJson = button.getAttribute('data-companies');
+        let companies = [];
+
+        try {
+            companies = companiesJson ? JSON.parse(companiesJson) : [];
+        } catch (e) {
+            console.error('Error parsing companies:', e);
+        }
+
+        document.getElementById('deleteUserId').value = userId;
+        document.getElementById('deleteNombre').textContent = nombre;
+
+        // Handle companies display
+        const singleCompanySection = document.getElementById('singleCompanySection');
+        const multipleCompaniesSection = document.getElementById('multipleCompaniesSection');
+        const companiesCheckboxes = document.getElementById('companiesCheckboxes');
+
+        if (companies.length === 1) {
+            // Single company - show it directly
+            singleCompanySection.classList.remove('d-none');
+            multipleCompaniesSection.classList.add('d-none');
+            document.getElementById('singleCompanyName').textContent = companies[0].name;
+            document.getElementById('singleCompanyId').name = 'company_ids';
+            document.getElementById('singleCompanyId').value = companies[0].id;
+        } else if (companies.length > 1) {
+            // Multiple companies - show checkboxes
+            singleCompanySection.classList.add('d-none');
+            multipleCompaniesSection.classList.remove('d-none');
+            companiesCheckboxes.innerHTML = '';
+
+            companies.forEach((company, index) => {
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.className = 'form-check';
+                checkboxDiv.innerHTML = `
+                    <input class="form-check-input company-checkbox" type="checkbox"
+                           id="company_${company.id}" value="${company.id}"
+                           data-company-name="${company.name}">
+                    <label class="form-check-label" for="company_${company.id}">
+                        ${company.name}
+                    </label>
+                `;
+                companiesCheckboxes.appendChild(checkboxDiv);
+
+                // Auto-check first one for convenience
+                if (index === 0) {
+                    checkboxDiv.querySelector('.form-check-input').checked = true;
+                }
+            });
+
+            // Create hidden input that will be updated when form submits
+            updateCompanyIdsInput();
+        }
+    });
+
+    // Update the company_ids hidden input when checkboxes change
+    function updateCompanyIdsInput() {
+        const checkboxes = document.querySelectorAll('.company-checkbox:checked');
+        const form = eliminarModal.querySelector('form');
+        let companyIdsInput = form.querySelector('input[name="company_ids"]');
+
+        if (!companyIdsInput) {
+            companyIdsInput = document.createElement('input');
+            companyIdsInput.type = 'hidden';
+            companyIdsInput.name = 'company_ids';
+            form.insertBefore(companyIdsInput, form.querySelector('.modal-body').nextSibling);
+        }
+
+        const selectedIds = Array.from(checkboxes).map(cb => cb.value).join(',');
+        companyIdsInput.value = selectedIds;
+    }
+
+    // Listen for checkbox changes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('company-checkbox')) {
+            updateCompanyIdsInput();
+        }
+    });
+
+    // Validate at least one company is selected before submitting
+    eliminarModal.querySelector('form').addEventListener('submit', function(e) {
+        const checkboxes = document.querySelectorAll('.company-checkbox');
+        if (checkboxes.length > 0) {
+            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+            if (!anyChecked) {
+                e.preventDefault();
+                alert('Por favor selecciona al menos una empresa');
+            }
+        }
     });
 }
 
