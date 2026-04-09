@@ -1,19 +1,22 @@
 import json
-from datetime import date,timedelta
-from urllib import request
+from datetime import date,timedelta, datetime
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db import IntegrityError
+from django.http import HttpResponseForbidden
+from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 from django.utils.dateparse import parse_date
-from users.forms import ProfilePasswordChangeForm
+from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
 from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
+
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -45,70 +48,202 @@ WEEKDAY = [
 def calendar(request):
     company = _get_company(request)
     is_manager = _is_manager(request, company)
- 
+
+    # ── Lógica de POST (Igual que en workday) ──
+    if request.method == 'POST':
+        leave_type   = request.POST.get('leave_type')
+        leave_reason = request.POST.get('leave_reason')
+        start_date_str = request.POST.get('start_date')
+        end_date_str   = request.POST.get('end_date')
+        reason_note  = request.POST.get('reason_note', '').strip()
+
+        if start_date_str and end_date_str:
+            try:
+                # Usamos parse_date de Django que es más seguro
+                start = parse_date(start_date_str)
+                end   = parse_date(end_date_str)
+
+                LeaveRequest.objects.create(
+                    user=request.user,
+                    company=company,
+                    leave_type=leave_type,
+                    leave_reason=leave_reason,
+                    start_date=start,
+                    end_date=end,
+                    reason_note=reason_note,
+                    status=LeaveRequest.LeaveStatus.PENDING
+                )
+                
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(status=204)
+                
+                messages.success(request, 'Solicitud enviada correctamente.')
+                return redirect('calendar')
+            except Exception as e:
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(f"Error: {str(e)}", status=400)
+                messages.error(request, f"Error al procesar: {e}")
+
+    # ── Lógica de GET ──
     team = []
-    if is_manager and company:
-        team = (
-            UserCompany.objects
-            .filter(company=company)
-            .exclude(user=request.user)
-            .select_related('user')
-        )
- 
-    pending_count = 0
-    if is_manager and company:
-        pending_count = LeaveRequest.objects.filter(
-            company=company, status=LeaveRequest.LeaveStatus.PENDING
-        ).count()
- 
-     # Tipos de solicitud separados por leave_type para los dos formularios del sidebar
-    vacation_types = [
-        (v, l) for v, l in LeaveRequest.LeaveReason.choices
-        if v in ('annual', 'personal', 'other')
-    ]
-    absence_types = [
-        (v, l) for v, l in LeaveRequest.LeaveReason.choices
-        if v not in ('annual',)
-    ]
+    if is_manager:
+        team = UserCompany.objects.filter(company=company).select_related('user')
     
-    return render(request, 'user_panel/calendar.html', {
-        'is_manager':    is_manager,
-        'team':          team,
-        'leave_types':   LeaveRequest.LeaveType.choices,
-        'pending_count': pending_count,
-        'vacation_types': vacation_types,  
-        'absence_types':  absence_types,    
-    })
-# User management views
+    pending_count = LeaveRequest.objects.filter(
+        company=company, status=LeaveRequest.LeaveStatus.PENDING
+    ).count() if is_manager else 0
+    
+    context = {
+        'is_manager': is_manager,
+        'team': team,
+        'pending_count': pending_count if is_manager else 0,
+        'vacation_types': [
+            (v, l) for v, l in LeaveRequest.LeaveReason.choices
+            if v in ('annual', 'personal', 'other')
+        ],
+        'absence_types': [
+            (v, l) for v, l in LeaveRequest.LeaveReason.choices
+            if v in ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+        ],
+    }
+    # Asegúrate de que la ruta al HTML sea la correcta según tu estructura
+    return render(request, 'user_panel/calendar.html', context)
+
+@login_required
+def api_calendar_events(request):
+    company = _get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    target_user = request.user
+    user_id = request.GET.get('user_id')
+    
+    if user_id and _is_manager(request, company):
+        # Corregido: Aseguramos que el ID sea válido para UUID
+        try:
+            target_user = get_object_or_404(Users, id=user_id)
+        except:
+            return JsonResponse({'error': 'Invalid User ID'}, status=400)
+
+    start_str = request.GET.get('start', '')[:10]
+    end_str   = request.GET.get('end', '')[:10]
+
+    try:
+        # Usamos date.fromisoformat asegurando que el string sea correcto
+        start = date.fromisoformat(start_str)
+        end   = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': f'Invalid date format: {start_str}'}, status=400)
+
+    events = []
+    STATUS_COLOR = {
+        'pending':  '#f59e0b',
+        'approved': '#10b981',
+        'rejected': '#ef4444',
+        'canceled': '#6b7280',
+    }
+
+    leaves = LeaveRequest.objects.filter(
+        user=target_user, 
+        company=company,
+        start_date__lte=end, 
+        end_date__gte=start,
+    )
+
+    for leave in leaves:
+        events.append({
+            'id': f'leave-{leave.id}',
+            'title': f'{leave.get_leave_type_display()}',
+            'start': leave.start_date.isoformat(),
+            'end': (leave.end_date + timedelta(days=1)).isoformat(),
+            'color': STATUS_COLOR.get(leave.status, '#6b7280'),
+            'allDay': True,
+            'extendedProps': {
+                'status': leave.get_status_display(),
+                'reason': leave.reason_note or '',
+            },
+        })
+
+    return JsonResponse(events, safe=False)
 
 @login_required
 def profile(request):
-    password_form = ProfilePasswordChangeForm(user=request.user)
+    """
+    User profile page: display and edit personal data, view associated companies.
+    """
+    from audit.views import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to view profile for
+    if delegation_context['is_delegating']:
+        user = Users.objects.get(id=delegation_context['delegated_user_id'])
+    else:
+        user = request.user
+
+    personal_form = UserPersonalDataForm(instance=user)
+
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type', 'personal_data')
+
+        if form_type == 'personal_data':
+            personal_form = UserPersonalDataForm(request.POST, instance=user)
+            if personal_form.is_valid():
+                personal_form.save()
+                messages.success(request, 'Los datos personales se han actualizado correctamente.')
+                return redirect('profile')
+            else:
+                messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
+
+    # Get all companies user belongs to
+    companies = UserCompany.objects.filter(user=user).select_related('company').order_by('-joined_at')
+
+    context = {
+        'personal_form': personal_form,
+        'companies': companies,
+    }
+    context.update(delegation_context)
+
+    return render(request, 'user_panel/profile.html', context)
+
+
+@login_required
+def security(request):
+    """
+    Security settings page: change password.
+    """
+    from audit.views import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to manage password for
+    if delegation_context['is_delegating']:
+        user = Users.objects.get(id=delegation_context['delegated_user_id'])
+    else:
+        user = request.user
+
+    password_form = ProfilePasswordChangeForm(user=user)
     show_password_form = False
 
     if request.method == 'POST':
-        password_form = ProfilePasswordChangeForm(user=request.user, data=request.POST)
+        password_form = ProfilePasswordChangeForm(user=user, data=request.POST)
         show_password_form = True
         if password_form.is_valid():
-            user = password_form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, 'Tu contraseña se ha actualizado correctamente.')
-            return redirect('profile')
+            saved_user = password_form.save()
+            if not delegation_context['is_delegating']:
+                update_session_auth_hash(request, saved_user)
+            messages.success(request, 'La contraseña se ha actualizado correctamente.')
+            return redirect('security')
 
         messages.error(request, 'Revisa los errores del formulario y vuelve a intentarlo.')
 
-    return render(request, 'user_panel/profile.html', {
+    context = {
         'password_form': password_form,
         'show_password_form': show_password_form,
-    })
+    }
+    context.update(delegation_context)
 
-@login_required
-def absence(request):
-    return render(request, 'user_panel/absence.html')
-
-@login_required
-def request_correction(request):
-    return render(request, 'user_panel/requests.html')   
+    return render(request, 'user_panel/security.html', context)
 
 
 # Team management views
@@ -116,19 +251,46 @@ def request_correction(request):
 @login_required
 @manager_or_admin_required
 def entity_info(request):
-    company_id = request.session.get('company_id')
-    if not company_id:
-        messages.error(request, 'No tienes empresa asignada.')
-        return redirect('home_timetracking')
+    from audit.views import get_effective_context
 
-    company = Companies.objects.filter(id=company_id).first()
-    if not company:
-        messages.error(request, 'Empresa no encontrada.')
-        return redirect('home_timetracking')
-    
+    delegation_context = get_effective_context(request)
+
+    # 1. Determine which company to view
+    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
+
+    if company_id:
+        # Using delegated company
+        company = Companies.objects.filter(id=company_id).first()
+        if not company:
+            messages.error(request, 'Empresa delegada no encontrada.')
+            return redirect('home_timetracking')
+    else:
+        # Original logic
+        company_id = request.GET.get('company_id') or request.session.get('company_id')
+
+        if company_id:
+            # Admin is inspecting a specific company
+            company = Companies.objects.filter(id=company_id).first()
+            if not company:
+                messages.error(request, 'Empresa no encontrada.')
+                return redirect('home_timetracking')
+
+            # Validate permissions: must be admin
+            if not request.user.is_admin:
+                return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+
+            request.session['company_id'] = company_id
+        else:
+            # Get the user's company membership
+            user_membership = UserCompany.objects.filter(user=request.user).first()
+            if not user_membership:
+                messages.error(request, 'No tienes empresa asignada.')
+                return redirect('home_timetracking')
+            company = user_membership.company
+
     membership = UserCompany.objects.filter(
-    user=request.user, 
-    company=company
+        user=request.user,
+        company=company
     ).first()
 
     # Global admin can always edit, regardless of their role in the company
@@ -143,18 +305,42 @@ def entity_info(request):
 
     settings_obj = CompanySettings.objects.filter(company=company).first()
 
-
     if request.method == 'POST' and can_edit:
- 
+
         # Update company info
-        company.name       = request.POST.get('name', company.name).strip()
+        company.name = request.POST.get('name', company.name).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
-        company.tax_id     = request.POST.get('tax_id', '').strip() or None
+        posted_tax_id = request.POST.get('tax_id', '').strip() or None
+
+        if posted_tax_id and Companies.objects.filter(tax_id=posted_tax_id).exclude(id=company.id).exists():
+            messages.error(request, 'El CIF/NIF indicado ya existe en otra empresa.')
+            context = {
+                'company': company,
+                'user_role': user_role,
+                'settings': settings_obj,
+                'weekdays': WEEKDAY,
+            }
+            context.update(delegation_context)
+            return render(request, 'team/entity_info.html', context)
+
+        company.tax_id = posted_tax_id
         company.updated_at = timezone.now()
-        company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
+
+        try:
+            company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
+        except IntegrityError:
+            messages.error(request, 'No se pudo guardar la empresa porque el CIF/NIF ya está en uso.')
+            context = {
+                'company': company,
+                'user_role': user_role,
+                'settings': settings_obj,
+                'weekdays': WEEKDAY,
+            }
+            context.update(delegation_context)
+            return render(request, 'team/entity_info.html', context)
 
         # Workday settings
-        
+
         if settings_obj:
             work_start = request.POST.get('work_start')
             if work_start:
@@ -166,7 +352,7 @@ def entity_info(request):
 
             tolerance_min = request.POST.get('max_tolerance')
             if tolerance_min is not None and tolerance_min != '':
-               settings_obj.max_tolerance = timedelta(minutes=int(tolerance_min))
+                settings_obj.max_tolerance = timedelta(minutes=int(tolerance_min))
 
             auto_close = request.POST.get('auto_close_hours')
             if auto_close is not None and auto_close != '':
@@ -188,79 +374,18 @@ def entity_info(request):
             settings_obj.updated_at = timezone.now()
             settings_obj.save()
 
-        #messages.success(request, "Información de la empresa actualizada correctamente.")
         return redirect('entity_info')
-             
-    return render(request, 'team/entity_info.html',{
 
+    context = {
         'company': company,
         'user_role': user_role,
         'settings': settings_obj,
         'weekdays': WEEKDAY,
-
-                  })
-
-# ── API: eventos del calendario (FullCalendar JSON feed) ─────────────────────
- 
-@login_required
-def api_calendar_events(request):
-    """
-    GET /dashboard/api/calendar/events/?user_id=<uuid>&start=YYYY-MM-DD&end=YYYY-MM-DD
-    Devuelve eventos en formato FullCalendar.
-    El manager puede pedir eventos de cualquier empleado de su empresa.
-    """
-    company = _get_company(request)
-    if not company:
-        return JsonResponse({'error': 'No company'}, status=400)
- 
-    target_user = request.user
-    user_id = request.GET.get('user_id')
-    if user_id and _is_manager(request, company):
-        target_user = get_object_or_404(Users, id=user_id)
-        # Verificar que el empleado pertenece a la empresa del manager
-        if not UserCompany.objects.filter(user=target_user, company=company).exists():
-            return JsonResponse({'error': 'Empleado no pertenece a esta empresa'}, status=403)
- 
-    start_str = request.GET.get('start', '')
-    end_str   = request.GET.get('end',  '')
-    try:
-        start = date.fromisoformat(start_str[:10])
-        end   = date.fromisoformat(end_str[:10])
-    except ValueError:
-        return JsonResponse({'error': 'Invalid dates'}, status=400)
- 
-    events = []
- 
-    # ── Ausencias / solicitudes ────────────────────────────────────────────────
-    STATUS_COLOR = {
-        'pending':  '#f59e0b',
-        'approved': '#10b981',
-        'rejected': '#ef4444',
-        'canceled': '#6b7280',
     }
-    leaves = LeaveRequest.objects.filter(
-        user=target_user, company=company,
-        start_date__lte=end, end_date__gte=start,
-    )
-    for leave in leaves:
-        events.append({
-            'id':        f'leave-{leave.id}',
-            'title':     f'{leave.get_leave_type_display()} ({leave.get_status_display()})',
-            'start':     str(leave.start_date),
-            'end':       str(leave.end_date + timedelta(days=1)),  # FullCalendar end is exclusive
-            'color':     STATUS_COLOR.get(leave.status, '#6b7280'),
-            'allDay':    True,
-            'classNames': ['event-leave'],
-            'extendedProps': {
-                'type':     'leave',
-                'status':   leave.status,
-                'leave_id': str(leave.id),
-                'reason':   leave.reason_note or '',
-            },
-        })
- 
-    return JsonResponse(events, safe=False)
- 
+    context.update(delegation_context)
+
+    return render(request, 'team/entity_info.html', context)
+
  
 # ── API: solicitar ausencia ────────────────────────────────────────────────────
  

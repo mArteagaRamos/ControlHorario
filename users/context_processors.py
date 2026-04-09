@@ -8,15 +8,15 @@ BREADCRUMB_LABELS = {
     'workday': 'Jornadas',
     'calendar': 'Calendario',
     'profile': 'Perfil',
-    'absence': 'Ausencias',
-    'request_correction': 'Solicitar Corrección',
     'manager_employee': 'Gestión de Empleados',
     'entity_info': 'Información de la Empresa',
     'notes': 'Notas',
-    'manager_logs': 'Log de Actividades',
+    'manager_logs': 'Correción de fichajes',
     'control': 'Panel de Control',
     'register_unified': 'Registro',
     'staff': 'Personal',
+    'security': 'Seguridad',
+    'admin_dashboard': 'Panel de Administración',
 }
 
 

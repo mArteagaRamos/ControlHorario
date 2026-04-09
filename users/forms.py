@@ -309,3 +309,56 @@ class ProfilePasswordChangeForm(forms.Form):
         if commit:
             self.user.save(update_fields=['password'])
         return self.user
+
+
+class UserPersonalDataForm(forms.ModelForm):
+    """
+    Form for editing user personal data: name, surname, email, DNI.
+    Used in the user profile page.
+    """
+    class Meta:
+        model = Users
+        fields = ['username', 'surname', 'email', 'dni']
+        labels = {
+            'username': 'Nombre',
+            'surname': 'Apellidos',
+            'email': 'Correo electrónico',
+            'dni': 'DNI',
+        }
+        widgets = {
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'surname': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'dni': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').lower().strip()
+        # Check if email exists in another user (excluding current user)
+        other_users = Users.objects.filter(
+            email__iexact=email
+        ).exclude(id=self.instance.id)
+        if other_users.exists():
+            raise forms.ValidationError('Este correo electrónico ya está registrado.')
+        return email
+
+    def clean_dni(self):
+        dni = self.cleaned_data.get('dni', '').upper().strip()
+        # Check if DNI exists in another user (excluding current user)
+        other_users = Users.objects.filter(
+            dni__iexact=dni
+        ).exclude(id=self.instance.id)
+        if other_users.exists():
+            raise forms.ValidationError('Este DNI ya está registrado.')
+        return dni
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        # Normalize case
+        user.username = user.username.upper().strip() if user.username else user.username
+        user.surname = user.surname.upper().strip() if user.surname else user.surname
+        user.email = user.email.lower().strip() if user.email else user.email
+        user.dni = user.dni.upper().strip() if user.dni else user.dni
+        if commit:
+            user.save()
+        return user

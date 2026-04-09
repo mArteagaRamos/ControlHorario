@@ -1,0 +1,69 @@
+{% extends 'base/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block title %}Seguridad - Mi Perfil{% endblock %}
+
+{% block content %}
+{% if is_delegating %}
+<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
+    <small>
+        <i class="bi bi-exclamation-circle"></i>
+        <strong>Actuando como:</strong> {{ delegated_user_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+    </small>
+</div>
+{% endif %}
+
+<div class="row justify-content-center">
+	<div class="col-12 col-lg-7 col-xl-6">
+		<div class="card shadow-sm border-0">
+			<div class="card-body p-4 p-md-5">
+				<div class="mb-4">
+					<p class="text-uppercase text-muted small mb-1">Configuración</p>
+					<h1 class="h3 mb-2">Cambiar contraseña</h1>
+					<p class="text-muted mb-0">
+						Pulsa el enlace para desplegar el formulario de cambio de contraseña.
+					</p>
+				</div>
+
+				<a
+					class="btn btn-outline-primary"
+					data-bs-toggle="collapse"
+					href="#passwordChangeCollapse"
+					role="button"
+					aria-expanded="{% if show_password_form %}true{% else %}false{% endif %}"
+					aria-controls="passwordChangeCollapse"
+				>
+					Mostrar formulario para cambiar contraseña
+				</a>
+
+				<div class="collapse {% if show_password_form %}show{% endif %} mt-4" id="passwordChangeCollapse">
+					<form method="post" novalidate>
+						{% csrf_token %}
+						{% bootstrap_form password_form %}
+
+						<div class="d-grid d-sm-flex gap-2 mt-4">
+							<button type="submit" class="btn btn-primary">
+								Guardar nueva contraseña
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+async function clearDelegation() {
+    const response = await fetch("{% url 'clear_delegated_worker' %}", {
+        method: 'POST',
+        headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    if (response.ok) {
+        location.reload();
+    }
+}
+</script>
+
+{% endblock %}
