@@ -40,7 +40,7 @@
           <span class="badge bg-warning text-dark" id="pendingBadge">{{ pending_count }}</span>
         </div>
         <div class="card-body p-2" id="pendingContainer">
-          <small class="text-muted ps-2">Cargando…</small>
+          <small class="text-muted ps-2"></small>
         </div>
       </div>
       {% endif %}
@@ -161,77 +161,43 @@
  
 {% block extra_scripts %}
 <script>
-  //Constantes globales
-  const IS_MANAGER  = {{ is_manager|yesno:"true,false" }};
-  const CSRF_TOKEN  = '{{ csrf_token }}';
-  const EVENTS_URL  = '{% url "api_calendar_events" %}';
-  const LEAVE_URL   = '{% url "api_leave_create" %}';
-  const PENDING_URL = '{% url "api_leave_pending" %}';
-  const LEAVE_CANCEL_URL = '{% url "api_leave_cancel" leave_id="00000000-0000-0000-0000-000000000000" %}';
-  const LEAVE_REVIEW_URL = '{% url "api_leave_review" leave_id="00000000-0000-0000-0000-000000000000" %}';
+  const EVENTS_URL      = '{% url "api_calendar_events" %}';
+  const LEAVE_CREATE_URL = '{% url "api_leave_create" %}';
+  const CSRF_TOKEN      = '{{ csrf_token }}';
 
   let currentUserId = null;
   let calendarObj   = null;
 
-  function leaveUrl(template, leaveId) {
-    return template.replace('00000000-0000-0000-0000-000000000000', leaveId);
-  }
-
-  // Inicialización cuando el DOM está listo
+  // ── Inicializar Calendario ────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
-    const calEl = document.getElementById('calendar');
 
+    const calEl = document.getElementById('calendar');
     calendarObj = new FullCalendar.Calendar(calEl, {
       locale: 'es',
       initialView: 'dayGridMonth',
       headerToolbar: {
-        left: 'prev,next today',
+        left:   'prev,next today',
         center: 'title',
-        right: 'dayGridMonth,timeGridWeek,listWeek',
+        right:  'dayGridMonth,listWeek'
       },
-      height: 'auto',
-      nowIndicator: true,
-      firstDay: 1,
+      height:    'auto',
+      firstDay:  1,
       events: function (info, successCb, failureCb) {
         const params = new URLSearchParams({
           start: info.startStr.slice(0, 10),
           end:   info.endStr.slice(0, 10),
         });
         if (currentUserId) params.set('user_id', currentUserId);
-        fetch(`${EVENTS_URL}?${params}`).then(r => r.json()).then(successCb).catch(failureCb);
+        fetch(`${EVENTS_URL}?${params}`)
+          .then(r => r.json())
+          .then(successCb)
+          .catch(failureCb);
       },
-      eventClick: function (info) {
-        showEventModal(info.event);
-      },
+      eventClick: function (info) { showEventModal(info.event); }
     });
     calendarObj.render();
 
-    // Eventos de botones de solicitud
-    document.getElementById('btnSendVacation').addEventListener('click', function () {
-      sendLeaveRequest({
-        leaveType: 'vacation',
-        reasonId: 'vacationReason',
-        startId: 'vacationStart',
-        endId: 'vacationEnd',
-        noteId: 'vacationNote',
-        msgId: 'vacationMsg',
-        btnEl: this,
-      });
-    });
-
-    document.getElementById('btnSendAbsence').addEventListener('click', function () {
-      sendLeaveRequest({
-        leaveType: 'absence',
-        reasonId: 'absenceReason',
-        startId: 'absenceStart',
-        endId: 'absenceEnd',
-        noteId: 'absenceNote',
-        msgId: 'absenceMsg',
-        btnEl: this,
-      });
-    });
-
-    // Selector de equipo (solo para managers)
+    // Selector de equipo (manager)
     const teamSelector = document.getElementById('teamSelector');
     if (teamSelector) {
       teamSelector.addEventListener('change', function () {
@@ -240,140 +206,79 @@
       });
     }
 
-    if (IS_MANAGER) loadPending();
+    // ── Botón solicitar VACACIONES ────────────────────────────────────────
+    document.getElementById('btnSendVacation')
+      .addEventListener('click', function () {
+        sendLeaveRequest({
+          leave_type:   'vacation',
+          leave_reason: document.getElementById('vacationReason').value,
+          start_date:   document.getElementById('vacationStart').value,
+          end_date:     document.getElementById('vacationEnd').value,
+          reason_note:  document.getElementById('vacationNote').value,
+        }, 'vacationMsg');
+      });
+
+    // ── Botón solicitar AUSENCIA ──────────────────────────────────────────
+    document.getElementById('btnSendAbsence')
+      .addEventListener('click', function () {
+        sendLeaveRequest({
+          leave_type:   'absence',
+          leave_reason: document.getElementById('absenceReason').value,
+          start_date:   document.getElementById('absenceStart').value,
+          end_date:     document.getElementById('absenceEnd').value,
+          reason_note:  document.getElementById('absenceNote').value,
+        }, 'absenceMsg');
+      });
   });
 
-  // Funciones lógicas 
+  // ── Helper: llamada a la API ─────────────────────────────────────────────────
+  async function sendLeaveRequest(payload, msgElementId) {
+    const msgEl = document.getElementById(msgElementId);
+    msgEl.textContent = '';
 
-  async function sendLeaveRequest({ leaveType, reasonId, startId, endId, noteId, msgId, btnEl }) {
-    const start = document.getElementById(startId).value;
-    const end = document.getElementById(endId).value;
-    const leave_reason = document.getElementById(reasonId).value;
-    const reason_note = document.getElementById(noteId).value;
-    const msgEl = document.getElementById(msgId);
-
-    if (!start || !end) {
-      msgEl.innerHTML = '<span class="text-danger">Las fechas son obligatorias.</span>';
+    // Validación mínima en cliente
+    if (!payload.start_date || !payload.end_date) {
+      msgEl.className = 'mt-2 small text-danger';
+      msgEl.textContent = 'Debes indicar fecha de inicio y fin.';
       return;
     }
 
-    btnEl.disabled = true;
-    msgEl.innerHTML = '<span class="text-muted">Enviando…</span>';
-
     try {
-      const res = await fetch(LEAVE_URL, {
+      const response = await fetch(LEAVE_CREATE_URL, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': CSRF_TOKEN,
+          'Content-Type':  'application/json',
+          'X-CSRFToken':   CSRF_TOKEN,
         },
-        body: JSON.stringify({ 
-            start_date: start, 
-            end_date: end, 
-            leave_type: leaveType, 
-            leave_reason: leave_reason, 
-            reason_note: reason_note 
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        msgEl.innerHTML = '<span class="text-success">✔ Solicitud enviada correctamente</span>';
-        calendarObj.refetchEvents();
-        if (IS_MANAGER) loadPending();
-        // Limpiar campos
-        document.getElementById(startId).value = '';
-        document.getElementById(endId).value = '';
-        document.getElementById(noteId).value = '';
+      const data = await response.json();
+
+      if (response.ok) {
+        msgEl.className = 'mt-2 small text-success';
+        msgEl.textContent = data.message || 'Solicitud enviada correctamente.';
+        calendarObj.refetchEvents();   // Actualiza el calendario sin recargar
       } else {
-        msgEl.innerHTML = `<span class="text-danger">${data.error || 'Error'}</span>`;
+        msgEl.className = 'mt-2 small text-danger';
+        msgEl.textContent = data.error || 'Error al enviar la solicitud.';
       }
     } catch (err) {
-      msgEl.innerHTML = `<span class="text-danger">Error de conexión</span>`;
-    } finally {
-      btnEl.disabled = false;
+      msgEl.className = 'mt-2 small text-danger';
+      msgEl.textContent = 'Error de red. Inténtalo de nuevo.';
     }
   }
 
+  // ── Modal detalle de evento ──────────────────────────────────────────────────
   function showEventModal(event) {
     const props = event.extendedProps;
-    const title = document.getElementById('eventModalTitle');
-    const body  = document.getElementById('eventModalBody');
-    const footer = document.getElementById('eventModalFooter');
-
-    title.textContent = event.title;
-    
-    if (props.type === 'leave') {
-      const statusLabels = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada', canceled: 'Cancelada' };
-      body.innerHTML = `
-        <p><strong>Estado:</strong> ${statusLabels[props.status] || props.status}</p>
-        ${props.reason ? `<p><strong>Motivo:</strong> ${props.reason}</p>` : ''}
-        <p class="text-muted small">${event.startStr.slice(0, 10)} al ${event.endStr ? event.endStr.slice(0, 10) : ''}</p>
-      `;
-
-      let footerHtml = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
-      
-      if (props.status === 'pending' && !currentUserId) {
-        footerHtml = `<button class="btn btn-danger btn-sm me-auto" onclick="cancelLeave('${props.leave_id}')">Cancelar</button>` + footerHtml;
-      }
-      if (IS_MANAGER && props.status === 'pending') {
-        footerHtml = `
-          <button class="btn btn-success btn-sm" onclick="reviewLeave('${props.leave_id}','approve')">Aprobar</button>
-          <button class="btn btn-danger btn-sm" onclick="reviewLeave('${props.leave_id}','reject')">Rechazar</button>
-        ` + footerHtml;
-      }
-      footer.innerHTML = footerHtml;
-    } else {
-      body.innerHTML = `<p>Jornada laboral.</p>`;
-      footer.innerHTML = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
-    }
+    document.getElementById('eventModalTitle').textContent = event.title;
+    document.getElementById('eventModalBody').innerHTML = `
+      <p class="mb-1"><strong>Estado:</strong> ${props.status || 'N/A'}</p>
+      <p class="mb-1"><strong>Motivo:</strong> ${props.reason || 'No especificado'}</p>
+      <p class="mb-0 text-muted small">${event.startStr} – ${event.endStr || ''}</p>
+    `;
     new bootstrap.Modal(document.getElementById('eventModal')).show();
-  }
-
-  async function cancelLeave(leaveId) {
-    if (!confirm('¿Cancelar?')) return;
-    const res = await fetch(leaveUrl(LEAVE_CANCEL_URL, leaveId), { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } });
-    if ((await res.json()).ok) {
-      bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-      calendarObj.refetchEvents();
-    }
-  }
-
-  async function reviewLeave(leaveId, action) {
-    const note = action === 'reject' ? prompt('Motivo del rechazo:') || '' : '';
-    const res = await fetch(leaveUrl(LEAVE_REVIEW_URL, leaveId), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-      body: JSON.stringify({ action, note }),
-    });
-    if ((await res.json()).ok) {
-      bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-      calendarObj.refetchEvents();
-      loadPending();
-    }
-  }
-
-  async function loadPending() {
-    const container = document.getElementById('pendingContainer');
-    if (!container) return;
-    try {
-        const data = await fetch(PENDING_URL).then(r => r.json());
-        document.getElementById('pendingBadge').textContent = data.length;
-        if (data.length === 0) {
-          container.innerHTML = '<p class="text-muted small ps-2">Sin pendientes.</p>';
-          return;
-        }
-        container.innerHTML = data.map(l => `
-          <div class="pending-card mb-2 p-2 border rounded">
-            <div class="fw-bold small">${l.user}</div>
-            <div class="small">${l.start_date} / ${l.end_date}</div>
-            <div class="mt-1">
-              <button class="btn btn-success btn-xs" onclick="reviewLeave('${l.id}','approve')">✔</button>
-              <button class="btn btn-danger btn-xs" onclick="reviewLeave('${l.id}','reject')">✘</button>
-            </div>
-          </div>
-        `).join('');
-    } catch (e) { console.error(e); }
   }
 </script>
 {% endblock %}

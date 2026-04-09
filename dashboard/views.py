@@ -1,8 +1,7 @@
 import json
-from datetime import date,timedelta
-from urllib import request
+from datetime import date,timedelta, datetime
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -14,6 +13,7 @@ from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
+
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -45,41 +45,123 @@ WEEKDAY = [
 def calendar(request):
     company = _get_company(request)
     is_manager = _is_manager(request, company)
- 
+
+    # ── Lógica de POST (Igual que en workday) ──
+    if request.method == 'POST':
+        leave_type   = request.POST.get('leave_type')
+        leave_reason = request.POST.get('leave_reason')
+        start_date_str = request.POST.get('start_date')
+        end_date_str   = request.POST.get('end_date')
+        reason_note  = request.POST.get('reason_note', '').strip()
+
+        if start_date_str and end_date_str:
+            try:
+                # Usamos parse_date de Django que es más seguro
+                start = parse_date(start_date_str)
+                end   = parse_date(end_date_str)
+
+                LeaveRequest.objects.create(
+                    user=request.user,
+                    company=company,
+                    leave_type=leave_type,
+                    leave_reason=leave_reason,
+                    start_date=start,
+                    end_date=end,
+                    reason_note=reason_note,
+                    status=LeaveRequest.LeaveStatus.PENDING
+                )
+                
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(status=204)
+                
+                messages.success(request, 'Solicitud enviada correctamente.')
+                return redirect('calendar')
+            except Exception as e:
+                if request.headers.get('HX-Request'):
+                    return HttpResponse(f"Error: {str(e)}", status=400)
+                messages.error(request, f"Error al procesar: {e}")
+
+    # ── Lógica de GET ──
     team = []
-    if is_manager and company:
-        team = (
-            UserCompany.objects
-            .filter(company=company)
-            .exclude(user=request.user)
-            .select_related('user')
-        )
- 
-    pending_count = 0
-    if is_manager and company:
-        pending_count = LeaveRequest.objects.filter(
-            company=company, status=LeaveRequest.LeaveStatus.PENDING
-        ).count()
- 
-     # Tipos de solicitud separados por leave_type para los dos formularios del sidebar
-    vacation_types = [
-        (v, l) for v, l in LeaveRequest.LeaveReason.choices
-        if v in ('annual', 'personal', 'other')
-    ]
-    absence_types = [
-        (v, l) for v, l in LeaveRequest.LeaveReason.choices
-        if v not in ('annual',)
-    ]
+    if is_manager:
+        team = UserCompany.objects.filter(company=company).select_related('user')
     
-    return render(request, 'user_panel/calendar.html', {
-        'is_manager':    is_manager,
-        'team':          team,
-        'leave_types':   LeaveRequest.LeaveType.choices,
-        'pending_count': pending_count,
-        'vacation_types': vacation_types,  
-        'absence_types':  absence_types,    
-    })
-# User management views
+    pending_count = LeaveRequest.objects.filter(
+        company=company, status=LeaveRequest.LeaveStatus.PENDING
+    ).count() if is_manager else 0
+    
+    context = {
+        'is_manager': is_manager,
+        'team': team,
+        'pending_count': pending_count if is_manager else 0,
+        'vacation_types': [
+            (v, l) for v, l in LeaveRequest.LeaveReason.choices
+            if v in ('annual', 'personal', 'other')
+        ],
+        'absence_types': [
+            (v, l) for v, l in LeaveRequest.LeaveReason.choices
+            if v in ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+        ],
+    }
+    # Asegúrate de que la ruta al HTML sea la correcta según tu estructura
+    return render(request, 'user_panel/calendar.html', context)
+
+@login_required
+def api_calendar_events(request):
+    company = _get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    target_user = request.user
+    user_id = request.GET.get('user_id')
+    
+    if user_id and _is_manager(request, company):
+        # Corregido: Aseguramos que el ID sea válido para UUID
+        try:
+            target_user = get_object_or_404(Users, id=user_id)
+        except:
+            return JsonResponse({'error': 'Invalid User ID'}, status=400)
+
+    start_str = request.GET.get('start', '')[:10]
+    end_str   = request.GET.get('end', '')[:10]
+
+    try:
+        # Usamos date.fromisoformat asegurando que el string sea correcto
+        start = date.fromisoformat(start_str)
+        end   = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': f'Invalid date format: {start_str}'}, status=400)
+
+    events = []
+    STATUS_COLOR = {
+        'pending':  '#f59e0b',
+        'approved': '#10b981',
+        'rejected': '#ef4444',
+        'canceled': '#6b7280',
+    }
+
+    leaves = LeaveRequest.objects.filter(
+        user=target_user, 
+        company=company,
+        start_date__lte=end, 
+        end_date__gte=start,
+    )
+
+    for leave in leaves:
+        events.append({
+            'id': f'leave-{leave.id}',
+            'title': f'{leave.get_leave_type_display()}',
+            'start': leave.start_date.isoformat(),
+            'end': (leave.end_date + timedelta(days=1)).isoformat(),
+            'color': STATUS_COLOR.get(leave.status, '#6b7280'),
+            'allDay': True,
+            'extendedProps': {
+                'status': leave.get_status_display(),
+                'reason': leave.reason_note or '',
+            },
+        })
+
+    return JsonResponse(events, safe=False)
 
 @login_required
 def profile(request):
@@ -200,67 +282,6 @@ def entity_info(request):
 
                   })
 
-# ── API: eventos del calendario (FullCalendar JSON feed) ─────────────────────
- 
-@login_required
-def api_calendar_events(request):
-    """
-    GET /dashboard/api/calendar/events/?user_id=<uuid>&start=YYYY-MM-DD&end=YYYY-MM-DD
-    Devuelve eventos en formato FullCalendar.
-    El manager puede pedir eventos de cualquier empleado de su empresa.
-    """
-    company = _get_company(request)
-    if not company:
-        return JsonResponse({'error': 'No company'}, status=400)
- 
-    target_user = request.user
-    user_id = request.GET.get('user_id')
-    if user_id and _is_manager(request, company):
-        target_user = get_object_or_404(Users, id=user_id)
-        # Verificar que el empleado pertenece a la empresa del manager
-        if not UserCompany.objects.filter(user=target_user, company=company).exists():
-            return JsonResponse({'error': 'Empleado no pertenece a esta empresa'}, status=403)
- 
-    start_str = request.GET.get('start', '')
-    end_str   = request.GET.get('end',  '')
-    try:
-        start = date.fromisoformat(start_str[:10])
-        end   = date.fromisoformat(end_str[:10])
-    except ValueError:
-        return JsonResponse({'error': 'Invalid dates'}, status=400)
- 
-    events = []
- 
-    # ── Ausencias / solicitudes ────────────────────────────────────────────────
-    STATUS_COLOR = {
-        'pending':  '#f59e0b',
-        'approved': '#10b981',
-        'rejected': '#ef4444',
-        'canceled': '#6b7280',
-    }
-    leaves = LeaveRequest.objects.filter(
-        user=target_user, company=company,
-        start_date__lte=end, end_date__gte=start,
-    )
-    for leave in leaves:
-        events.append({
-            'id':        f'leave-{leave.id}',
-            'title':     f'{leave.get_leave_type_display()} ({leave.get_status_display()})',
-            'start':     str(leave.start_date),
-            'end':       str(leave.end_date + timedelta(days=1)),  # FullCalendar end is exclusive
-            'color':     STATUS_COLOR.get(leave.status, '#6b7280'),
-            'allDay':    True,
-            'classNames': ['event-leave'],
-            'extendedProps': {
-                'type':     'leave',
-                'status':   leave.status,
-                'leave_id': str(leave.id),
-                'reason':   leave.reason_note or '',
-            },
-        })
- 
-    return JsonResponse(events, safe=False)
- 
  
 # ── API: solicitar ausencia ────────────────────────────────────────────────────
  
