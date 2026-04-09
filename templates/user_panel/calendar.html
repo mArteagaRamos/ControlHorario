@@ -161,252 +161,219 @@
  
 {% block extra_scripts %}
 <script>
+  //Constantes globales
   const IS_MANAGER  = {{ is_manager|yesno:"true,false" }};
   const CSRF_TOKEN  = '{{ csrf_token }}';
   const EVENTS_URL  = '{% url "api_calendar_events" %}';
   const LEAVE_URL   = '{% url "api_leave_create" %}';
   const PENDING_URL = '{% url "api_leave_pending" %}';
-  // Base para construir URLs de cancel/review dinámicamente
   const LEAVE_CANCEL_URL = '{% url "api_leave_cancel" leave_id="00000000-0000-0000-0000-000000000000" %}';
   const LEAVE_REVIEW_URL = '{% url "api_leave_review" leave_id="00000000-0000-0000-0000-000000000000" %}';
- 
-  let currentUserId = null;   // null = yo mismo
+
+  let currentUserId = null;
   let calendarObj   = null;
- 
+
   function leaveUrl(template, leaveId) {
     return template.replace('00000000-0000-0000-0000-000000000000', leaveId);
   }
- 
-  // ── Inicialización FullCalendar ────────────────────────────────────────────
+
+  // Inicialización cuando el DOM está listo
   document.addEventListener('DOMContentLoaded', function () {
     const calEl = document.getElementById('calendar');
- 
+
     calendarObj = new FullCalendar.Calendar(calEl, {
-      locale:       'es',
-      initialView:  'dayGridMonth',
+      locale: 'es',
+      initialView: 'dayGridMonth',
       headerToolbar: {
-        left:   'prev,next today',
+        left: 'prev,next today',
         center: 'title',
-        right:  'dayGridMonth,timeGridWeek,listWeek',
+        right: 'dayGridMonth,timeGridWeek,listWeek',
       },
-      height:       'auto',
+      height: 'auto',
       nowIndicator: true,
-      firstDay:     1,   // lunes
+      firstDay: 1,
       events: function (info, successCb, failureCb) {
         const params = new URLSearchParams({
           start: info.startStr.slice(0, 10),
           end:   info.endStr.slice(0, 10),
         });
         if (currentUserId) params.set('user_id', currentUserId);
- 
-        fetch(`${EVENTS_URL}?${params}`)
-          .then(r => r.json())
-          .then(successCb)
-          .catch(failureCb);
+        fetch(`${EVENTS_URL}?${params}`).then(r => r.json()).then(successCb).catch(failureCb);
       },
       eventClick: function (info) {
         showEventModal(info.event);
       },
     });
- 
     calendarObj.render();
- 
-    if (IS_MANAGER) loadPending();
-  });
- 
-    // ── Botón vacaciones ───────────────────────────────────────────────────
+
+    // Eventos de botones de solicitud
     document.getElementById('btnSendVacation').addEventListener('click', function () {
       sendLeaveRequest({
         leaveType: 'vacation',
-        reasonId:  'vacationReason',
-        startId:   'vacationStart',
-        endId:     'vacationEnd',
-        noteId:    'vacationNote',
-        msgId:     'vacationMsg',
-        btnEl:     this,
+        reasonId: 'vacationReason',
+        startId: 'vacationStart',
+        endId: 'vacationEnd',
+        noteId: 'vacationNote',
+        msgId: 'vacationMsg',
+        btnEl: this,
       });
     });
- 
-    // ── Botón ausencias ────────────────────────────────────────────────────
+
     document.getElementById('btnSendAbsence').addEventListener('click', function () {
       sendLeaveRequest({
         leaveType: 'absence',
-        reasonId:  'absenceReason',
-        startId:   'absenceStart',
-        endId:     'absenceEnd',
-        noteId:    'absenceNote',
-        msgId:     'absenceMsg',
-        btnEl:     this,
+        reasonId: 'absenceReason',
+        startId: 'absenceStart',
+        endId: 'absenceEnd',
+        noteId: 'absenceNote',
+        msgId: 'absenceMsg',
+        btnEl: this,
       });
     });
+
+    // Selector de equipo (solo para managers)
+    const teamSelector = document.getElementById('teamSelector');
+    if (teamSelector) {
+      teamSelector.addEventListener('change', function () {
+        currentUserId = this.value || null;
+        calendarObj.refetchEvents();
+      });
+    }
+
+    if (IS_MANAGER) loadPending();
   });
- 
-  // ── Función genérica de envío ──────────────────────────────────────────────
-async function sendLeaveRequest({ leaveType, reasonId, startId, endId, noteId, msgId, btnEl }) {    const start  = document.getElementById(startId).value;
-    const end    = document.getElementById(endId).value;
+
+  // Funciones lógicas 
+
+  async function sendLeaveRequest({ leaveType, reasonId, startId, endId, noteId, msgId, btnEl }) {
+    const start = document.getElementById(startId).value;
+    const end = document.getElementById(endId).value;
     const leave_reason = document.getElementById(reasonId).value;
-    const reason_note  = document.getElementById(noteId).value;
-    const msgEl  = document.getElementById(msgId);
- 
+    const reason_note = document.getElementById(noteId).value;
+    const msgEl = document.getElementById(msgId);
+
     if (!start || !end) {
       msgEl.innerHTML = '<span class="text-danger">Las fechas son obligatorias.</span>';
       return;
     }
-    if (end < start) {
-      msgEl.innerHTML = '<span class="text-danger">La fecha fin no puede ser anterior a la fecha inicio.</span>';
-      return;
-    }
- 
+
     btnEl.disabled = true;
     msgEl.innerHTML = '<span class="text-muted">Enviando…</span>';
- 
+
     try {
       const res = await fetch(LEAVE_URL, {
-        method:  'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken':  CSRF_TOKEN,
+          'X-CSRFToken': CSRF_TOKEN,
         },
-        body: JSON.stringify({ start_date: start, end_date: end, leave_type: type, reason }),
+        body: JSON.stringify({ 
+            start_date: start, 
+            end_date: end, 
+            leave_type: leaveType, 
+            leave_reason: leave_reason, 
+            reason_note: reason_note 
+        }),
       });
- 
+
       const data = await res.json();
- 
       if (res.ok && data.ok) {
         msgEl.innerHTML = '<span class="text-success">✔ Solicitud enviada correctamente</span>';
         calendarObj.refetchEvents();
         if (IS_MANAGER) loadPending();
-        // Limpiar formulario
-        document.getElementById(startId).value  = '';
-        document.getElementById(endId).value    = '';
-        document.getElementById(reasonId).value = '';
+        // Limpiar campos
+        document.getElementById(startId).value = '';
+        document.getElementById(endId).value = '';
+        document.getElementById(noteId).value = '';
       } else {
-        // Muestra el error real del backend
-        msgEl.innerHTML = `<span class="text-danger">${data.error || `Error ${res.status}`}</span>`;
+        msgEl.innerHTML = `<span class="text-danger">${data.error || 'Error'}</span>`;
       }
     } catch (err) {
-      msgEl.innerHTML = `<span class="text-danger">Error de red: ${err.message}</span>`;
+      msgEl.innerHTML = `<span class="text-danger">Error de conexión</span>`;
     } finally {
       btnEl.disabled = false;
     }
   }
- 
-  // ── Selector de empleado (manager) ────────────────────────────────────────
-  const teamSelector = document.getElementById('teamSelector');
-  if (teamSelector) {
-    teamSelector.addEventListener('change', function () {
-      currentUserId = this.value || null;
-      calendarObj.refetchEvents();
-    });
-  }
- 
- 
-  // ── Modal de detalle de evento ────────────────────────────────────────────
+
   function showEventModal(event) {
-    const props  = event.extendedProps;
-    const title  = document.getElementById('eventModalTitle');
-    const body   = document.getElementById('eventModalBody');
+    const props = event.extendedProps;
+    const title = document.getElementById('eventModalTitle');
+    const body  = document.getElementById('eventModalBody');
     const footer = document.getElementById('eventModalFooter');
- 
+
     title.textContent = event.title;
-    footer.innerHTML  = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
- 
+    
     if (props.type === 'leave') {
-      const statusLabels = {
-        pending:  'Pendiente',
-        approved: 'Aprobada',
-        rejected: 'Rechazada',
-        canceled: 'Cancelada',
-      };
+      const statusLabels = { pending: 'Pendiente', approved: 'Aprobada', rejected: 'Rechazada', canceled: 'Cancelada' };
       body.innerHTML = `
-        <p class="mb-1"><strong>Estado:</strong> ${statusLabels[props.status] || props.status}</p>
-        ${props.reason ? `<p class="mb-1"><strong>Motivo:</strong> ${props.reason}</p>` : ''}
-        <p class="mb-0 text-muted small">
-          ${event.startStr.slice(0, 10)} → ${event.endStr ? event.endStr.slice(0, 10) : ''}
-        </p>
+        <p><strong>Estado:</strong> ${statusLabels[props.status] || props.status}</p>
+        ${props.reason ? `<p><strong>Motivo:</strong> ${props.reason}</p>` : ''}
+        <p class="text-muted small">${event.startStr.slice(0, 10)} al ${event.endStr ? event.endStr.slice(0, 10) : ''}</p>
       `;
- 
-      // Botón cancelar (solo si es pendiente y el evento es del propio usuario)
+
+      let footerHtml = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
+      
       if (props.status === 'pending' && !currentUserId) {
-        footer.innerHTML = `
-          <button class="btn btn-danger btn-sm me-auto"
-                  onclick="cancelLeave('${props.leave_id}')">Cancelar solicitud</button>
-          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-        `;
+        footerHtml = `<button class="btn btn-danger btn-sm me-auto" onclick="cancelLeave('${props.leave_id}')">Cancelar</button>` + footerHtml;
       }
- 
-      // Manager: botones aprobar / rechazar
       if (IS_MANAGER && props.status === 'pending') {
-        footer.innerHTML = `
-          <button class="btn btn-success btn-sm" onclick="reviewLeave('${props.leave_id}','approve')">✔ Aprobar</button>
-          <button class="btn btn-danger btn-sm"  onclick="reviewLeave('${props.leave_id}','reject')">✘ Rechazar</button>
-          <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
-        `;
+        footerHtml = `
+          <button class="btn btn-success btn-sm" onclick="reviewLeave('${props.leave_id}','approve')">Aprobar</button>
+          <button class="btn btn-danger btn-sm" onclick="reviewLeave('${props.leave_id}','reject')">Rechazar</button>
+        ` + footerHtml;
       }
+      footer.innerHTML = footerHtml;
     } else {
-      body.innerHTML = `<p class="mb-0 text-muted">Jornada laboral del día.</p>`;
+      body.innerHTML = `<p>Jornada laboral.</p>`;
+      footer.innerHTML = '<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>';
     }
- 
     new bootstrap.Modal(document.getElementById('eventModal')).show();
   }
- 
-  //          MANAGER ACTIONS
-  // ── Cancelar solicitud (empleado) ─────────────────────────────────────────
+
   async function cancelLeave(leaveId) {
-    if (!confirm('¿Cancelar esta solicitud?')) return;
-    const res = await fetch(leaveUrl(LEAVE_CANCEL_URL, leaveId), {
-      method:  'POST',
-      headers: { 'X-CSRFToken': CSRF_TOKEN },
-    });
+    if (!confirm('¿Cancelar?')) return;
+    const res = await fetch(leaveUrl(LEAVE_CANCEL_URL, leaveId), { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } });
     if ((await res.json()).ok) {
-      bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
+      bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
       calendarObj.refetchEvents();
     }
   }
- 
-  // ── Aprobar / rechazar (manager) ──────────────────────────────────────────
+
   async function reviewLeave(leaveId, action) {
-    const note = action === 'reject'
-      ? prompt('Motivo del rechazo (opcional):') ?? ''
-      : '';
- 
+    const note = action === 'reject' ? prompt('Motivo del rechazo:') || '' : '';
     const res = await fetch(leaveUrl(LEAVE_REVIEW_URL, leaveId), {
-      method:  'POST',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-      body:    JSON.stringify({ action, note }),
+      body: JSON.stringify({ action, note }),
     });
     if ((await res.json()).ok) {
-      bootstrap.Modal.getInstance(document.getElementById('eventModal'))?.hide();
+      bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
       calendarObj.refetchEvents();
       loadPending();
     }
   }
- 
-  // ── Cargar pendientes (manager) ───────────────────────────────────────────
+
   async function loadPending() {
     const container = document.getElementById('pendingContainer');
-    const badge     = document.getElementById('pendingBadge');
     if (!container) return;
- 
-    const data = await fetch(PENDING_URL).then(r => r.json()).catch(() => []);
-    badge.textContent = data.length;
- 
-    if (data.length === 0) {
-      container.innerHTML = '<p class="text-muted small ps-2 mb-0">Sin solicitudes pendientes.</p>';
-      return;
-    }
- 
-    container.innerHTML = data.map(l => `
-      <div class="pending-card">
-        <div class="fw-semibold">${l.user}</div>
-        <div>${l.leave_type} · ${l.start_date} → ${l.end_date}</div>
-        ${l.reason ? `<div class="text-muted fst-italic">"${l.reason}"</div>` : ''}
-        <div class="mt-1 d-flex gap-1">
-          <button class="btn btn-success btn-sm" onclick="reviewLeave('${l.id}','approve')">✔</button>
-          <button class="btn btn-danger btn-sm"  onclick="reviewLeave('${l.id}','reject')">✘</button>
-        </div>
-      </div>
-    `).join('');
+    try {
+        const data = await fetch(PENDING_URL).then(r => r.json());
+        document.getElementById('pendingBadge').textContent = data.length;
+        if (data.length === 0) {
+          container.innerHTML = '<p class="text-muted small ps-2">Sin pendientes.</p>';
+          return;
+        }
+        container.innerHTML = data.map(l => `
+          <div class="pending-card mb-2 p-2 border rounded">
+            <div class="fw-bold small">${l.user}</div>
+            <div class="small">${l.start_date} / ${l.end_date}</div>
+            <div class="mt-1">
+              <button class="btn btn-success btn-xs" onclick="reviewLeave('${l.id}','approve')">✔</button>
+              <button class="btn btn-danger btn-xs" onclick="reviewLeave('${l.id}','reject')">✘</button>
+            </div>
+          </div>
+        `).join('');
+    } catch (e) { console.error(e); }
   }
 </script>
 {% endblock %}
