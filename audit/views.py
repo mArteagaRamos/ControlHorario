@@ -15,7 +15,6 @@ from datetime import datetime
 from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.views.decorators.http import require_POST
-from django.core.paginator import Paginator
 from django.views.decorators.cache import never_cache
 
 def combine_local_date_time(date_value, time_value):
@@ -132,14 +131,25 @@ def manager_logs(request):
         status='pending'
     ).select_related('time_entry', 'requester').order_by('-request_date')
 
+    # Get rejected incidents for the separate table
+    incidencias_rechazadas = CorrectionRequests.objects.filter(
+        time_entry__company=company,
+        status='rejected'
+    ).select_related('time_entry', 'requester', 'approver').order_by('-request_date')
+
     fichajes_con_incidencia = incidencias.values_list('time_entry_id', flat=True)
     fichajes_con_incidencia_str = [str(uid) for uid in fichajes_con_incidencia]
+
+    # Get TimeEntries with rejected incidents to exclude them from the main table
+    fichajes_rechazados = incidencias_rechazadas.values_list('time_entry_id', flat=True)
 
     # 4. Get the clock-ins
     registros = TimeEntries.objects.filter(
         company=company
     ).exclude(
         status__in=[TimeEntries.EntryStatus.CORRECTED, TimeEntries.EntryStatus.VOIDED]
+    ).exclude(
+        id__in=fichajes_rechazados
     ).annotate(
         rol_empleado=Subquery(rol_subquery)
     ).select_related('user').order_by('-date', '-clock_in')
@@ -162,21 +172,18 @@ def manager_logs(request):
     if solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
-    # 6. PAGINATION: Only 20 records per page
-    paginator = Paginator(registros, 20)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-
-    # 7. Format seconds ONLY for the 20 records that will be displayed
-    for r in page_obj:
+    # 6. Format seconds for all records and convert to list for iteration
+    registros_list = list(registros)
+    for r in registros_list:
         horas = r.total_seconds // 3600
         minutos = (r.total_seconds % 3600) // 60
         r.horas_formateadas = f"{horas}h {minutos}m" if r.total_seconds > 0 else "--"
 
     context = {
-        'page_obj': page_obj, # Send the current page instead of all records
+        'registros_list': registros_list, # Send all records for JS pagination
         'empleados': empleados,
         'incidencias': incidencias,
+        'incidencias_rechazadas': incidencias_rechazadas,
         'fichajes_con_incidencia': fichajes_con_incidencia_str,
         # Pass current filters so the HTML can preserve them
         'current_filters': {
@@ -561,10 +568,10 @@ def delete_employee(request):
         deleted_at__isnull=True
     )
 
-    # If user has no more active memberships, mark user as deleted globally
+    # If user has no more active memberships, mark user as suspended
     if not active_memberships.exists():
-        user.deleted_at = now
-        user.save()
+        user.status = 'suspended'
+        user.save(update_fields=['status'])
 
     return redirect('manager_employee')
 
@@ -588,10 +595,76 @@ def anular_registro(request):
         voiding_username = request.user.username
 
     registro.status = 'voided'
-
     registro.total_seconds = 0
     registro.notes = f"{registro.notes}\n[Anulado por {voiding_username}]"
+
+    # Soft-delete: Mark with deletion timestamp
+    registro.deleted_at = timezone.now()
 
     registro.save()
 
     return redirect('manager_logs')
+
+
+@manager_or_admin_required
+@require_POST
+def editar_incidencia_rechazada(request):
+    """
+    Allow managers/admins to edit a rejected correction request (change times and reason)
+    """
+    incidencia_id = request.POST.get('incidencia_id')
+    new_clock_in_str = request.POST.get('new_clock_in')
+    new_clock_out_str = request.POST.get('new_clock_out')
+    reason = request.POST.get('reason', '')
+
+    if not incidencia_id:
+        return HttpResponse("ID de incidencia no proporcionado.", status=400)
+
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+
+    # Parse datetime inputs
+    try:
+        if new_clock_in_str:
+            new_in = datetime.fromisoformat(new_clock_in_str.replace('T', ' '))
+            new_in = timezone.make_aware(new_in, timezone.get_current_timezone())
+        else:
+            new_in = None
+
+        if new_clock_out_str:
+            new_out = datetime.fromisoformat(new_clock_out_str.replace('T', ' '))
+            new_out = timezone.make_aware(new_out, timezone.get_current_timezone())
+        else:
+            new_out = None
+    except ValueError:
+        return HttpResponse("Formato de fecha/hora inválido.", status=400)
+
+    # Update the correction request
+    incidencia.new_clock_in = new_in
+    incidencia.new_clock_out = new_out
+    incidencia.reason = reason
+    # Reset status to pending for re-review
+    incidencia.status = 'pending'
+    incidencia.save()
+
+    return redirect('manager_logs')
+
+
+@manager_or_admin_required
+@require_POST
+def eliminar_incidencia_rechazada(request):
+    """
+    Soft-delete a rejected correction request
+    """
+    incidencia_id = request.POST.get('incidencia_id')
+
+    if not incidencia_id:
+        return HttpResponse("ID de incidencia no proporcionado.", status=400)
+
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+
+    # Soft-delete
+    incidencia.deleted_at = timezone.now()
+    incidencia.save()
+
+    return redirect('manager_logs')
+

@@ -22,7 +22,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
-    is_authenticated = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(default=True)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
@@ -42,10 +42,30 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
         return self.email
 
     def save(self, *args, **kwargs):
-        self.username = self.username.upper().strip() if self.username else self.username
-        self.surname  = self.surname.upper().strip()  if self.surname  else self.surname
-        self.email    = self.email.lower().strip()    if self.email    else self.email
-        self.dni      = self.dni.upper().strip()      if self.dni      else self.dni
+        # Get update_fields if specified
+        update_fields = kwargs.get('update_fields')
+
+        # Only normalize fields that will be saved
+        # If update_fields is None, normalize all fields (full save)
+        # If update_fields is specified, only normalize fields in that list
+
+        if update_fields is None:
+            # Full save: normalize all text fields
+            self.username = self.username.upper().strip() if self.username else self.username
+            self.surname  = self.surname.upper().strip()  if self.surname  else self.surname
+            self.email    = self.email.lower().strip()    if self.email    else self.email
+            self.dni      = self.dni.upper().strip()      if self.dni      else self.dni
+        else:
+            # Partial save: only normalize fields that are being updated
+            if 'username' in update_fields:
+                self.username = self.username.upper().strip() if self.username else self.username
+            if 'surname' in update_fields:
+                self.surname  = self.surname.upper().strip()  if self.surname  else self.surname
+            if 'email' in update_fields:
+                self.email    = self.email.lower().strip()    if self.email    else self.email
+            if 'dni' in update_fields:
+                self.dni      = self.dni.upper().strip()      if self.dni      else self.dni
+
         super().save(*args, **kwargs)
 
 # Company / membership models section

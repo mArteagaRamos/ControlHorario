@@ -323,6 +323,39 @@
     </div>
 </div>
 
+<!-- Modal Delete Company -->
+<div class="modal fade" id="modalEliminarEmpresa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title fw-bold">Eliminar Empresa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'delete_company' %}" method="POST">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <input type="hidden" name="company_id" id="deleteCompanyId">
+                    <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block text-center"></i>
+                    <p class="fs-5 text-center">¿Estás seguro de que deseas eliminar la empresa <br><strong id="deleteCompanyName"></strong>?</p>
+
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Importante:</strong> Esta acción eliminará la empresa y desvinculará a <span id="memberCountWarning" class="fw-bold">0</span> trabajadores asociados. Los datos se conservarán para auditoría.
+                    </div>
+
+                    <p class="text-muted small mb-0">
+                        <i class="bi bi-shield-check"></i> Podrás restaurar esta empresa desde la sección "Registros Eliminados".
+                    </p>
+                </div>
+                <div class="modal-footer bg-light justify-content-center">
+                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4">Sí, eliminar empresa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modal Select Company -->
 <div class="modal fade" id="modalSeleccionarEmpresa" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -664,6 +697,14 @@ function displayCompanyResults(companies) {
                     <a href="/manager_employees/?company_id=${company.id}" class="btn btn-sm btn-outline-info">
                         Personal
                     </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-company-id="${company.id}"
+                            data-company-name="${company.name}"
+                            data-company-legal-name="${company.legal_name}"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modalEliminarEmpresa">
+                        <i class="bi bi-trash"></i> Eliminar
+                    </button>
                 </div>
             </td>
         `;
@@ -964,5 +1005,30 @@ document.addEventListener('click', function(e) {
 
     handleSelectWorker(workerId, companies);
 });
+
+// ── Modal Handling for Delete Company ───────────────────────────────────────
+const deleteCompanyModal = document.getElementById('modalEliminarEmpresa');
+if (deleteCompanyModal) {
+    deleteCompanyModal.addEventListener('show.bs.modal', async function(event) {
+        const button = event.relatedTarget;
+        const companyId = button.getAttribute('data-company-id');
+        const companyName = button.getAttribute('data-company-name');
+        const companyLegalName = button.getAttribute('data-company-legal-name');
+
+        document.getElementById('deleteCompanyId').value = companyId;
+        document.getElementById('deleteCompanyName').textContent = companyName;
+
+        // Fetch member count for this company
+        try {
+            const response = await fetch(`${LOOKUP_COMPANY_URL}?company_id=${companyId}`);
+            const data = await response.json();
+            const memberCount = data.member_count || 0;
+            document.getElementById('memberCountWarning').textContent = memberCount;
+        } catch (e) {
+            console.error('Error fetching member count:', e);
+            document.getElementById('memberCountWarning').textContent = '?';
+        }
+    });
+}
 </script>
 {% endblock %}

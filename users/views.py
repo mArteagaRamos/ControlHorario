@@ -175,29 +175,47 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    if not user.is_authenticated:
-                        auth_login(request, user)
+                    # ── Check if user is suspended ──────────────────────────────
+                    if user.status == 'suspended':
+                        messages.error(request, 'Tu cuenta ha sido suspendida. Por favor contacta con el administrador.')
+                        return render(request, 'login/login.html', {'form': form})
+                    # ── Check if user is deleted ────────────────────────────────
+                    elif user.deleted_at is not None:
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        return render(request, 'login/login.html', {'form': form})
+
+                    # User is valid, now login
+                    auth_login(request, user)
+
+                    if user.must_change_password:
                         # Clear navigation history on login
                         request.session['nav_history'] = []
                         set_password_form = SetPasswordForm()
                         show_set_password = True
                     else:
+                        # ── Get only ACTIVE memberships (not soft-deleted) ───────
                         memberships = UserCompany.objects.filter(
-                            user=user
+                            user=user,
+                            deleted_at__isnull=True
                         ).select_related('company')
-                        auth_login(request, user)
-                        # Clear navigation history on login
-                        request.session['nav_history'] = []
-                        if memberships.count() > 1:
-                            company_form = CompanySelectLoginForm(companies=memberships)
-                            show_company_selector = True
-                            request.session['pending_company_selection'] = True
+
+                        # ── Check if user has at least one active membership ─────
+                        if memberships.count() == 0:
+                            messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
                         else:
-                            if memberships.first():
-                                request.session['company_id'] = str(
-                                    memberships.first().company.id
-                                )
-                            return redirect('home_timetracking')
+                            auth_login(request, user)
+                            # Clear navigation history on login
+                            request.session['nav_history'] = []
+                            if memberships.count() > 1:
+                                company_form = CompanySelectLoginForm(companies=memberships)
+                                show_company_selector = True
+                                request.session['pending_company_selection'] = True
+                            else:
+                                if memberships.first():
+                                    request.session['company_id'] = str(
+                                        memberships.first().company.id
+                                    )
+                                return redirect('home_timetracking')
                 else:
                     messages.error(request, 'Email o contraseña incorrectos.')
 
@@ -213,8 +231,8 @@ def login_view(request):
                 new_password = set_password_form.cleaned_data['new_password']
                 user         = request.user
                 user.set_password(new_password)
-                user.is_authenticated = True
-                user.save(update_fields=['password', 'is_authenticated'])
+                user.must_change_password = False
+                user.save(update_fields=['password', 'must_change_password'])
 
                 updated_user = authenticate(
                     request, username=user.email, password=new_password
@@ -222,30 +240,46 @@ def login_view(request):
                 if updated_user:
                     auth_login(request, updated_user)
 
-                memberships = UserCompany.objects.filter(
-                    user=user
-                ).select_related('company')
+                    # ── Check if user is deleted ────────────────────────────────
+                    if updated_user.deleted_at is not None:
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        auth_logout(request)
+                        return redirect('login')
 
-                if memberships.count() > 1:
-                    company_form          = CompanySelectLoginForm(companies=memberships)
-                    show_company_selector = True
-                    show_set_password     = False
-                    set_password_form     = None
-                    request.session['pending_company_selection'] = True
-                else:
-                    if memberships.first():
-                        request.session['company_id'] = str(
-                            memberships.first().company.id
-                        )
-                    return redirect('home_timetracking')
+                    # ── Get only ACTIVE memberships (not soft-deleted) ───────
+                    memberships = UserCompany.objects.filter(
+                        user=updated_user,
+                        deleted_at__isnull=True
+                    ).select_related('company')
+
+                    # ── Check if user has at least one active membership ─────
+                    if memberships.count() == 0:
+                        messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                        auth_logout(request)
+                        return redirect('login')
+
+                    if memberships.count() > 1:
+                        company_form          = CompanySelectLoginForm(companies=memberships)
+                        show_company_selector = True
+                        show_set_password     = False
+                        set_password_form     = None
+                        request.session['pending_company_selection'] = True
+                    else:
+                        if memberships.first():
+                            request.session['company_id'] = str(
+                                memberships.first().company.id
+                            )
+                        return redirect('home_timetracking')
 
         # ── Step 3: select company ────────────────────────────────────────
         elif step == 'select_company':
             if not request.user.is_authenticated:
                 return redirect('login')
 
+            # ── Get only ACTIVE memberships (not soft-deleted) ───────────────
             memberships  = UserCompany.objects.filter(
-                user=request.user
+                user=request.user,
+                deleted_at__isnull=True
             ).select_related('company')
             company_form = CompanySelectLoginForm(request.POST, companies=memberships)
 
@@ -296,7 +330,19 @@ def lookup_company(request):
 
     tax_id = request.GET.get('tax_id', '').strip()
     name  = request.GET.get('name', '').strip()
+    company_id = request.GET.get('company_id', '').strip()
     include_created = request.GET.get('include_created', 'true').lower() == 'true'
+
+    # ── Búsqueda por company_id → obtener conteo de miembros ─────────────────
+    if company_id:
+        company = Companies.objects.filter(id=company_id).first()
+        if not company:
+            return JsonResponse({'found': False})
+
+        member_count = UserCompany.objects.filter(company=company, deleted_at__isnull=True).count()
+        result = _company_to_dict(company, include_created=include_created)
+        result['member_count'] = member_count
+        return JsonResponse({'found': True, **result})
 
     # ── Búsqueda por nombre (autocompletado) → múltiples resultados ───────────
     if name:
@@ -372,11 +418,12 @@ def lookup_user(request):
             return JsonResponse({'results': []})
 
         if company_filter is None:
-            # Admin search: all users matching criteria WITH ACTIVE MEMBERSHIPS
+            # Admin search: all users matching criteria WITH ACTIVE MEMBERSHIPS and NOT suspended
             users = (
                 Users.objects
                 .filter(Q(username__icontains=name) | Q(surname__icontains=name))
-                .filter(usercompany__deleted_at__isnull=True)  # Only users with active memberships
+                .filter(usercompany__deleted_at__isnull=True)
+                .exclude(status='suspended')  # Exclude suspended users
                 .distinct()[:10]
             )
             results = [_user_to_dict(u, include_companies=include_companies) for u in users]
@@ -387,8 +434,9 @@ def lookup_user(request):
                 .filter(
                     Q(user__username__icontains=name) | Q(user__surname__icontains=name),
                     **company_filter,
-                    deleted_at__isnull=True  # Only active memberships
+                    deleted_at__isnull=True,  # Only active memberships
                 )
+                .exclude(user__status='suspended')  # Exclude suspended users
                 .select_related('user')[:10]
             )
             results = [_user_to_dict(m.user, include_companies=include_companies) for m in memberships]
@@ -619,7 +667,7 @@ def register_unified(request):
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
-                    worker_user.is_authenticated = False
+                    worker_user.must_change_password = True
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
                         worker_user.set_password(temp_password)
@@ -1045,9 +1093,42 @@ def restore_record(request):
             messages.warning(request, "Este registro no está eliminado.")
             return redirect('deleted_records')
 
-        # Restore the record
+        # If restoring a UserCompany membership, verify the company is not deleted
+        if record_type == 'user_companies':
+            if record.company.deleted_at is not None:
+                messages.error(
+                    request,
+                    f"No se puede restaurar esta membresía: la empresa '{record.company.name}' está eliminada. "
+                    f"Restaura primero la empresa desde la lista de registros eliminados."
+                )
+                return redirect('deleted_records')
+
+        # Restore the record using the manager's restore method
+        # This will automatically revert user status to 'active' if it's a user
         model.objects.restore(record)
-        messages.success(request, f"Registro de tipo '{record_type}' restaurado correctamente.")
+
+        # If restoring a UserCompany membership, also restore the associated user if needed
+        if record_type == 'user_companies':
+            user = record.user
+
+            # If user was deleted, restore it
+            if user.deleted_at is not None:
+                Users.objects.restore(user)
+
+            # If user is suspended, check if they have other active memberships
+            # If they do, mark them as active
+            if user.status == 'suspended':
+                active_memberships = UserCompany.objects.filter(
+                    user=user,
+                    deleted_at__isnull=True
+                ).count()
+
+                # If user has at least one active membership now, reactivate them
+                if active_memberships > 0:
+                    user.status = 'active'
+                    user.save(update_fields=['status'])
+
+        messages.success(request, "Registro restaurado correctamente.")
 
     except Exception as e:
         messages.error(request, f"Error al restaurar el registro: {str(e)}")
@@ -1106,3 +1187,72 @@ def permanently_delete_record(request):
         messages.error(request, f"Error al eliminar permanentemente el registro: {str(e)}")
 
     return redirect('deleted_records')
+
+
+@admin_only_required
+@require_POST
+def delete_company(request):
+    """
+    Elimina una empresa (soft-delete) y todas sus membresías asociadas.
+    Solo accesible para administradores.
+
+    POST params:
+        company_id: UUID de la empresa a eliminar
+    """
+    company_id = request.POST.get('company_id', '').strip()
+
+    if not company_id:
+        messages.error(request, "ID de empresa es obligatorio.")
+        return redirect('admin_dashboard')
+
+    try:
+        # Get the company
+        company = Companies.objects.filter(id=company_id).first()
+
+        if not company:
+            messages.error(request, "Empresa no encontrada.")
+            return redirect('admin_dashboard')
+
+        if company.deleted_at is not None:
+            messages.warning(request, "Esta empresa ya ha sido eliminada.")
+            return redirect('admin_dashboard')
+
+        # Mark company as deleted
+        company.deleted_at = timezone.now()
+        company.save(update_fields=['deleted_at'])
+
+        # Mark all associated memberships as deleted
+        memberships = UserCompany.objects.filter(company=company, deleted_at__isnull=True)
+        member_count = memberships.count()
+        suspended_users_count = 0
+
+        for membership in memberships:
+            # Count how many ACTIVE memberships this user has
+            active_memberships = UserCompany.objects.filter(
+                user=membership.user,
+                deleted_at__isnull=True
+            ).count()
+
+            # If this is the only active membership, mark user as suspended
+            if active_memberships == 1:
+                user = membership.user
+                user.status = 'suspended'
+                user.save(update_fields=['status'])
+                suspended_users_count += 1
+
+            # Mark membership as deleted
+            membership.deleted_at = timezone.now()
+            membership.save(update_fields=['deleted_at'])
+
+        # Build success message
+        suspended_msg = f" {suspended_users_count} usuario(s) fue(ron) suspendido(s)." if suspended_users_count > 0 else ""
+        messages.success(
+            request,
+            f"Empresa '{company.name}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
+        )
+
+    except Exception as e:
+        messages.error(request, f"Error al eliminar la empresa: {str(e)}")
+
+    return redirect('admin_dashboard')
+
