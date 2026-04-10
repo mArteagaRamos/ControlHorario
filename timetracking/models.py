@@ -4,6 +4,7 @@ from django.db import models
 from users.models import Users, Companies
 from django.utils import timezone
 from core.model_normalization import UppercaseNormalizationMixin
+from core.managers import SoftDeleteManager
 
 # Time entry models
 class TimeEntries(UppercaseNormalizationMixin, models.Model):
@@ -23,6 +24,9 @@ class TimeEntries(UppercaseNormalizationMixin, models.Model):
     status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
     notes = models.TextField(blank=True, null=True)
     total_seconds = models.IntegerField(default=0)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     # Calculate total seconds when showing the entry
     @property
@@ -55,6 +59,9 @@ class TimeEntryEvent(UppercaseNormalizationMixin, models.Model):
     timestamp = models.DateTimeField(default=timezone.now)
     actor = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='actor_id', blank=True, null=True)
     note = models.TextField(blank=True, null=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     class Meta:
         managed = False

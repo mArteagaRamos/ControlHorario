@@ -372,10 +372,12 @@ def lookup_user(request):
             return JsonResponse({'results': []})
 
         if company_filter is None:
-            # Admin search: all users matching criteria
+            # Admin search: all users matching criteria WITH ACTIVE MEMBERSHIPS
             users = (
                 Users.objects
-                .filter(Q(username__icontains=name) | Q(surname__icontains=name))[:10]
+                .filter(Q(username__icontains=name) | Q(surname__icontains=name))
+                .filter(usercompany__deleted_at__isnull=True)  # Only users with active memberships
+                .distinct()[:10]
             )
             results = [_user_to_dict(u, include_companies=include_companies) for u in users]
         else:
@@ -385,6 +387,7 @@ def lookup_user(request):
                 .filter(
                     Q(user__username__icontains=name) | Q(user__surname__icontains=name),
                     **company_filter,
+                    deleted_at__isnull=True  # Only active memberships
                 )
                 .select_related('user')[:10]
             )
@@ -941,3 +944,165 @@ def clear_delegated_worker(request):
     request.session.pop('delegated_user_role', None)
 
     return JsonResponse({'success': True})
+
+
+# ────────────────────────────────────────────────────────────────────
+# SOFT DELETE MANAGEMENT VIEWS (ADMIN ONLY)
+# ────────────────────────────────────────────────────────────────────
+
+@admin_only_required
+def deleted_records(request):
+    """
+    Vista para mostrar todos los registros eliminados (soft-deleted) agrupados por tipo.
+    Solo accesible para administradores.
+    """
+    # Get all deleted records by type
+    deleted_users = Users.objects.only_deleted().order_by('-deleted_at')
+    deleted_companies = Companies.objects.only_deleted().order_by('-deleted_at')
+    deleted_user_companies = UserCompany.objects.only_deleted().order_by('-deleted_at')
+    deleted_company_settings = CompanySettings.objects.only_deleted().order_by('-deleted_at')
+    deleted_corrections = CorrectionRequests.objects.only_deleted().order_by('-deleted_at')
+    deleted_time_entries = TimeEntries.objects.only_deleted().order_by('-deleted_at')
+    deleted_time_events = TimeEntryEvent.objects.only_deleted().order_by('-deleted_at')
+
+    # Para cada usuario eliminado, obtener sus empresas asociadas (incluyendo membresías eliminadas)
+    users_with_companies = []
+    for user in deleted_users:
+        companies = Companies.objects.all_with_deleted().filter(
+            usercompany__user=user
+        ).distinct()
+        users_with_companies.append({
+            'user': user,
+            'companies': companies
+        })
+
+    context = {
+        'deleted_users': users_with_companies,
+        'deleted_companies': deleted_companies,
+        'deleted_user_companies': deleted_user_companies,
+        'deleted_company_settings': deleted_company_settings,
+        'deleted_corrections': deleted_corrections,
+        'deleted_time_entries': deleted_time_entries,
+        'deleted_time_events': deleted_time_events,
+        'total_deleted': (
+            deleted_users.count() +
+            deleted_companies.count() +
+            deleted_user_companies.count() +
+            deleted_company_settings.count() +
+            deleted_corrections.count() +
+            deleted_time_entries.count() +
+            deleted_time_events.count()
+        ),
+    }
+
+    return render(request, 'admin/deleted_records.html', context)
+
+
+@admin_only_required
+@require_POST
+def restore_record(request):
+    """
+    Restaura un registro eliminado (soft-deleted).
+    Solo accesible para administradores.
+
+    POST params:
+        record_type: Tipo de registro (users, companies, user_companies, company_settings, corrections, time_entries, time_events)
+        record_id: UUID del registro a restaurar
+    """
+    record_type = request.POST.get('record_type', '').strip()
+    record_id = request.POST.get('record_id', '').strip()
+
+    if not record_type or not record_id:
+        messages.error(request, "Tipo de registro e ID son obligatorios.")
+        return redirect('deleted_records')
+
+    try:
+        # Map record types to models
+        models_map = {
+            'users': Users,
+            'companies': Companies,
+            'user_companies': UserCompany,
+            'company_settings': CompanySettings,
+            'corrections': CorrectionRequests,
+            'time_entries': TimeEntries,
+            'time_events': TimeEntryEvent,
+        }
+
+        if record_type not in models_map:
+            messages.error(request, "Tipo de registro no válido.")
+            return redirect('deleted_records')
+
+        model = models_map[record_type]
+
+        # Get the deleted record
+        record = model.objects.all_with_deleted().filter(id=record_id).first()
+
+        if not record:
+            messages.error(request, f"Registro de tipo '{record_type}' con ID '{record_id}' no encontrado.")
+            return redirect('deleted_records')
+
+        if record.deleted_at is None:
+            messages.warning(request, "Este registro no está eliminado.")
+            return redirect('deleted_records')
+
+        # Restore the record
+        model.objects.restore(record)
+        messages.success(request, f"Registro de tipo '{record_type}' restaurado correctamente.")
+
+    except Exception as e:
+        messages.error(request, f"Error al restaurar el registro: {str(e)}")
+
+    return redirect('deleted_records')
+
+
+@admin_only_required
+@require_POST
+def permanently_delete_record(request):
+    """
+    Elimina permanentemente un registro eliminado (hard-delete).
+    Solo accesible para administradores.
+
+    POST params:
+        record_type: Tipo de registro
+        record_id: UUID del registro a eliminar permanentemente
+    """
+    record_type = request.POST.get('record_type', '').strip()
+    record_id = request.POST.get('record_id', '').strip()
+
+    if not record_type or not record_id:
+        messages.error(request, "Tipo de registro e ID son obligatorios.")
+        return redirect('deleted_records')
+
+    try:
+        # Map record types to models
+        models_map = {
+            'users': Users,
+            'companies': Companies,
+            'user_companies': UserCompany,
+            'company_settings': CompanySettings,
+            'corrections': CorrectionRequests,
+            'time_entries': TimeEntries,
+            'time_events': TimeEntryEvent,
+        }
+
+        if record_type not in models_map:
+            messages.error(request, "Tipo de registro no válido.")
+            return redirect('deleted_records')
+
+        model = models_map[record_type]
+
+        # Get the deleted record
+        record = model.objects.all_with_deleted().filter(id=record_id).first()
+
+        if not record:
+            messages.error(request, f"Registro de tipo '{record_type}' con ID '{record_id}' no encontrado.")
+            return redirect('deleted_records')
+
+        # Permanently delete the record
+        model.objects.hard_delete(record)
+        messages.success(request, f"Registro de tipo '{record_type}' eliminado permanentemente.")
+
+    except Exception as e:
+        messages.error(request, f"Error al eliminar permanentemente el registro: {str(e)}")
+
+    return redirect('deleted_records')
