@@ -193,6 +193,27 @@
           .then(successCb)
           .catch(failureCb);
       },
+      eventContent: function (arg) {
+        const title = arg.event.title || '';
+        const status = arg.event.extendedProps.status || '';
+        const lowerTitle = title.toLowerCase();
+        const isVacation = lowerTitle.includes('vacaciones') || lowerTitle.includes('vacation');
+        const isAbsence = lowerTitle.includes('ausencia') || lowerTitle.includes('absence');
+        const icon = isVacation ? '🏝️' : isAbsence ? '🚫' : '📌';
+        const typeClass = isVacation ? 'vacation-event' : isAbsence ? 'absence-event' : 'other-event';
+
+        return {
+          html: `
+            <div class="fc-event-custom ${typeClass}">
+              <span class="event-icon">${icon}</span>
+              <div class="event-text">
+                <div class="event-title">${title}</div>
+                <div class="event-status"><span class="event-status-pill">${status}</span></div>
+              </div>
+            </div>
+          `,
+        };
+      },
       eventClick: function (info) { showEventModal(info.event); }
     });
     calendarObj.render();
