@@ -41,7 +41,7 @@
     {% endif %}
     {% if is_delegating %}
       <span class="home-username">, {{ delegated_user_name }}</span>
-    {% elif request.user.is_authenticated %}
+    {% elif request.user.must_change_password %}
       <span class="home-username">, {{ request.user.username }}</span>
     {% endif %}
   </h2>

@@ -466,29 +466,35 @@ def api_leave_request_cancel(request, leave_id):
 @login_required
 @manager_or_admin_required
 def api_leave_pending(request):
-    """Lista de solicitudes pendientes para el manager."""
-    company = _get_company(request)
-    leaves = (
-        LeaveRequest.objects
-        .filter(company=company, status=LeaveRequest.LeaveStatus.PENDING)
-        .select_related('user')
-        .order_by('start_date')
-    )
-    data = [
-        {
-            'id':         str(l.id),
-            'user':       l.user.get_full_name() or l.user.email,
-            'leave_type': l.get_leave_type_display(),
-            'leave_reason': l.get_leave_reason_display(),
-            'start_date': str(l.start_date),
-            'end_date':   str(l.end_date),
-            'reason_note':     l.reason_note or '',
-            'created_at': l.created_at.strftime('%d/%m/%Y'),
-        }
-        for l in leaves
-    ]
-    return JsonResponse(data, safe=False)
- 
+    try:
+        company = _get_company(request)
+        leaves = LeaveRequest.objects.filter(
+            company=company, 
+            status=LeaveRequest.LeaveStatus.PENDING
+        ).select_related('user')
+
+        data = []
+        for l in leaves:
+            # Según tu users/models.py, los campos son 'username' y 'surname'
+            full_name = f"{l.user.username} {l.user.surname}".strip()
+            
+            data.append({
+                'id':           str(l.id),
+                'user':         full_name or l.user.email,
+                'leave_type':   l.get_leave_type_display(),
+                # USAMOS 'reason' directamente si get_reason_display falla
+                'leave_reason': l.get_leave_reason_display(),
+                'start_date':   l.start_date.strftime('%d/%m/%Y'),
+                'end_date':     l.end_date.strftime('%d/%m/%Y'),
+                'reason_note':  l.reason_note or ""
+            })
+        
+        # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
+        return JsonResponse({'requests': data})
+
+    except Exception as e:
+        print(f"DEBUG ERROR: {str(e)}") 
+        return JsonResponse({'error': str(e)}, status=500)
  
 # ── API: aprobar / rechazar (manager) ────────────────────────────────────────
  
@@ -522,7 +528,7 @@ def api_leave_review(request, leave_id):
     leave.reviewed_at = timezone.now()
     leave.review_note = note
     leave.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'])
- 
+    # leave.save() 
     return JsonResponse({'ok': True, 'new_status': leave.status})
  
  

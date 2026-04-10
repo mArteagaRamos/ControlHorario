@@ -22,7 +22,7 @@ BREADCRUMB_LABELS = {
 
 def get_breadcrumbs(request):
     """Generate breadcrumbs from navigation history"""
-    if not request.user.is_authenticated:
+    if not request.user.must_change_password:
         return []
 
     history = request.session.get('nav_history', [])
@@ -53,7 +53,7 @@ def user_company(request):
     memberships = UserCompany.objects.none()
     is_admin = False
 
-    if request.user.is_authenticated:
+    if request.user.must_change_password:
         memberships = UserCompany.objects.filter(user=request.user).select_related('company')
 
         is_admin = getattr(request.user, 'is_admin', False)

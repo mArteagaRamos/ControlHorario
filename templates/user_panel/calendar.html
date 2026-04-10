@@ -11,11 +11,17 @@
 {% endblock %}
  
 {% block content %}
-<div class="container-fluid py-4">
-  <div class="row g-4 align-items-start">
+<div class="cal-page">
+  {% if is_manager and pending_count > 0 %}
+  <div class="pending-banner" id="pendingBanner">
+    <span>Tienes <strong>{{ pending_count }}</strong> solicitud{{ pending_count|pluralize:",es" }} pendiente{{ pending_count|pluralize:"s" }} de revisión.</span>
+    <button class="pending-banner__close" onclick="this.closest('.pending-banner').remove()">✕</button>
+  </div>
+  {% endif %}
+  <div class="cal-layout">
  
     <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
-    <div class="col-md-3 calendar-sidebar">
+    <aside class="cal-aside">
  
       {% if is_manager %}
       <!-- Selector de empleado -->
@@ -32,17 +38,7 @@
           </select>
         </div>
       </div>
- 
-      <!-- Solicitudes pendientes -->
-      <div class="card mb-3 shadow-sm">
-        <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-           Pendientes
-          <span class="badge bg-warning text-dark" id="pendingBadge">{{ pending_count }}</span>
-        </div>
-        <div class="card-body p-2" id="pendingContainer">
-          <small class="text-muted ps-2"></small>
-        </div>
-      </div>
+
       {% endif %}
  
       <!-- ── Solicitar VACATION ────────────────────────────────────────── -->
@@ -69,7 +65,7 @@
             <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
             <textarea id="vacationNote" class="form-control form-control-sm" rows="2"></textarea>
           </div>
-          <button class="btn btn-primary btn-sm w-100" id="btnSendVacation" type="button">
+          <button class="cal-btn cal-btn--vacation" id="btnSendVacation" type="button">
             Solicitar vacaciones
           </button>
           <div id="vacationMsg" class="mt-2 small"></div>
@@ -101,46 +97,43 @@
             <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
             <textarea id="absenceNote" class="form-control form-control-sm" rows="2"></textarea>
           </div>
-          <button class="btn btn-warning btn-sm w-100" id="btnSendAbsence" type="button">
+          <button class="cal-btn cal-btn--absence" id="btnSendAbsence" type="button">
             Solicitar ausencia
           </button>
           <div id="absenceMsg" class="mt-2 small"></div>
         </div>
       </div>
  
-      <div class="card shadow-sm">
-        <div class="card-body py-2 px-3">
-          <div class="d-flex align-items-center mb-1 gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#f59e0b"></span>
-            <small>Solicitud pendiente</small>
-          </div>
-          <div class="d-flex align-items-center mb-1 gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#10b981"></span>
-            <small>Aprobada</small>
-          </div>
-          <div class="d-flex align-items-center mb-1 gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#ef4444"></span>
-            <small>Rechazada</small>
-          </div>
-          <div class="d-flex align-items-center gap-2">
-            <span class="d-inline-block rounded" style="width:14px;height:14px;background:#6b7280"></span>
-            <small>Cancelada</small>
-          </div>
-        </div>
-      </div>
- 
-    </div><!-- /sidebar -->
+    </aside><!-- /sidebar -->
  
     <!-- ── Calendario ─────────────────────────────────────────────────── -->
-    <div class="col-md-9">
+    <div class="cal-main">
+      <div class="cal-legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#d97706"></span> Pendiente</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#5a8f5a"></span> Aprobada</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#b94040"></span> Rechazada</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#888"></span> Cancelada</div>
+      </div>
       <div class="card shadow-sm">
         <div class="card-body">
           <div id="calendar"></div>
         </div>
       </div>
+      {% if is_manager %}
+      <div class="pending-section">
+        <div class="pending-section__header">
+          Solicitudes pendientes
+          <span class="pending-section__badge" id="pendingBadge">{{ pending_count }}</span>
+        </div>
+        <div class="pending-grid" id="pendingContainer">
+          <small class="text-muted">Cargando…</small>
+        </div>
+      </div>
+      {% endif %}
     </div>
- 
+    
   </div><!-- /row -->
+  
 </div><!-- /container -->
  
 <!-- ── Modal: detalle de evento ──────────────────────────────────────────── -->
@@ -195,27 +188,7 @@
           .then(successCb)
           .catch(failureCb);
       },
-      eventContent: function (arg) {
-        const title = arg.event.title || '';
-        const status = arg.event.extendedProps.status || '';
-        const lowerTitle = title.toLowerCase();
-        const isVacation = lowerTitle.includes('vacaciones') || lowerTitle.includes('vacation');
-        const isAbsence = lowerTitle.includes('ausencia') || lowerTitle.includes('absence');
-        const icon = isVacation ? '🏝️' : isAbsence ? '🚫' : '📌';
-        const typeClass = isVacation ? 'vacation-event' : isAbsence ? 'absence-event' : 'other-event';
-
-        return {
-          html: `
-            <div class="fc-event-custom ${typeClass}">
-              <span class="event-icon">${icon}</span>
-              <div class="event-text">
-                <div class="event-title">${title}</div>
-                <div class="event-status"><span class="event-status-pill">${status}</span></div>
-              </div>
-            </div>
-          `,
-        };
-      },
+      
       eventClick: function (info) { showEventModal(info.event); }
     });
     calendarObj.render();
@@ -302,8 +275,9 @@
     const badge     = document.getElementById('pendingBadge');
     try {
       const res  = await fetch(LEAVE_PENDING_URL);
-      const list = await res.json();
+      const data = await res.json();
 
+      const list = data.requests;
       badge.textContent = list.length;
 
       if (list.length === 0) {
@@ -337,26 +311,41 @@
       : '';
 
     try {
-      const res = await fetch(`${LEAVE_REVIEW_URL}${leaveId}/review/`, {
+        const res = await fetch(`/api/leave/${leaveId}/review/`, {        
         method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-        body:    JSON.stringify({ action, note }),
-      });
-      const data = await res.json();
+        headers: { 
+        'Content-Type': 'application/json', 
+        'X-CSRFToken': CSRF_TOKEN 
+      },
+      body:    JSON.stringify({ action, note }),
+    });
 
-      if (res.ok) {
-        // Elimina la tarjeta de la lista y refresca el calendario
-        document.getElementById(`pending-${leaveId}`)?.remove();
-        const badge = document.getElementById('pendingBadge');
-        badge.textContent = Math.max(0, parseInt(badge.textContent) - 1);
-        calendarObj.refetchEvents();
-      } else {
-        alert(data.error || 'Error al procesar la solicitud.');
+const data = await res.json();
+
+    if (res.ok) {
+
+      const element = document.getElementById(`pending-${leaveId}`);
+      if (element) element.remove();
+
+      //Actualiza el contador 
+      const badge = document.getElementById('pendingBadge');
+      if (badge) {
+        const count = Math.max(0, parseInt(badge.textContent) - 1);
+        badge.textContent = count;
       }
-    } catch (e) {
-      alert('Error de red.');
+
+      // Refrescamos el calendario para que cambie el color del evento
+      if (typeof calendarObj !== 'undefined') {
+        calendarObj.refetchEvents();
+      }
+    } else {
+      alert(data.error || 'Error al procesar la solicitud.');
     }
+  } catch (e) {
+    console.error("Error en la petición:", e);
+    alert('Error de conexión con el servidor.');
   }
+}
 
   // ── Modal detalle de evento ──────────────────────────────────────────────────
   function showEventModal(event) {

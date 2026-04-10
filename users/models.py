@@ -22,7 +22,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
-    is_authenticated = models.BooleanField(default=False)
+    must_change_password = models.BooleanField(default=False)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 

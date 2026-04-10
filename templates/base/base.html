@@ -68,7 +68,7 @@
 
         <!-- User -->
         <div class="navbar-user">
-            {% if request.user.is_authenticated %}
+            {% if request.user.must_change_password %}
                 <span class="d-none d-md-inline-block">
                     {{ request.user.username }} {{ request.user.surname }}
                     {% if current_role %}

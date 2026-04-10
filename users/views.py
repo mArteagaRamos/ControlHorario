@@ -175,7 +175,7 @@ def login_view(request):
                 user     = authenticate(request, username=email, password=password)
 
                 if user is not None:
-                    if not user.is_authenticated:
+                    if not user.must_change_password:
                         auth_login(request, user)
                         # Clear navigation history on login
                         request.session['nav_history'] = []
@@ -203,7 +203,7 @@ def login_view(request):
 
         # ── Step 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
-            if not request.user.is_authenticated:
+            if not request.user.must_change_password:
                 return redirect('login')
 
             set_password_form = SetPasswordForm(request.POST)
@@ -213,8 +213,8 @@ def login_view(request):
                 new_password = set_password_form.cleaned_data['new_password']
                 user         = request.user
                 user.set_password(new_password)
-                user.is_authenticated = True
-                user.save(update_fields=['password', 'is_authenticated'])
+                user.must_change_password = True
+                user.save(update_fields=['password', 'must_change_password'])
 
                 updated_user = authenticate(
                     request, username=user.email, password=new_password
@@ -241,7 +241,7 @@ def login_view(request):
 
         # ── Step 3: select company ────────────────────────────────────────
         elif step == 'select_company':
-            if not request.user.is_authenticated:
+            if not request.user.must_change_password:
                 return redirect('login')
 
             memberships  = UserCompany.objects.filter(
@@ -619,7 +619,7 @@ def register_unified(request):
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
-                    worker_user.is_authenticated = False
+                    worker_user.must_change_password = False
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
                         worker_user.set_password(temp_password)
@@ -865,7 +865,7 @@ def admin_only_required(view_func):
     """Decorator to ensure only admin users can access the view"""
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated:
+        if not request.user.must_change_password:
             return render(request, 'error/sin_loguear.html', status=401)
 
         if not request.user.is_admin:
