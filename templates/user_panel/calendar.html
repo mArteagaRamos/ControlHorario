@@ -163,6 +163,8 @@
 <script>
   const EVENTS_URL      = '{% url "api_calendar_events" %}';
   const LEAVE_CREATE_URL = '{% url "api_leave_create" %}';
+  const LEAVE_PENDING_URL = '{% url "api_leave_pending" %}';
+  const LEAVE_REVIEW_URL  = '/api/leave';
   const CSRF_TOKEN      = '{{ csrf_token }}';
 
   let currentUserId = null;
@@ -205,6 +207,10 @@
         calendarObj.refetchEvents();
       });
     }
+        // Cargar solicitudes pendientes (manager)
+    if (document.getElementById('pendingContainer')) {
+        loadPendingRequests();
+      }  
 
     // ── Botón solicitar VACACIONES ────────────────────────────────────────
     document.getElementById('btnSendVacation')
@@ -266,6 +272,68 @@
     } catch (err) {
       msgEl.className = 'mt-2 small text-danger';
       msgEl.textContent = 'Error de red. Inténtalo de nuevo.';
+    }
+  }
+
+    // ── Cargar solicitudes pendientes ─────────────────────────────────────────────
+  async function loadPendingRequests() {
+    const container = document.getElementById('pendingContainer');
+    const badge     = document.getElementById('pendingBadge');
+    try {
+      const res  = await fetch(LEAVE_PENDING_URL);
+      const list = await res.json();
+
+      badge.textContent = list.length;
+
+      if (list.length === 0) {
+        container.innerHTML = '<small class="text-muted ps-2">Sin solicitudes pendientes.</small>';
+        return;
+      }
+
+      container.innerHTML = list.map(l => `
+        <div class="border rounded p-2 mb-2 small" id="pending-${l.id}">
+          <div class="fw-semibold">${l.user}</div>
+          <div class="text-muted">${l.leave_type} · ${l.leave_reason}</div>
+          <div>${l.start_date} → ${l.end_date}</div>
+          ${l.reason_note ? `<div class="fst-italic text-muted mt-1">"${l.reason_note}"</div>` : ''}
+          <div class="d-flex gap-1 mt-2">
+            <button class="btn btn-success btn-sm flex-fill"
+                    onclick="reviewLeave('${l.id}', 'approve')">✓ Aprobar</button>
+            <button class="btn btn-danger btn-sm flex-fill"
+                    onclick="reviewLeave('${l.id}', 'reject')">✗ Rechazar</button>
+          </div>
+        </div>
+      `).join('');
+    } catch (e) {
+      container.innerHTML = '<small class="text-danger ps-2">Error al cargar.</small>';
+    }
+  }
+
+  // ── Aprobar / Rechazar ────────────────────────────────────────────────────────
+  async function reviewLeave(leaveId, action) {
+    const note = action === 'reject'
+      ? (prompt('Motivo del rechazo (opcional):') ?? '')
+      : '';
+
+    try {
+      const res = await fetch(`${LEAVE_REVIEW_URL}${leaveId}/review/`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body:    JSON.stringify({ action, note }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        // Elimina la tarjeta de la lista y refresca el calendario
+        document.getElementById(`pending-${leaveId}`)?.remove();
+        const badge = document.getElementById('pendingBadge');
+        badge.textContent = Math.max(0, parseInt(badge.textContent) - 1);
+        calendarObj.refetchEvents();
+      } else {
+        alert(data.error || 'Error al procesar la solicitud.');
+      }
+    } catch (e) {
+      alert('Error de red.');
     }
   }
 
