@@ -40,6 +40,11 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home_timetracking'
 LOGOUT_REDIRECT_URL = 'login'
 
+# Authentication backend - Soft Delete support
+AUTHENTICATION_BACKENDS = [
+    'core.auth.SoftDeleteBackend',
+]
+
 #Messages
 from django.contrib.messages import constants as messages
 MESSAGE_TAGS = {

@@ -1,25 +1,12 @@
 # ---------- Backend Models: users/models.py ----------
 
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from core.model_normalization import UppercaseNormalizationMixin
+from core.managers import UsersManager, SoftDeleteManager
 import uuid
-
-# Manager section
-class UsersManager(BaseUserManager):
-    def create_user(self, email, username, dni, password=None, **extra_fields):
-        if not email:
-            raise ValueError('Email is required')
-        if not dni:
-            raise ValueError('DNI is required')
-        
-        email = self.normalize_email(email)
-        user = self.model(email=email, username=username, dni=dni, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
 
 class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     class StatusChoices(models.TextChoices):
@@ -36,7 +23,8 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
     is_authenticated = models.BooleanField(default=False)
-    dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='') 
+    dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
     uppercase_fields = {'username', 'surname', 'email', 'dni'}
     uppercase_excluded_fields = {'password'}
@@ -68,6 +56,9 @@ class Companies(UppercaseNormalizationMixin, models.Model):
     tax_id = models.CharField(max_length=20, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     class Meta:
         managed = False
@@ -84,6 +75,9 @@ class UserCompany(UppercaseNormalizationMixin, models.Model):
     company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
     role = models.CharField(max_length=20, choices=RoleChoices.choices, default=RoleChoices.EMPLOYEE)
     joined_at = models.DateTimeField(default=timezone.now)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     class Meta:
         managed = False
@@ -101,6 +95,9 @@ class CompanySettings(UppercaseNormalizationMixin, models.Model):
     weekend_days = ArrayField(models.IntegerField(), default=list, blank=True)
     holidays = ArrayField(models.DateField(), default=list, blank=True)
     updated_at = models.DateTimeField(default=timezone.now)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     class Meta:
         managed = False
@@ -119,12 +116,15 @@ class CorrectionRequests(UppercaseNormalizationMixin, models.Model):
     requester = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='requester_id', null=True, blank=True)
     request_date = models.DateTimeField(default=timezone.now)
     reason = models.TextField()
-    new_clock_in = models.DateTimeField(blank=True, null=True)  
-    new_clock_out = models.DateTimeField(blank=True, null=True) 
+    new_clock_in = models.DateTimeField(blank=True, null=True)
+    new_clock_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=CorrectionStatus.choices, default=CorrectionStatus.PENDING)
     approver = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='correctionrequests_approver_set', db_column='approver_id', blank=True, null=True)
     approval_date = models.DateTimeField(blank=True, null=True)
     correction_note = models.TextField(blank=True, null=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+
+    objects = SoftDeleteManager()
 
     class Meta:
         managed = False

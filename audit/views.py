@@ -32,9 +32,10 @@ def manager_or_admin_required(view_func):
             return render(request, 'error/sin_loguear.html', status=401)
 
         is_admin = request.user.is_admin
-        is_manager = UserCompany.objects.filter(
+        is_manager = UserCompany.objects.all_with_deleted().filter(
             user=request.user,
-            role=UserCompany.RoleChoices.MANAGER
+            role=UserCompany.RoleChoices.MANAGER,
+            deleted_at__isnull=True
         ).exists()
 
         if is_admin or is_manager:
@@ -390,16 +391,23 @@ def manager_employee(request):
             delegation_context['is_inspecting'] = True
         else:
             # Get the user's own company membership
-            user_membership = UserCompany.objects.filter(user=request.user).first()
+            user_membership = UserCompany.objects.all_with_deleted().filter(
+                user=request.user,
+                deleted_at__isnull=True
+            ).first()
             if not user_membership:
                 return HttpResponseForbidden("No estás asignado a ninguna empresa.")
             company = user_membership.company
 
     # 2. Check if they are a manager or admin to pass it to the template
-    user_membership = UserCompany.objects.filter(user=request.user, company=company).first()
+    user_membership = UserCompany.objects.all_with_deleted().filter(
+        user=request.user,
+        company=company,
+        deleted_at__isnull=True
+    ).first()
     is_manager = (user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
 
-    # 3. Get ALL memberships (employees) for that company
+    # 3. Get ALL memberships (employees) for that company (non-deleted only)
     memberships = UserCompany.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
@@ -464,33 +472,99 @@ def delete_employee(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
 
-    # 1. Determine which company to use
-    if delegation_context['is_delegating']:
-        company_id = delegation_context['delegated_company_id']
-        company = Companies.objects.get(id=company_id)
-    else:
-        # Get current manager's company
-        membership_manager = UserCompany.objects.filter(
-            user=request.user,
-            role=UserCompany.RoleChoices.MANAGER
-        ).first()
-        company = membership_manager.company if membership_manager else None
-
-    if not company:
-        return HttpResponseForbidden("No se pudo determinar la empresa.")
-
-    # 2. Collect ID of user to delete
+    # 1. Collect ID of user to delete
     user_id = request.POST.get('user_id')
 
-    # 3. Find the membership and delete it
-    # With this we "unlink" the user from the company without deleting their historical clock-ins or global account
-    membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
+    if not user_id:
+        return HttpResponseForbidden("ID de usuario no proporcionado.")
 
-    # Prevent a manager from accidentally deleting themselves
-    if user_id == str(request.user.id):
-        return redirect('manager_employee')
+    # Get the user to mark as deleted
+    try:
+        user = Users.objects.all_with_deleted().get(id=user_id)
+    except Users.DoesNotExist:
+        return HttpResponseForbidden("Usuario no encontrado.")
 
-    membership.delete()
+    # 2. Determine which companies to delete from
+    company_ids_str = request.POST.get('company_ids', '').strip()
+    company_id_single = request.POST.get('company_id', '').strip()
+
+    company_ids = []
+
+    if company_ids_str:
+        # Multiple companies from multi-select
+        company_ids = [cid.strip() for cid in company_ids_str.split(',') if cid.strip()]
+    elif company_id_single:
+        # Single company from manager view
+        company_ids = [company_id_single]
+    elif delegation_context['is_delegating']:
+        # Delegated context
+        company_ids = [delegation_context['delegated_company_id']]
+    else:
+        # Get current manager's own company
+        membership_manager = UserCompany.objects.all_with_deleted().filter(
+            user=request.user,
+            role=UserCompany.RoleChoices.MANAGER,
+            deleted_at__isnull=True
+        ).first()
+        if membership_manager:
+            company_ids = [str(membership_manager.company.id)]
+
+    if not company_ids:
+        return HttpResponseForbidden("No se especificaron empresas.")
+
+    # 3. Validate permissions and get companies
+    companies_to_delete = []
+    for cid in company_ids:
+        try:
+            company = Companies.objects.get(id=cid)
+            # Validate permission (admin or manager of this company OR delegating)
+            if not delegation_context['is_delegating'] and not request.user.is_admin:
+                membership_manager = UserCompany.objects.filter(
+                    user=request.user,
+                    company=company,
+                    role=UserCompany.RoleChoices.MANAGER,
+                    deleted_at__isnull=True
+                ).first()
+                if not membership_manager:
+                    return HttpResponseForbidden(f"No tienes permiso para eliminar usuarios de {company.name}.")
+            companies_to_delete.append(company)
+        except Companies.DoesNotExist:
+            return HttpResponseForbidden(f"Empresa {cid} no encontrada.")
+
+    # 4. Prevent a manager from accidentally deleting themselves
+    for company in companies_to_delete:
+        membership = UserCompany.objects.all_with_deleted().filter(
+            user=request.user,
+            company=company,
+            deleted_at__isnull=True
+        ).first()
+        if membership and str(user_id) == str(request.user.id):
+            return redirect('manager_employee')
+
+    # 5. Delete from all specified companies
+    now = timezone.now()
+
+    # Mark all memberships for these companies as deleted
+    memberships = UserCompany.objects.all_with_deleted().filter(
+        user=user,
+        company__in=companies_to_delete
+    )
+
+    for membership in memberships:
+        if membership.deleted_at is None:  # Only soft-delete if not already deleted
+            membership.deleted_at = now
+            membership.save()
+
+    # 6. Check if user belongs to any active companies after deletion
+    active_memberships = UserCompany.objects.filter(
+        user=user,
+        deleted_at__isnull=True
+    )
+
+    # If user has no more active memberships, mark user as deleted globally
+    if not active_memberships.exists():
+        user.deleted_at = now
+        user.save()
 
     return redirect('manager_employee')
 
