@@ -5,106 +5,25 @@
 {% block title %}Calendar{% endblock %}
 
 {% block extra_head %}
-<style>
-  /* 1. Tipografía más limpia y moderna */
-  .fc {
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: #3c4043;
-  }
-
-  /* 2. Suavizar los bordes de la cuadrícula */
-  .fc-theme-standard td, .fc-theme-standard th {
-    border-color: #dadce0;
-  }
-
-  /* 3. Cabecera de los días (Lun, Mar, Mié...) estilo Google */
-  .fc-col-header-cell-cushion {
-    text-transform: capitalize;
-    font-weight: 500;
-    color: #70757a;
-    padding: 8px 0 !important;
-    text-decoration: none;
-  }
-  .fc-col-header-cell-cushion:hover {
-    text-decoration: none;
-    color: #3c4043;
-  }
-
-  /* 4. Resaltar el día de HOY con el círculo azul */
-  .fc-day-today {
-    background-color: #ffffff !important; /* Quitamos el fondo amarillo feo por defecto */
-  }
-  .fc-day-today .fc-daygrid-day-number {
-    background-color: #1a73e8;
-    color: white;
-    border-radius: 50%;
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin: 4px;
-    text-decoration: none;
-    font-weight: bold;
-  }
-
-  /* 5. Números de los días normales */
-  .fc-daygrid-day-number {
-    color: #3c4043;
-    text-decoration: none;
-    padding: 8px;
-  }
-  .fc-daygrid-day-number:hover {
-    text-decoration: none;
-    background-color: #f1f3f4;
-    border-radius: 50%;
-  }
-
-  /* 6. Botones del menú (Mes, Semana, Hoy...) más modernos */
-  .fc .fc-button-primary {
-    background-color: #ffffff;
-    color: #3c4043;
-    border: 1px solid #dadce0;
-    text-transform: capitalize;
-    box-shadow: none !important;
-    font-weight: 500;
-  }
-  .fc .fc-button-primary:hover {
-    background-color: #f1f3f4;
-    color: #202124;
-  }
-  .fc .fc-button-primary:not(:disabled).fc-button-active, 
-  .fc .fc-button-primary:not(:disabled):active {
-    background-color: #e8eaed;
-    color: #1a73e8;
-    border-color: #dadce0;
-  }
-
-  /* 7. Eventos (las "pastillas" de vacaciones/ausencias) */
-  .fc-event {
-    border-radius: 4px;
-    border: none;
-    padding: 2px 4px;
-    font-size: 0.85em;
-    font-weight: 500;
-    cursor: pointer;
-  }
-</style>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<link href="{% static 'css/calendar.css' %}" rel="stylesheet">
 {% endblock %}
-
+ 
 {% block content %}
 <div class="container-fluid py-4">
   <div class="row g-4 align-items-start">
-
+ 
+    <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
     <div class="col-md-3 calendar-sidebar">
-
+ 
       {% if is_manager %}
+      <!-- Selector de empleado -->
       <div class="card mb-3 shadow-sm">
-        <div class="card-header fw-semibold">Ver calendario</div>
+        <div class="card-header fw-semibold">Ver empleado</div>
         <div class="card-body pb-2">
           <select id="teamSelector" class="form-select form-select-sm">
-            <option value="all">— Todos los empleados —</option>
-            <option value="me">— Mi calendario —</option>
+            <option value="">— Mi calendario —</option>
             {% for uc in team %}
             <option value="{{ uc.user.id }}">
               {{ uc.user.get_full_name|default:uc.user.email }}
@@ -113,7 +32,8 @@
           </select>
         </div>
       </div>
-
+ 
+      <!-- Solicitudes pendientes -->
       <div class="card mb-3 shadow-sm">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
            Pendientes
@@ -208,9 +128,10 @@
           </div>
         </div>
       </div>
-
-    </div>
-    
+ 
+    </div><!-- /sidebar -->
+ 
+    <!-- ── Calendario ─────────────────────────────────────────────────── -->
     <div class="col-md-9">
       <div class="card shadow-sm">
         <div class="card-body">
@@ -218,10 +139,11 @@
         </div>
       </div>
     </div>
-
-  </div>
-</div>
-
+ 
+  </div><!-- /row -->
+</div><!-- /container -->
+ 
+<!-- ── Modal: detalle de evento ──────────────────────────────────────────── -->
 <div class="modal fade" id="eventModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
@@ -235,10 +157,9 @@
   </div>
 </div>
 {% endblock %}
-
+ 
+ 
 {% block extra_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-
 <script>
   const EVENTS_URL      = '{% url "api_calendar_events" %}';
   const LEAVE_CREATE_URL = '{% url "api_leave_create" %}';
@@ -274,7 +195,6 @@
       },
       eventClick: function (info) { showEventModal(info.event); }
     });
-
     calendarObj.render();
 
     // Selector de equipo (manager)
@@ -320,10 +240,6 @@
     if (!payload.start_date || !payload.end_date) {
       msgEl.className = 'mt-2 small text-danger';
       msgEl.textContent = 'Debes indicar fecha de inicio y fin.';
-      return;
-    }
-    if (end < start) {
-      msgEl.innerHTML = '<span class="text-danger">La fecha fin no puede ser anterior a la fecha inicio.</span>';
       return;
     }
 
