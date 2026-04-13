@@ -27,6 +27,11 @@ class SoftDeleteManager(models.Manager):
         """Get only deleted records"""
         return super().get_queryset().filter(deleted_at__isnull=False)
 
+    def soft_delete(self, obj):
+        """Soft delete a record (mark as deleted, status changes based on model)"""
+        obj.deleted_at = timezone.now()
+        obj.save(update_fields=['deleted_at'])
+
     def restore(self, obj):
         """Restore a deleted record"""
         obj.deleted_at = None
@@ -63,3 +68,20 @@ class UsersManager(SoftDeleteManager):
     def get_by_natural_key(self, email):
         """Get user by email (natural key)"""
         return self.get(email=email)
+
+    def soft_delete(self, obj):
+        """
+        Soft delete a user: mark as deleted AND set status to 'suspended'.
+        This prevents them from logging in and appearing in searches.
+        """
+        obj.deleted_at = timezone.now()
+        obj.status = 'suspended'
+        obj.save(update_fields=['deleted_at', 'status'])
+
+    def restore(self, obj):
+        """
+        Restore a deleted user: clear deletion date AND revert status to 'active'.
+        """
+        obj.deleted_at = None
+        obj.status = 'active'
+        obj.save(update_fields=['deleted_at', 'status'])
