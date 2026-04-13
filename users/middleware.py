@@ -11,7 +11,7 @@ class CompanyMiddleware:
         request.company = None
         request.role = None
 
-        if request.user.must_change_password:
+        if request.user.is_authenticated:
 
             company_id = request.session.get('company_id')
 
@@ -54,7 +54,7 @@ class NavigationHistoryMiddleware:
         }
 
     def __call__(self, request):
-        if request.user.must_change_password:
+        if request.user.is_authenticated:
             try:
                 # Manually resolve the URL to get the url name
                 from django.urls import resolve

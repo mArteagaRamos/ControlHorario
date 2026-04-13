@@ -9,7 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <link href="{% static 'css/calendar.css' %}" rel="stylesheet">
 {% endblock %}
- 
+
 {% block content %}
 <div class="cal-page">
   {% if is_manager and pending_count > 0 %}
@@ -19,17 +19,17 @@
   </div>
   {% endif %}
   <div class="cal-layout">
- 
+
     <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
     <aside class="cal-aside">
- 
+
       {% if is_manager %}
-      <!-- Selector de empleado -->
       <div class="card mb-3 shadow-sm">
         <div class="card-header fw-semibold">Ver empleado</div>
         <div class="card-body pb-2">
           <select id="teamSelector" class="form-select form-select-sm">
             <option value="">— Mi calendario —</option>
+            <option value="all">Todos los empleados</option>
             {% for uc in team %}
             <option value="{{ uc.user.id }}">
               {{ uc.user.get_full_name|default:uc.user.email }}
@@ -38,9 +38,8 @@
           </select>
         </div>
       </div>
-
       {% endif %}
- 
+
       <!-- ── Solicitar VACATION ────────────────────────────────────────── -->
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar vacaciones</div>
@@ -73,7 +72,6 @@
       </div>
 
       <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
-
       <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar ausencia</div>
         <div class="card-body">
@@ -103,9 +101,9 @@
           <div id="absenceMsg" class="mt-2 small"></div>
         </div>
       </div>
- 
-    </aside><!-- /sidebar -->
- 
+
+    </aside>
+
     <!-- ── Calendario ─────────────────────────────────────────────────── -->
     <div class="cal-main">
       <div class="cal-legend">
@@ -131,69 +129,101 @@
       </div>
       {% endif %}
     </div>
-    
-  </div><!-- /row -->
-  
-</div><!-- /container -->
- 
+
+  </div>
+</div>
+
 <!-- ── Modal: detalle de evento ──────────────────────────────────────────── -->
 <div class="modal fade" id="eventModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="eventModalTitle">Detalle</h5>
+    <div class="modal-content" style="border-radius:var(--cal-radius);border:1.5px solid var(--cal-border);overflow:hidden;box-shadow:var(--cal-shadow-lg);">
+      <div class="modal-header" style="background:#f8fafc;border-bottom:1.5px solid var(--cal-border);padding:1rem 1.25rem;">
+        <h5 class="modal-title" id="eventModalTitle" style="font-weight:700;font-size:.95rem;color:var(--cal-text);">Detalle</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="eventModalBody"></div>
-      <div class="modal-footer" id="eventModalFooter"></div>
+      <div class="modal-body" id="eventModalBody" style="padding:1.1rem 1.25rem;background:#fff;font-size:.85rem;"></div>
+      <div class="modal-footer" id="eventModalFooter" style="background:#f8fafc;border-top:1.5px solid var(--cal-border);padding:.75rem 1.25rem;"></div>
     </div>
   </div>
 </div>
+
+<!-- ── Modal: motivo de rechazo ──────────────────────────────────────────── -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:var(--cal-radius);border:1.5px solid var(--cal-border);overflow:hidden;box-shadow:var(--cal-shadow-lg);">
+      <div class="modal-header" style="background:linear-gradient(90deg,#fef2f2,#fff1f2);border-bottom:1.5px solid #fecaca;padding:1rem 1.25rem;">
+        <div class="d-flex align-items-center gap-2">
+          <span style="font-size:1.1rem">✗</span>
+          <h5 class="modal-title mb-0" style="font-weight:700;color:#991b1b;font-size:.95rem;">Rechazar solicitud</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" style="padding:1.1rem 1.25rem;background:#fff;">
+        <!-- Info de la solicitud -->
+        <div style="background:#f8fafc;border:1.5px solid var(--cal-border);border-left:4px solid var(--pending-color);border-radius:.6rem;padding:.75rem .9rem;margin-bottom:1rem;font-size:.83rem;">
+          <div style="font-weight:700;color:var(--cal-text);margin-bottom:.2rem;" id="rejectModalUser"></div>
+          <div style="color:var(--cal-text-muted);margin-bottom:.15rem;" id="rejectModalType"></div>
+          <div style="font-weight:600;color:#374151;" id="rejectModalDates"></div>
+          <div style="font-style:italic;color:var(--cal-text-muted);margin-top:.25rem;font-size:.78rem;" id="rejectModalNote"></div>
+        </div>
+        <!-- Textarea motivo rechazo -->
+        <label class="cal-label" for="rejectNoteInput">
+          Motivo del rechazo <span class="cal-label__optional">(opcional)</span>
+        </label>
+        <textarea id="rejectNoteInput" class="cal-input cal-textarea" rows="3" placeholder="Escribe el motivo del rechazo…"></textarea>
+      </div>
+      <div class="modal-footer" style="background:#f8fafc;border-top:1.5px solid var(--cal-border);padding:.75rem 1.25rem;gap:.5rem;">
+        <button type="button" class="btn btn-sm" data-bs-dismiss="modal"
+                style="background:#e2e8f0;color:#475569;border:none;font-weight:600;border-radius:.45rem;padding:.4rem .9rem;">
+          Cancelar
+        </button>
+        <button type="button" id="btnConfirmReject" class="pcard-btn pcard-btn--reject"
+                style="flex:unset;padding:.4rem 1.1rem;font-size:.82rem;border-radius:.45rem;">
+          Confirmar rechazo
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
- 
- 
+
+
 {% block extra_scripts %}
 <script>
-  const EVENTS_URL      = '{% url "api_calendar_events" %}';
-  const LEAVE_CREATE_URL = '{% url "api_leave_create" %}';
+  const EVENTS_URL        = '{% url "api_calendar_events" %}';
+  const LEAVE_CREATE_URL  = '{% url "api_leave_create" %}';
   const LEAVE_PENDING_URL = '{% url "api_leave_pending" %}';
-  const LEAVE_REVIEW_URL  = '/api/leave';
-  const CSRF_TOKEN      = '{{ csrf_token }}';
+  const CSRF_TOKEN        = '{{ csrf_token }}';
 
-  let currentUserId = null;
-  let calendarObj   = null;
+  let currentUserId    = null;
+  let calendarObj      = null;
+  let _pendingRejectId = null;
+  window._leaveDataMap = {};
 
-  // ── Inicializar Calendario ────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', function () {
 
+    // ── FullCalendar ──────────────────────────────────────────────────────
     const calEl = document.getElementById('calendar');
     calendarObj = new FullCalendar.Calendar(calEl, {
       locale: 'es',
       initialView: 'dayGridMonth',
-      headerToolbar: {
-        left:   'prev,next today',
-        center: 'title',
-        right:  'dayGridMonth,listWeek'
-      },
-      height:    'auto',
-      firstDay:  1,
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
+      height: 'auto',
+      firstDay: 1,
       events: function (info, successCb, failureCb) {
         const params = new URLSearchParams({
           start: info.startStr.slice(0, 10),
           end:   info.endStr.slice(0, 10),
         });
         if (currentUserId) params.set('user_id', currentUserId);
-        fetch(`${EVENTS_URL}?${params}`)
-          .then(r => r.json())
-          .then(successCb)
-          .catch(failureCb);
+        fetch(`${EVENTS_URL}?${params}`).then(r => r.json()).then(successCb).catch(failureCb);
       },
-      
       eventClick: function (info) { showEventModal(info.event); }
     });
     calendarObj.render();
 
-    // Selector de equipo (manager)
+    // ── Selector de equipo ────────────────────────────────────────────────
     const teamSelector = document.getElementById('teamSelector');
     if (teamSelector) {
       teamSelector.addEventListener('change', function () {
@@ -201,42 +231,48 @@
         calendarObj.refetchEvents();
       });
     }
-        // Cargar solicitudes pendientes (manager)
+
+    // ── Cargar pendientes ─────────────────────────────────────────────────
     if (document.getElementById('pendingContainer')) {
-        loadPendingRequests();
-      }  
+      loadPendingRequests();
+    }
 
-    // ── Botón solicitar VACACIONES ────────────────────────────────────────
-    document.getElementById('btnSendVacation')
-      .addEventListener('click', function () {
-        sendLeaveRequest({
-          leave_type:   'vacation',
-          leave_reason: document.getElementById('vacationReason').value,
-          start_date:   document.getElementById('vacationStart').value,
-          end_date:     document.getElementById('vacationEnd').value,
-          reason_note:  document.getElementById('vacationNote').value,
-        }, 'vacationMsg');
-      });
+    // ── Botón vacaciones ──────────────────────────────────────────────────
+    document.getElementById('btnSendVacation').addEventListener('click', function () {
+      sendLeaveRequest({
+        leave_type:   'vacation',
+        leave_reason: document.getElementById('vacationReason').value,
+        start_date:   document.getElementById('vacationStart').value,
+        end_date:     document.getElementById('vacationEnd').value,
+        reason_note:  document.getElementById('vacationNote').value,
+      }, 'vacationMsg');
+    });
 
-    // ── Botón solicitar AUSENCIA ──────────────────────────────────────────
-    document.getElementById('btnSendAbsence')
-      .addEventListener('click', function () {
-        sendLeaveRequest({
-          leave_type:   'absence',
-          leave_reason: document.getElementById('absenceReason').value,
-          start_date:   document.getElementById('absenceStart').value,
-          end_date:     document.getElementById('absenceEnd').value,
-          reason_note:  document.getElementById('absenceNote').value,
-        }, 'absenceMsg');
-      });
+    // ── Botón ausencia ────────────────────────────────────────────────────
+    document.getElementById('btnSendAbsence').addEventListener('click', function () {
+      sendLeaveRequest({
+        leave_type:   'absence',
+        leave_reason: document.getElementById('absenceReason').value,
+        start_date:   document.getElementById('absenceStart').value,
+        end_date:     document.getElementById('absenceEnd').value,
+        reason_note:  document.getElementById('absenceNote').value,
+      }, 'absenceMsg');
+    });
+
+    // ── Confirmar rechazo ─────────────────────────────────────────────────
+    document.getElementById('btnConfirmReject').addEventListener('click', async function () {
+      const note = document.getElementById('rejectNoteInput').value.trim() || null;
+      bootstrap.Modal.getInstance(document.getElementById('rejectModal')).hide();
+      await submitReview(_pendingRejectId, 'reject', note);
+    });
+
   });
 
-  // ── Helper: llamada a la API ─────────────────────────────────────────────────
+  // ── Enviar solicitud ────────────────────────────────────────────────────
   async function sendLeaveRequest(payload, msgElementId) {
     const msgEl = document.getElementById(msgElementId);
     msgEl.textContent = '';
 
-    // Validación mínima en cliente
     if (!payload.start_date || !payload.end_date) {
       msgEl.className = 'mt-2 small text-danger';
       msgEl.textContent = 'Debes indicar fecha de inicio y fin.';
@@ -246,19 +282,16 @@
     try {
       const response = await fetch(LEAVE_CREATE_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'X-CSRFToken':   CSRF_TOKEN,
-        },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
         body: JSON.stringify(payload),
       });
-
       const data = await response.json();
 
       if (response.ok) {
         msgEl.className = 'mt-2 small text-success';
         msgEl.textContent = data.message || 'Solicitud enviada correctamente.';
-        calendarObj.refetchEvents();   // Actualiza el calendario sin recargar
+        calendarObj.refetchEvents();
+        if (document.getElementById('pendingContainer')) loadPendingRequests();
       } else {
         msgEl.className = 'mt-2 small text-danger';
         msgEl.textContent = data.error || 'Error al enviar la solicitud.';
@@ -269,14 +302,13 @@
     }
   }
 
-    // ── Cargar solicitudes pendientes ─────────────────────────────────────────────
+  // ── Cargar solicitudes pendientes ───────────────────────────────────────
   async function loadPendingRequests() {
     const container = document.getElementById('pendingContainer');
     const badge     = document.getElementById('pendingBadge');
     try {
       const res  = await fetch(LEAVE_PENDING_URL);
       const data = await res.json();
-
       const list = data.requests;
       badge.textContent = list.length;
 
@@ -285,17 +317,19 @@
         return;
       }
 
+      // Guardamos los datos en un mapa para acceder desde el modal sin tocar el DOM
+      window._leaveDataMap = {};
+      list.forEach(l => { window._leaveDataMap[l.id] = l; });
+
       container.innerHTML = list.map(l => `
-        <div class="border rounded p-2 mb-2 small" id="pending-${l.id}">
-          <div class="fw-semibold">${l.user}</div>
-          <div class="text-muted">${l.leave_type} · ${l.leave_reason}</div>
-          <div>${l.start_date} → ${l.end_date}</div>
-          ${l.reason_note ? `<div class="fst-italic text-muted mt-1">"${l.reason_note}"</div>` : ''}
-          <div class="d-flex gap-1 mt-2">
-            <button class="btn btn-success btn-sm flex-fill"
-                    onclick="reviewLeave('${l.id}', 'approve')">✓ Aprobar</button>
-            <button class="btn btn-danger btn-sm flex-fill"
-                    onclick="reviewLeave('${l.id}', 'reject')">✗ Rechazar</button>
+        <div class="pending-card" id="pending-${l.id}">
+          <div class="pending-card__name">${l.user}</div>
+          <div class="pending-card__meta">${l.leave_type} · ${l.leave_reason}</div>
+          <div class="pending-card__dates"> ${l.start_date} → ${l.end_date}</div>
+          ${l.reason_note ? `<div class="pending-card__note">"${l.reason_note}"</div>` : ''}
+          <div class="pending-card__actions">
+            <button class="pcard-btn pcard-btn--approve" onclick="approveLeave('${l.id}')">✓ Aprobar</button>
+            <button class="pcard-btn pcard-btn--reject"  onclick="openRejectModal('${l.id}')">✗ Rechazar</button>
           </div>
         </div>
       `).join('');
@@ -304,58 +338,54 @@
     }
   }
 
-  // ── Aprobar / Rechazar ────────────────────────────────────────────────────────
-  async function reviewLeave(leaveId, action) {
-    const note = action === 'reject'
-      ? (prompt('Motivo del rechazo (opcional):') ?? '')
-      : '';
-
-    try {
-        const res = await fetch(`/api/leave/${leaveId}/review/`, {        
-        method:  'POST',
-        headers: { 
-        'Content-Type': 'application/json', 
-        'X-CSRFToken': CSRF_TOKEN 
-      },
-      body:    JSON.stringify({ action, note }),
-    });
-
-const data = await res.json();
-
-    if (res.ok) {
-
-      const element = document.getElementById(`pending-${leaveId}`);
-      if (element) element.remove();
-
-      //Actualiza el contador 
-      const badge = document.getElementById('pendingBadge');
-      if (badge) {
-        const count = Math.max(0, parseInt(badge.textContent) - 1);
-        badge.textContent = count;
-      }
-
-      // Refrescamos el calendario para que cambie el color del evento
-      if (typeof calendarObj !== 'undefined') {
-        calendarObj.refetchEvents();
-      }
-    } else {
-      alert(data.error || 'Error al procesar la solicitud.');
-    }
-  } catch (e) {
-    console.error("Error en la petición:", e);
-    alert('Error de conexión con el servidor.');
+  // ── Aprobar directamente ────────────────────────────────────────────────
+  async function approveLeave(leaveId) {
+    await submitReview(leaveId, 'approve', null);
   }
-}
 
-  // ── Modal detalle de evento ──────────────────────────────────────────────────
+  // ── Abrir modal de rechazo ──────────────────────────────────────────────
+  function openRejectModal(leaveId) {
+    const l = window._leaveDataMap[leaveId];
+    if (!l) return;
+    _pendingRejectId = leaveId;
+    document.getElementById('rejectNoteInput').value        = '';
+    document.getElementById('rejectModalUser').textContent  = l.user;
+    document.getElementById('rejectModalType').textContent  = l.leave_type + ' · ' + l.leave_reason;
+    document.getElementById('rejectModalDates').textContent = '' + l.start_date + ' → ' + l.end_date;
+    document.getElementById('rejectModalNote').textContent  = l.reason_note ? '"' + l.reason_note + '"' : '';
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('rejectModal')).show();
+  }
+
+  // ── Llamada a la API ────────────────────────────────────────────────────
+  async function submitReview(leaveId, action, note) {
+    try {
+      const res = await fetch('/api/leave/' + leaveId + '/review/', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body:    JSON.stringify({ action, note }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        if (document.getElementById('pendingContainer')) loadPendingRequests();
+        calendarObj.refetchEvents();
+      } else {
+        alert(data.error || 'Error al procesar la solicitud.');
+      }
+    } catch (e) {
+      console.error('Error en la petición:', e);
+      alert('Error de conexión con el servidor.');
+    }
+  }
+
+  // ── Modal detalle de evento ─────────────────────────────────────────────
   function showEventModal(event) {
     const props = event.extendedProps;
     document.getElementById('eventModalTitle').textContent = event.title;
-    document.getElementById('eventModalBody').innerHTML = `
-      <p class="mb-1"><strong>Estado:</strong> ${props.status || 'N/A'}</p>
-      <p class="mb-1"><strong>Motivo:</strong> ${props.reason || 'No especificado'}</p>
-      <p class="mb-0 text-muted small">${event.startStr} – ${event.endStr || ''}</p>
-    `;
+    document.getElementById('eventModalBody').innerHTML =
+      '<p class="mb-1"><strong>Estado:</strong> ' + (props.status || 'N/A') + '</p>' +
+      '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
+      '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
     new bootstrap.Modal(document.getElementById('eventModal')).show();
   }
 </script>

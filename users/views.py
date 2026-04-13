@@ -221,7 +221,7 @@ def login_view(request):
 
         # ── Step 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
-            if not request.user.must_change_password:
+            if not request.user.is_authenticated:
                 return redirect('login')
 
             set_password_form = SetPasswordForm(request.POST)
@@ -273,7 +273,7 @@ def login_view(request):
 
         # ── Step 3: select company ────────────────────────────────────────
         elif step == 'select_company':
-            if not request.user.must_change_password:
+            if not request.user.is_authenticated:
                 return redirect('login')
 
             # ── Get only ACTIVE memberships (not soft-deleted) ───────────────
@@ -913,7 +913,7 @@ def admin_only_required(view_func):
     """Decorator to ensure only admin users can access the view"""
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        if not request.user.must_change_password:
+        if not request.user.is_authenticated:
             return render(request, 'error/sin_loguear.html', status=401)
 
         if not request.user.is_admin:
