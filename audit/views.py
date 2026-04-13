@@ -97,24 +97,18 @@ def manager_logs(request):
     delegation_context = get_effective_context(request)
 
     # 1. Determine which company to work with
-    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
-
-    if company_id:
-        # Using delegated company
-        company = Companies.objects.filter(id=company_id).first()
+    if delegation_context['is_delegating']:
+        # Admin delegating: use delegated company
+        company = Companies.objects.filter(
+            id=delegation_context['delegated_company_id']
+        ).first()
         if not company:
             return HttpResponseForbidden("Empresa delegada no encontrada.")
     else:
-        # Get the manager's company
-        membership = UserCompany.objects.filter(
-            user=request.user,
-            role=UserCompany.RoleChoices.MANAGER
-        ).first()
-
-        if not membership:
-            return HttpResponse("No tienes permisos de manager o no estás asignado a una empresa.")
-
-        company = membership.company
+        # Use request.company set by middleware (respects navbar selection)
+        company = request.company
+        if not company:
+            return HttpResponseForbidden("No estás asignado a ninguna empresa.")
 
     # 2. Get the employees of this company
     empleados_ids = UserCompany.objects.filter(company=company).values_list('user_id', flat=True)
