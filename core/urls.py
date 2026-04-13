@@ -27,6 +27,8 @@ urlpatterns = [
 
     # Dashboard - Worker
     path('workday/', user_views.workday, name='workday'),
+    path('workday/exportar_entries/', user_views.exportar_workday_entries, name='exportar_workday_entries'),
+    path('workday/exportar_requests/', user_views.exportar_workday_requests, name='exportar_workday_requests'),
     path('calendar/', dashboard_views.calendar, name='calendar'),
     path('profile/', dashboard_views.profile, name='profile'),
     path('security/', dashboard_views.security, name='security'),
@@ -38,8 +40,9 @@ urlpatterns = [
 
     # Manager Panel URLs 
     # Manager Logs
-    path('manager_logs/', audit_views.manager_logs, name='manager_logs'),  
+    path('manager_logs/', audit_views.manager_logs, name='manager_logs'),
     path('manager_logs/exportar_logs/', audit_views.exportar_logs, name='exportar_logs'),
+    path('manager_logs/exportar_logs_rechazadas/', audit_views.exportar_logs_rechazadas, name='exportar_logs_rechazadas'),
     path('manager_logs/resolver/', audit_views.resolver_incidencia, name='resolver_incidencia'),
     path('editar-registro/', audit_views.editar_registro, name='editar_registro'),
     path('anular-registro/', audit_views.anular_registro, name='anular_registro'),
@@ -49,6 +52,7 @@ urlpatterns = [
     path('manager_employees/', audit_views.manager_employee, name='manager_employee'),
     path('manager_employees/edit/', audit_views.edit_employee, name='edit_employee'),
     path('manager_employees/delete/', audit_views.delete_employee, name='delete_employee'),
+    path('manager_employees/exportar/', audit_views.exportar_manager_employees, name='exportar_manager_employees'),
 
     path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
     path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),
@@ -59,6 +63,7 @@ path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name
 
     # Soft Delete Management (Admin only)
     path('admin/deleted-records/', user_views.deleted_records, name='deleted_records'),
+    path('admin/deleted-records/exportar/', user_views.exportar_deleted_records, name='exportar_deleted_records'),
     path('admin/restore-record/', user_views.restore_record, name='restore_record'),
     path('admin/permanently-delete-record/', user_views.permanently_delete_record, name='permanently_delete_record'),
     path('admin/delete-company/', user_views.delete_company, name='delete_company'),

@@ -1,6 +1,7 @@
 # ---------- Backend Views: users/views.py ----------
 
 import json
+import csv
 from functools import wraps
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -909,6 +910,104 @@ def workday(request):
     return render(request, 'user_panel/workday.html', context)
 
 
+@login_required
+@require_POST
+def exportar_workday_entries(request):
+    """
+    Exporta los fichajes del usuario a CSV.
+    POST params: entry_id (lista de IDs seleccionadas)
+    """
+    from audit.views import get_effective_context
+
+    entry_ids = request.POST.getlist('entry_id')
+
+    if not entry_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_fichajes_personales_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Fecha', 'Entrada', 'Salida', 'Tiempo Total (HH:MM:SS)', 'Estado', 'Notas'])
+
+    for entry in entries:
+        total_s = entry.total_seconds
+        horas = total_s // 3600
+        minutos = (total_s % 3600) // 60
+        segundos = total_s % 60
+        tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
+
+        writer.writerow([
+            entry.date.strftime('%d/%m/%Y'),
+            entry.clock_in.strftime('%H:%M:%S') if entry.clock_in else '--:--:--',
+            entry.clock_out.strftime('%H:%M:%S') if entry.clock_out else '--:--:--',
+            tiempo_formateado,
+            entry.status if hasattr(entry, 'status') else '',
+            entry.notes if entry.notes else ''
+        ])
+
+    return response
+
+
+@login_required
+@require_POST
+def exportar_workday_requests(request):
+    """
+    Exporta las solicitudes de corrección del usuario a CSV.
+    POST params: request_id (lista de IDs seleccionadas)
+    """
+
+    request_ids = request.POST.getlist('request_id')
+
+    if not request_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    corrections = CorrectionRequests.objects.filter(
+        id__in=request_ids
+    ).select_related('requester', 'time_entry').order_by('-request_date')
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_solicitudes_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Fecha de Solicitud',
+        'Fecha del Evento',
+        'Entrada Original',
+        'Salida Original',
+        'Entrada Solicitada',
+        'Salida Solicitada',
+        'Motivo',
+        'Estado'
+    ])
+
+    for correction in corrections:
+        writer.writerow([
+            correction.request_date.strftime('%d/%m/%Y %H:%M') if correction.request_date else '--/--/---- --:--',
+            correction.time_entry.date.strftime('%d/%m/%Y') if correction.time_entry else '--/--/----',
+            correction.time_entry.clock_in.strftime('%d/%m/%Y %H:%M') if correction.time_entry and correction.time_entry.clock_in else '--/--/---- --:--',
+            correction.time_entry.clock_out.strftime('%H:%M') if correction.time_entry and correction.time_entry.clock_out else '--:--',
+            correction.new_clock_in.strftime('%d/%m/%Y %H:%M') if correction.new_clock_in else '--/--/---- --:--',
+            correction.new_clock_out.strftime('%H:%M') if correction.new_clock_out else '--:--',
+            correction.reason or '',
+            correction.status or ''
+        ])
+
+    return response
+
+
+
+
 # ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
 def admin_only_required(view_func):
@@ -930,6 +1029,126 @@ def admin_dashboard(request):
     """Admin dashboard to manage companies and workers globally"""
 
     return render(request, 'admin/admin_dashboard.html')
+
+@admin_only_required
+@require_POST
+def exportar_deleted_records(request):
+    """
+    Exporta registros eliminados agrupados por tipo a CSV.
+    POST params: record_type (users, companies, user_companies, corrections, time_entries, time_events)
+    """
+
+    record_type = request.POST.get('record_type', '').strip()
+
+    if not record_type:
+        return HttpResponse("Tipo de registro no especificado.")
+
+    # Map record types to models and fields
+    models_config = {
+        'users': {
+            'model': Users,
+            'queryset': Users.objects.only_deleted().order_by('-deleted_at'),
+            'filename': 'reporte_usuarios_eliminados',
+            'headers': ['Email', 'Usuario', 'Nombre', 'Estado', 'Eliminado'],
+            'row_func': lambda u: [
+                u.email,
+                u.username,
+                f"{u.username} {u.surname}",
+                u.status if hasattr(u, 'status') else '--',
+                u.deleted_at.strftime('%d/%m/%Y %H:%M') if u.deleted_at else '--'
+            ]
+        },
+        'companies': {
+            'model': Companies,
+            'queryset': Companies.objects.only_deleted().order_by('-deleted_at'),
+            'filename': 'reporte_empresas_eliminadas',
+            'headers': ['Nombre', 'Email', 'Teléfono', 'País', 'Eliminada'],
+            'row_func': lambda c: [
+                c.name,
+                c.email if hasattr(c, 'email') else '--',
+                c.phone if hasattr(c, 'phone') else '--',
+                c.country if hasattr(c, 'country') else '--',
+                c.deleted_at.strftime('%d/%m/%Y %H:%M') if c.deleted_at else '--'
+            ]
+        },
+        'user_companies': {
+            'model': UserCompany,
+            'queryset': UserCompany.objects.only_deleted().select_related('user', 'company').order_by('-deleted_at'),
+            'filename': 'reporte_membresias_eliminadas',
+            'headers': ['Usuario', 'Empresa', 'Rol', 'Ingreso', 'Eliminada'],
+            'row_func': lambda uc: [
+                f"{uc.user.username} {uc.user.surname}" if uc.user else '--',
+                uc.company.name if uc.company else '--',
+                uc.get_role_display() if hasattr(uc, 'get_role_display') else uc.role,
+                uc.joined_at.strftime('%d/%m/%Y') if uc.joined_at else '--/--/----',
+                uc.deleted_at.strftime('%d/%m/%Y %H:%M') if uc.deleted_at else '--'
+            ]
+        },
+        'corrections': {
+            'model': CorrectionRequests,
+            'queryset': CorrectionRequests.objects.only_deleted().select_related('requester', 'time_entry').order_by('-deleted_at'),
+            'filename': 'reporte_incidencias_eliminadas',
+            'headers': ['Empleado', 'Fecha Solicitud', 'Motivo', 'Estado', 'Eliminada'],
+            'row_func': lambda c: [
+                f"{c.requester.username} {c.requester.surname}" if c.requester else '--',
+                c.request_date.strftime('%d/%m/%Y %H:%M') if c.request_date else '--/--/---- --:--',
+                c.reason or '--',
+                c.status or '--',
+                c.deleted_at.strftime('%d/%m/%Y %H:%M') if c.deleted_at else '--'
+            ]
+        },
+        'time_entries': {
+            'model': TimeEntries,
+            'queryset': TimeEntries.objects.only_deleted().select_related('user').order_by('-deleted_at'),
+            'filename': 'reporte_fichajes_eliminados',
+            'headers': ['Empleado', 'Fecha', 'Entrada', 'Salida', 'Estado', 'Eliminado'],
+            'row_func': lambda te: [
+                f"{te.user.username} {te.user.surname}" if te.user else '--',
+                te.date.strftime('%d/%m/%Y') if te.date else '--/--/----',
+                te.clock_in.strftime('%H:%M:%S') if te.clock_in else '--:--:--',
+                te.clock_out.strftime('%H:%M:%S') if te.clock_out else '--:--:--',
+                te.status if hasattr(te, 'status') else '--',
+                te.deleted_at.strftime('%d/%m/%Y %H:%M') if te.deleted_at else '--'
+            ]
+        },
+        'time_events': {
+            'model': TimeEntryEvent,
+            'queryset': TimeEntryEvent.objects.only_deleted().select_related('time_entry').order_by('-deleted_at'),
+            'filename': 'reporte_eventos_eliminados',
+            'headers': ['Evento', 'Tipo', 'Fecha', 'Descripción', 'Eliminado'],
+            'row_func': lambda te: [
+                str(te.id) if te.id else '--',
+                te.event_type if hasattr(te, 'event_type') else '--',
+                te.created_at.strftime('%d/%m/%Y %H:%M') if hasattr(te, 'created_at') and te.created_at else '--/--/---- --:--',
+                te.description if hasattr(te, 'description') else '--',
+                te.deleted_at.strftime('%d/%m/%Y %H:%M') if te.deleted_at else '--'
+            ]
+        }
+    }
+
+    if record_type not in models_config:
+        return HttpResponse("Tipo de registro no válido.")
+
+    config = models_config[record_type]
+    records = config['queryset']
+
+    if not records.exists():
+        return HttpResponse("No hay registros de este tipo para exportar.")
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f"attachment; filename=\"{config['filename']}_{fecha_reporte}.csv\""
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(config['headers'])
+
+    for record in records:
+        writer.writerow(config['row_func'](record))
+
+    return response
 
 
 # ── DELEGATED WORKER SYSTEM ────────────────────────────────────────────────

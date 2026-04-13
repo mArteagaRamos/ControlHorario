@@ -302,7 +302,108 @@ def exportar_logs(request):
         ])
 
     return response
-    
+
+
+@manager_or_admin_required
+@require_POST
+def exportar_logs_rechazadas(request):
+    """
+    Exporta las incidencias rechazadas a CSV.
+    POST params: incidencia_id (lista de IDs seleccionadas)
+    """
+    incidencia_ids = request.POST.getlist('incidencia_id')
+
+    if not incidencia_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    incidencias = CorrectionRequests.objects.filter(
+        id__in=incidencia_ids,
+        status='rejected'
+    ).select_related('requester', 'time_entry').order_by('-request_date')
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_incidencias_rechazadas_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Empleado',
+        'Fecha Solicitud',
+        'Entrada Original',
+        'Salida Original',
+        'Entrada Solicitada',
+        'Salida Solicitada',
+        'Motivo',
+        'Nota de Rechazo'
+    ])
+
+    for incidencia in incidencias:
+        writer.writerow([
+            f"{incidencia.requester.username} {incidencia.requester.surname}",
+            incidencia.request_date.strftime('%d/%m/%Y %H:%M') if incidencia.request_date else '--/--/---- --:--',
+            incidencia.time_entry.clock_in.strftime('%d/%m/%Y %H:%M') if incidencia.time_entry and incidencia.time_entry.clock_in else '--/--/---- --:--',
+            incidencia.time_entry.clock_out.strftime('%H:%M') if incidencia.time_entry and incidencia.time_entry.clock_out else '--:--',
+            incidencia.new_clock_in.strftime('%d/%m/%Y %H:%M') if incidencia.new_clock_in else '--/--/---- --:--',
+            incidencia.new_clock_out.strftime('%H:%M') if incidencia.new_clock_out else '--:--',
+            incidencia.reason or '',
+            incidencia.correction_note or ''
+        ])
+
+    return response
+
+
+@manager_or_admin_required
+@require_POST
+def exportar_manager_employees(request):
+    """
+    Exporta la lista de empleados de una empresa a CSV.
+    POST params: employee_id (lista de IDs seleccionadas)
+    """
+    employee_ids = request.POST.getlist('employee_id')
+
+    if not employee_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    memberships = UserCompany.objects.filter(
+        id__in=employee_ids
+    ).select_related('user', 'company').order_by('user__username')
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_empleados_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Usuario',
+        'Email',
+        'Nombre Completo',
+        'Rol',
+        'Estado',
+        'Empresa',
+        'Fecha de Ingreso'
+    ])
+
+    for membership in memberships:
+        user = membership.user
+        writer.writerow([
+            user.username,
+            user.email,
+            f"{user.username} {user.surname}",
+            membership.get_role_display() if hasattr(membership, 'get_role_display') else membership.role,
+            user.status if hasattr(user, 'status') else '--',
+            membership.company.name,
+            membership.joined_at.strftime('%d/%m/%Y') if membership.joined_at else '--/--/----'
+        ])
+
+    return response
+
+
 # View for the manager to manually edit a record (in case of incident or error), creating a new corrected record and voiding the original
 @manager_or_admin_required
 def editar_registro(request):

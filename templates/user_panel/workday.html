@@ -42,6 +42,9 @@
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-semibold">Mi Historial de Fichajes</h4>
+        <button type="submit" form="exportFormEntries" id="btnExportarEntries" class="btn btn-success d-flex align-items-center gap-2" disabled>
+            <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+        </button>
     </div>
 
     <div class="card mb-4 shadow-sm border-0">
@@ -70,20 +73,28 @@
             </h6>
 
             <div class="table-responsive table-scroll-container" id="entryTableContainer">
-                <table class="table align-middle" id="entryTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Entrada</th>
-                            <th>Salida</th>
-                            <th>Horas</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="entryTableBody">
-                        {% for entry in entry_rows %}
-                        <tr class="entry-row" data-entry-index="{{ forloop.counter0 }}" data-entry-date="{{ entry.date_iso }}">
-                            <td>{{ entry.date }}</td>
+                <form id="exportFormEntries" action="{% url 'exportar_workday_entries' %}" method="POST">
+                    {% csrf_token %}
+                    <table class="table align-middle" id="entryTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllEntries" class="form-check-input me-2">
+                                    Fecha
+                                </th>
+                                <th>Entrada</th>
+                                <th>Salida</th>
+                                <th>Horas</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entryTableBody">
+                            {% for entry in entry_rows %}
+                            <tr class="entry-row" data-entry-index="{{ forloop.counter0 }}" data-entry-date="{{ entry.date_iso }}">
+                                <td>
+                                    <input class="form-check-input select-row-entries me-2" type="checkbox" name="entry_id" value="{{ entry.id }}">
+                                    {{ entry.date }}
+                                </td>
                             <td>{{ entry.clock_in|date:"H:i" }}</td>
                             <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ entry.worked }}</td>
@@ -112,21 +123,30 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </form>
             </div>
 
             <div class="text-center mt-3 buttonContainer">
                 <button class="btn btn-sm btn-outline-primary" id="entryShowMore">Ver Más</button>
             </div>
 
-            <h6 class="mb-3 mt-4 text-primary fw-semibold">
-                Solicitudes <span class="text-muted">Correcciones</span>
+            <h6 class="mb-3 mt-4 text-primary fw-semibold d-flex justify-content-between align-items-center">
+                <span>Solicitudes <span class="text-muted">Correcciones</span></span>
+                <button type="submit" form="exportFormRequests" id="btnExportarRequests" class="btn btn-success d-flex align-items-center gap-2" disabled style="font-size: 0.875rem;">
+                    <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+                </button>
             </h6>
 
             <div class="table-responsive table-scroll-container mt-3" id="requestTableContainer">
-                <table class="table align-middle" id="requestTable">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Fecha Fichaje</th>
+                <form id="exportFormRequests" action="{% url 'exportar_workday_requests' %}" method="POST">
+                    {% csrf_token %}
+                    <table class="table align-middle" id="requestTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAllRequests" class="form-check-input me-2">
+                                    Fecha Fichaje
+                                </th>
                             <th>Fecha Solicitud</th>
                             <th>Nueva Entrada</th>
                             <th>Nueva Salida</th>
@@ -138,7 +158,10 @@
                     <tbody id="requestTableBody">
                         {% for r in request_rows %}
                         <tr class="request-row" data-request-index="{{ forloop.counter0 }}" data-entry-date="{{ r.entry_date_iso }}">
-                            <td>{{ r.entry_date }}</td>
+                            <td>
+                                <input class="form-check-input select-row-requests me-2" type="checkbox" name="request_id" value="{{ r.id }}">
+                                {{ r.entry_date }}
+                            </td>
                             <td>{{ r.request_date }}</td>
                             <td>{% if r.new_clock_in %}{{ r.new_clock_in|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{% if r.new_clock_out %}{{ r.new_clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
@@ -179,6 +202,7 @@
                         {% endfor %}
                     </tbody>
                 </table>
+                </form>
             </div>
 
             <div class="text-center mt-3 buttonContainer">
@@ -413,6 +437,65 @@
             // Si hay un error (ej. 400), mostramos el mensaje del servidor
             feedback.textContent = evt.detail.xhr.responseText || 'Error al enviar la solicitud.';
             feedback.classList.remove('d-none');
+        }
+    });
+
+    // --- EXPORT LOGIC FOR ENTRIES ---
+    window.actualizarBotonExportarEntries = function() {
+        const seleccionados = document.querySelectorAll('.select-row-entries:checked').length;
+        const btnExportar = document.getElementById('btnExportarEntries');
+        if (!btnExportar) return;
+
+        if (seleccionados > 0) {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
+            btnExportar.disabled = false;
+        } else {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+            btnExportar.disabled = true;
+        }
+    };
+
+    // --- EXPORT LOGIC FOR REQUESTS ---
+    window.actualizarBotonExportarRequests = function() {
+        const seleccionados = document.querySelectorAll('.select-row-requests:checked').length;
+        const btnExportar = document.getElementById('btnExportarRequests');
+        if (!btnExportar) return;
+
+        if (seleccionados > 0) {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
+            btnExportar.disabled = false;
+        } else {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+            btnExportar.disabled = true;
+        }
+    };
+
+    // Use event delegation for checkboxes
+    document.addEventListener('change', function(e) {
+        // Handle entries checkboxes
+        if (e.target.id === 'selectAllEntries') {
+            document.querySelectorAll('.select-row-entries').forEach(cb => cb.checked = e.target.checked);
+            actualizarBotonExportarEntries();
+        }
+        else if (e.target.classList.contains('select-row-entries')) {
+            actualizarBotonExportarEntries();
+            const selectAllCheckbox = document.getElementById('selectAllEntries');
+            if (!e.target.checked && selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+        }
+
+        // Handle requests checkboxes
+        if (e.target.id === 'selectAllRequests') {
+            document.querySelectorAll('.select-row-requests').forEach(cb => cb.checked = e.target.checked);
+            actualizarBotonExportarRequests();
+        }
+        else if (e.target.classList.contains('select-row-requests')) {
+            actualizarBotonExportarRequests();
+            const selectAllCheckbox = document.getElementById('selectAllRequests');
+            if (!e.target.checked && selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
         }
     });
 
