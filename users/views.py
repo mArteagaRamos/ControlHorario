@@ -201,9 +201,11 @@ def login_view(request):
 
                         # ── Check if user has at least one active membership ─────
                         if memberships.count() == 0:
+                            # Desautenticar y mostrar error
+                            auth_logout(request)
                             messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                            return render(request, 'login/login.html', {'form': form})
                         else:
-                            auth_login(request, user)
                             # Clear navigation history on login
                             request.session['nav_history'] = []
                             if memberships.count() > 1:
@@ -1008,7 +1010,6 @@ def deleted_records(request):
     deleted_users = Users.objects.only_deleted().order_by('-deleted_at')
     deleted_companies = Companies.objects.only_deleted().order_by('-deleted_at')
     deleted_user_companies = UserCompany.objects.only_deleted().order_by('-deleted_at')
-    deleted_company_settings = CompanySettings.objects.only_deleted().order_by('-deleted_at')
     deleted_corrections = CorrectionRequests.objects.only_deleted().order_by('-deleted_at')
     deleted_time_entries = TimeEntries.objects.only_deleted().order_by('-deleted_at')
     deleted_time_events = TimeEntryEvent.objects.only_deleted().order_by('-deleted_at')
@@ -1028,7 +1029,6 @@ def deleted_records(request):
         'deleted_users': users_with_companies,
         'deleted_companies': deleted_companies,
         'deleted_user_companies': deleted_user_companies,
-        'deleted_company_settings': deleted_company_settings,
         'deleted_corrections': deleted_corrections,
         'deleted_time_entries': deleted_time_entries,
         'deleted_time_events': deleted_time_events,
@@ -1036,7 +1036,6 @@ def deleted_records(request):
             deleted_users.count() +
             deleted_companies.count() +
             deleted_user_companies.count() +
-            deleted_company_settings.count() +
             deleted_corrections.count() +
             deleted_time_entries.count() +
             deleted_time_events.count()
@@ -1070,7 +1069,6 @@ def restore_record(request):
             'users': Users,
             'companies': Companies,
             'user_companies': UserCompany,
-            'company_settings': CompanySettings,
             'corrections': CorrectionRequests,
             'time_entries': TimeEntries,
             'time_events': TimeEntryEvent,
@@ -1160,7 +1158,6 @@ def permanently_delete_record(request):
             'users': Users,
             'companies': Companies,
             'user_companies': UserCompany,
-            'company_settings': CompanySettings,
             'corrections': CorrectionRequests,
             'time_entries': TimeEntries,
             'time_events': TimeEntryEvent,

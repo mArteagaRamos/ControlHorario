@@ -563,10 +563,11 @@ def delete_employee(request):
         deleted_at__isnull=True
     )
 
-    # If user has no more active memberships, mark user as suspended
+    # If user has no more active memberships, mark user as suspended and deleted
     if not active_memberships.exists():
         user.status = 'suspended'
-        user.save(update_fields=['status'])
+        user.deleted_at = now
+        user.save(update_fields=['status', 'deleted_at'])
 
     return redirect('manager_employee')
 
