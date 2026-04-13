@@ -43,6 +43,8 @@ urlpatterns = [
     path('manager_logs/resolver/', audit_views.resolver_incidencia, name='resolver_incidencia'),
     path('editar-registro/', audit_views.editar_registro, name='editar_registro'),
     path('anular-registro/', audit_views.anular_registro, name='anular_registro'),
+    path('editar-incidencia-rechazada/', audit_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
+    path('eliminar-incidencia-rechazada/', audit_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
     # Manager Employees
     path('manager_employees/', audit_views.manager_employee, name='manager_employee'),
     path('manager_employees/edit/', audit_views.edit_employee, name='edit_employee'),
@@ -59,5 +61,6 @@ path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name
     path('admin/deleted-records/', user_views.deleted_records, name='deleted_records'),
     path('admin/restore-record/', user_views.restore_record, name='restore_record'),
     path('admin/permanently-delete-record/', user_views.permanently_delete_record, name='permanently_delete_record'),
+    path('admin/delete-company/', user_views.delete_company, name='delete_company'),
 ]
 

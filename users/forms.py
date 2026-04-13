@@ -165,7 +165,7 @@ class WorkerCreateForm(_UserBaseForm):
     Create a new user.
     The temporary password (generated in the frontend) comes in 'password',
     is hashed with set_password(), and saved in users.password_hash.
-    The view sets must_change_password=False to force a password change on first login.
+    The view sets must_change_password=True to force a password change on first login.
     """
     pass
 
@@ -183,7 +183,7 @@ class WorkerSelectForm(_UserBaseForm):
 
 class SetPasswordForm(forms.Form):
     """
-    Shown to users on their first login (must_change_password=False).
+    Shown to users on their first login (must_change_password=True).
     Requires setting a final password with complexity requirements.
     """
     new_password = forms.CharField(

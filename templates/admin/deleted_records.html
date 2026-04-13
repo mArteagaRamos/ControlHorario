@@ -37,78 +37,64 @@
     {% else %}
         <!-- TABS DE TIPOS DE REGISTROS -->
         <ul class="nav nav-tabs mb-3" role="tablist">
-            {% if deleted_users.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tab-users" data-bs-toggle="tab"
-                            data-bs-target="#section-users" type="button" role="tab">
-                        <i class="bi bi-person"></i> Usuarios
-                        <span class="badge bg-secondary">{{ deleted_users.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_companies.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {% if not deleted_users.count %}active{% endif %}" id="tab-companies"
-                            data-bs-toggle="tab" data-bs-target="#section-companies" type="button" role="tab">
-                        <i class="bi bi-building"></i> Empresas
-                        <span class="badge bg-secondary">{{ deleted_companies.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_user_companies.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {% if not deleted_users.count and not deleted_companies.count %}active{% endif %}"
-                            id="tab-memberships" data-bs-toggle="tab" data-bs-target="#section-memberships" type="button" role="tab">
-                        <i class="bi bi-link"></i> Membresías
-                        <span class="badge bg-secondary">{{ deleted_user_companies.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_corrections.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-corrections" data-bs-toggle="tab"
-                            data-bs-target="#section-corrections" type="button" role="tab">
-                        <i class="bi bi-exclamation-triangle"></i> Incidencias
-                        <span class="badge bg-secondary">{{ deleted_corrections.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_time_entries.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-entries" data-bs-toggle="tab"
-                            data-bs-target="#section-entries" type="button" role="tab">
-                        <i class="bi bi-clock"></i> Fichajes
-                        <span class="badge bg-secondary">{{ deleted_time_entries.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_time_events.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-events" data-bs-toggle="tab"
-                            data-bs-target="#section-events" type="button" role="tab">
-                        <i class="bi bi-calendar-event"></i> Eventos
-                        <span class="badge bg-secondary">{{ deleted_time_events.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
-            {% if deleted_company_settings.count %}
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="tab-settings" data-bs-toggle="tab"
-                            data-bs-target="#section-settings" type="button" role="tab">
-                        <i class="bi bi-gear"></i> Configuración
-                        <span class="badge bg-secondary">{{ deleted_company_settings.count }}</span>
-                    </button>
-                </li>
-            {% endif %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-users" data-bs-toggle="tab"
+                        data-bs-target="#section-users" type="button" role="tab">
+                    <i class="bi bi-person"></i> Usuarios
+                    <span class="badge bg-secondary">{{ deleted_users|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-companies" data-bs-toggle="tab"
+                        data-bs-target="#section-companies" type="button" role="tab">
+                    <i class="bi bi-building"></i> Empresas
+                    <span class="badge bg-secondary">{{ deleted_companies.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-memberships" data-bs-toggle="tab"
+                        data-bs-target="#section-memberships" type="button" role="tab">
+                    <i class="bi bi-link"></i> Membresías
+                    <span class="badge bg-secondary">{{ deleted_user_companies.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-corrections" data-bs-toggle="tab"
+                        data-bs-target="#section-corrections" type="button" role="tab">
+                    <i class="bi bi-exclamation-triangle"></i> Incidencias
+                    <span class="badge bg-secondary">{{ deleted_corrections.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-entries" data-bs-toggle="tab"
+                        data-bs-target="#section-entries" type="button" role="tab">
+                    <i class="bi bi-clock"></i> Fichajes
+                    <span class="badge bg-secondary">{{ deleted_time_entries.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-events" data-bs-toggle="tab"
+                        data-bs-target="#section-events" type="button" role="tab">
+                    <i class="bi bi-calendar-event"></i> Eventos
+                    <span class="badge bg-secondary">{{ deleted_time_events.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-settings" data-bs-toggle="tab"
+                        data-bs-target="#section-settings" type="button" role="tab">
+                    <i class="bi bi-gear"></i> Configuración
+                    <span class="badge bg-secondary">{{ deleted_company_settings.count }}</span>
+                </button>
+            </li>
         </ul>
 
         <!-- TAB CONTENT -->
         <div class="tab-content">
             <!-- USUARIOS ELIMINADOS -->
-            {% if deleted_users.count %}
-                <div class="tab-pane fade show active" id="section-users" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade show active" id="section-users" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_users %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -117,7 +103,7 @@
                                             <th>Nombre de Usuario</th>
                                             <th>Empresas</th>
                                             <th>Estado</th>
-                                            <th>Eliminado el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -138,9 +124,17 @@
                                                     {% endif %}
                                                 </td>
                                                 <td data-label="Estado">
-                                                    <span class="badge badge-deleted">{{ item.user.status }}</span>
+                                                    {% if item.user.status == 'suspended' %}
+                                                        <span class="badge bg-danger">Suspendido</span>
+                                                    {% elif item.user.status == 'active' %}
+                                                        <span class="badge bg-success">Activo</span>
+                                                    {% elif item.user.status == 'inactive' %}
+                                                        <span class="badge bg-secondary">Inactivo</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">{{ item.user.status }}</span>
+                                                    {% endif %}
                                                 </td>
-                                                <td data-label="Eliminado el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ item.user.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -171,16 +165,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay usuarios eliminados.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- EMPRESAS ELIMINADAS -->
-            {% if deleted_companies.count %}
-                <div class="tab-pane fade {% if not deleted_users.count %}show active{% endif %}" id="section-companies" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-companies" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_companies.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -188,7 +186,7 @@
                                             <th>Nombre</th>
                                             <th>Razón Social</th>
                                             <th>CIF/NIF</th>
-                                            <th>Eliminada el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -198,7 +196,7 @@
                                                 <td data-label="Nombre">{{ company.name }}</td>
                                                 <td data-label="Razón Social">{{ company.legal_name }}</td>
                                                 <td data-label="CIF/NIF">{{ company.tax_id|default:"--" }}</td>
-                                                <td data-label="Eliminada el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ company.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -229,16 +227,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay empresas eliminadas.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- MEMBRESÍAS ELIMINADAS -->
-            {% if deleted_user_companies.count %}
-                <div class="tab-pane fade {% if not deleted_users.count and not deleted_companies.count %}show active{% endif %}" id="section-memberships" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-memberships" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_user_companies.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -246,7 +248,7 @@
                                             <th>Usuario</th>
                                             <th>Empresa</th>
                                             <th>Rol</th>
-                                            <th>Eliminada el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -258,7 +260,7 @@
                                                 <td data-label="Rol">
                                                     <span class="badge bg-info">{{ membership.role }}</span>
                                                 </td>
-                                                <td data-label="Eliminada el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ membership.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -289,16 +291,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay membresías eliminadas.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- INCIDENCIAS ELIMINADAS -->
-            {% if deleted_corrections.count %}
-                <div class="tab-pane fade" id="section-corrections" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-corrections" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_corrections.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -306,7 +312,7 @@
                                             <th>Solicitante</th>
                                             <th>Estado</th>
                                             <th>Fecha Solicitud</th>
-                                            <th>Eliminada el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -320,7 +326,7 @@
                                                 <td data-label="Fecha Solicitud">
                                                     <small>{{ correction.request_date|date:"d/m/Y H:i" }}</small>
                                                 </td>
-                                                <td data-label="Eliminada el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ correction.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -351,16 +357,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay incidencias eliminadas.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- FICHAJES ELIMINADOS -->
-            {% if deleted_time_entries.count %}
-                <div class="tab-pane fade" id="section-entries" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-entries" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_time_entries.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -370,7 +380,7 @@
                                             <th>Fecha</th>
                                             <th>Entrada</th>
                                             <th>Salida</th>
-                                            <th>Eliminado el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -386,7 +396,7 @@
                                                 <td data-label="Salida">
                                                     <small>{{ entry.clock_out|date:"H:i"|default:"--" }}</small>
                                                 </td>
-                                                <td data-label="Eliminado el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ entry.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -417,16 +427,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay fichajes eliminados.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- EVENTOS ELIMINADOS -->
-            {% if deleted_time_events.count %}
-                <div class="tab-pane fade" id="section-events" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-events" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_time_events.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -434,7 +448,7 @@
                                             <th>Tipo Evento</th>
                                             <th>Actor</th>
                                             <th>Fecha</th>
-                                            <th>Eliminado el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -446,7 +460,7 @@
                                                 <td data-label="Fecha">
                                                     <small>{{ event.timestamp|date:"d/m/Y H:i" }}</small>
                                                 </td>
-                                                <td data-label="Eliminado el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ event.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -477,16 +491,20 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay eventos eliminados.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
 
             <!-- CONFIGURACIÓN ELIMINADA -->
-            {% if deleted_company_settings.count %}
-                <div class="tab-pane fade" id="section-settings" role="tabpanel">
-                    <div class="card shadow-sm border-0">
-                        <div class="card-body">
+            <div class="tab-pane fade" id="section-settings" role="tabpanel">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body">
+                        {% if deleted_company_settings.count %}
                             <div class="table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
@@ -494,7 +512,7 @@
                                             <th>Empresa</th>
                                             <th>Hora Inicio</th>
                                             <th>Hora Fin</th>
-                                            <th>Eliminada el</th>
+                                            <th>Eliminado</th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -504,7 +522,7 @@
                                                 <td data-label="Empresa">{{ setting.company.name }}</td>
                                                 <td data-label="Hora Inicio">{{ setting.work_start }}</td>
                                                 <td data-label="Hora Fin">{{ setting.work_end }}</td>
-                                                <td data-label="Eliminada el">
+                                                <td data-label="Eliminado">
                                                     <small>{{ setting.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
@@ -535,10 +553,14 @@
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0" role="alert">
+                                <i class="bi bi-info-circle"></i> No hay configuración eliminada.
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-            {% endif %}
+            </div>
         </div>
     {% endif %}
 </div>

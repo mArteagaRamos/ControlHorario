@@ -267,3 +267,24 @@ CREATE TABLE notes (
 );
 
 CREATE INDEX idx_notes_company ON notes(company_id, created_at DESC);
+
+
+-- ── Columna de eliminación lógica ────────────────────────────────────────────────
+
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'control_horario'
+        AND table_type = 'BASE TABLE'
+    )
+    LOOP
+        EXECUTE format(
+            'ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;',
+            r.table_name
+        );
+    END LOOP;
+END $$;
