@@ -52,8 +52,7 @@ urlpatterns = [
 
     path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
     path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),
-    path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review,         name='api_leave_review'),
-    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
+path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name='api_leave_review'),    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
     path('api/calendar/events/',     dashboard_views.api_calendar_events,       name='api_calendar_events'),
     # Admin Dashboard
     path('admin/', user_views.admin_dashboard, name='admin_dashboard'),

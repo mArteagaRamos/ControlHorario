@@ -1,137 +1,430 @@
-/* ── Layout ── */
-.calendar-sidebar { min-width: 260px; max-width: 300px; }
-#calendar { min-height: 720px; }
+/* ══════════════════════════════════════════════════════════════════════════
+   CALENDAR — Hoja de estilos
+   ══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Calendario ── */
-.fc {
-  background: #ffffff;
-  border-radius: 1rem;
-  box-shadow: 0 25px 60px rgba(15, 23, 42, .08);
+/* ── Variables ──────────────────────────────────────────────────────────── */
+:root {
+  --cal-bg:          #f1f5f9;
+  --cal-surface:     #ffffff;
+  --cal-border:      #e2e8f0;
+  --cal-text:        #1e293b;
+  --cal-text-muted:  #64748b;
+  --cal-radius:      .75rem;
+  --cal-shadow:      0 2px 12px rgba(15,23,42,.07);
+  --cal-shadow-lg:   0 8px 32px rgba(15,23,42,.10);
+
+  --vacation-from:   #22c55e;
+  --vacation-to:     #14b8a6;
+  --absence-from:    #f97316;
+  --absence-to:      #ef4444;
+  --other-from:      #3b82f6;
+  --other-to:        #0ea5e9;
+
+  --pending-color:   #f59e0b;
+  --approved-color:  #10b981;
+  --rejected-color:  #ef4444;
+  --canceled-color:  #6b7280;
+}
+
+/* ── Página ─────────────────────────────────────────────────────────────── */
+.cal-page {
+  padding: 1.5rem;
+  background: var(--cal-bg);
+  min-height: 100vh;
+}
+
+/* ── Banner de solicitudes pendientes ────────────────────────────────────── */
+.pending-banner {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  background: #fffbeb;
+  border: 1.5px solid #fcd34d;
+  border-left: 5px solid #f59e0b;
+  border-radius: var(--cal-radius);
+  padding: .8rem 1.1rem;
+  margin-bottom: 1.25rem;
+  font-size: .9rem;
+  color: #92400e;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, .12);
+  animation: bannerIn .35s ease;
+}
+.pending-banner__icon { font-size: 1.1rem; flex-shrink: 0; }
+.pending-banner strong { font-weight: 700; }
+.pending-banner__close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #b45309;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 .2rem;
+  opacity: .7;
+  transition: opacity .15s;
+}
+.pending-banner__close:hover { opacity: 1; }
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Layout principal ────────────────────────────────────────────────────── */
+.cal-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .cal-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Aside ───────────────────────────────────────────────────────────────── */
+.cal-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.aside-card {
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-radius);
+  box-shadow: var(--cal-shadow);
   overflow: hidden;
 }
-.fc .fc-toolbar-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #1f2937;
-}
-.fc .fc-toolbar-chunk {
+
+.aside-card__header {
+  display: flex;
+  align-items: center;
   gap: .5rem;
+  padding: .65rem 1rem;
+  font-size: .85rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--cal-border);
+  color: var(--cal-text);
+}
+.aside-card__header--vacation {
+  background: linear-gradient(90deg, #f0fdf4, #f0fdfa);
+  border-bottom-color: #bbf7d0;
+  color: #166534;
+}
+.aside-card__header--absence {
+  background: linear-gradient(90deg, #fff7ed, #fef2f2);
+  border-bottom-color: #fed7aa;
+  color: #9a3412;
+}
+.aside-card__icon { font-size: 1rem; }
+.aside-card__body { padding: .85rem 1rem; }
+
+/* ── Campos de formulario ────────────────────────────────────────────────── */
+.cal-field { margin-bottom: .65rem; }
+.cal-field:last-of-type { margin-bottom: .85rem; }
+
+.cal-label {
+  display: block;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--cal-text-muted);
+  margin-bottom: .28rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cal-label__optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #94a3b8;
+}
+
+.cal-input,
+.cal-select {
+  display: block;
+  width: 100%;
+  padding: .42rem .65rem;
+  font-size: .83rem;
+  color: var(--cal-text);
+  background: #f8fafc;
+  border: 1.5px solid var(--cal-border);
+  border-radius: .45rem;
+  transition: border-color .15s, box-shadow .15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.cal-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .6rem center;
+  padding-right: 1.8rem;
+}
+.cal-input:focus,
+.cal-select:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, .25);
+  background: #fff;
+}
+.cal-textarea { resize: vertical; min-height: 3.5rem; }
+
+/* ── Botones de solicitud ────────────────────────────────────────────────── */
+.cal-btn {
+  display: block;
+  width: 100%;
+  padding: .55rem 1rem;
+  font-size: .83rem;
+  font-weight: 700;
+  border: none;
+  border-radius: .5rem;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+  letter-spacing: .01em;
+}
+.cal-btn:hover  { opacity: .9; transform: translateY(-1px); }
+.cal-btn:active { transform: translateY(0); }
+
+.cal-btn--vacation {
+  background: #1a1f2e;
+  box-shadow: none;
+  color: #fff;
+}
+
+.cal-btn--absence {
+  background: #1a1f2e;
+  box-shadow: none;
+  color: #fff;
+}
+
+/* ── Mensajes de feedback ────────────────────────────────────────────────── */
+.cal-msg { font-size: .8rem; min-height: 1.2em; }
+.cal-msg--success { color: #059669; }
+.cal-msg--error   { color: #dc2626; }
+
+/* ── Columna principal ───────────────────────────────────────────────────── */
+.cal-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Leyenda ─────────────────────────────────────────────────────────────── */
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1.2rem;
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-radius);
+  padding: .65rem 1.1rem;
+  box-shadow: var(--cal-shadow);
+  font-size: .8rem;
+  color: var(--cal-text-muted);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-weight: 500;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legend-dot--vacation {
+  background: linear-gradient(135deg, var(--vacation-from), var(--vacation-to));
+}
+.legend-dot--absence {
+  background: linear-gradient(135deg, var(--absence-from), var(--absence-to));
+}
+
+/* ── Tarjeta del calendario ──────────────────────────────────────────────── */
+.cal-card {
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-radius);
+  box-shadow: var(--cal-shadow-lg);
+  overflow: hidden;
+  padding: .5rem;
+}
+
+/* ── Sección solicitudes pendientes ─────────────────────────────────────── */
+.pending-section {
+  background: var(--cal-surface);
+  border: 1px solid var(--cal-border);
+  border-radius: var(--cal-radius);
+  box-shadow: var(--cal-shadow);
+  overflow: hidden;
+}
+.pending-section__header {
+  padding: .65rem 1.1rem;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--cal-border);
+}
+.pending-section__title {
+  margin: 0;
+  font-size: .88rem;
+  font-weight: 700;
+  color: var(--cal-text);
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+.pending-section__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 .35rem;
+  border-radius: 999px;
+  background: var(--pending-color);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pending-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: .75rem;
+  padding: 1rem;
+}
+
+/* ── Tarjeta de solicitud pendiente ─────────────────────────────────────── */
+.pending-card {
+  background: #fff;
+  border: 1.5px solid var(--cal-border);
+  border-left: 4px solid var(--pending-color);
+  border-radius: .6rem;
+  padding: .75rem .9rem;
+  font-size: .82rem;
+  box-shadow: 0 1px 4px rgba(15,23,42,.05);
+  transition: box-shadow .15s;
+}
+.pending-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.10); }
+
+.pending-card__name  { font-weight: 700; color: var(--cal-text); margin-bottom: .2rem; }
+.pending-card__meta  { color: var(--cal-text-muted); margin-bottom: .15rem; }
+.pending-card__dates { font-weight: 600; color: #374151; margin-bottom: .15rem; }
+.pending-card__note  { font-style: italic; color: var(--cal-text-muted); margin-top: .25rem; margin-bottom: .15rem; }
+
+.pending-card__actions {
+  display: flex;
+  gap: .4rem;
+  margin-top: .55rem;
+}
+
+.pcard-btn {
+  flex: 1;
+  padding: .32rem .5rem;
+  font-size: .75rem;
+  font-weight: 700;
+  border: none;
+  border-radius: .4rem;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.pcard-btn:hover { opacity: .85; }
+.pcard-btn--approve { background: #dcfce7; color: #166534; }
+.pcard-btn--reject  { background: #fee2e2; color: #991b1b; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FullCalendar overrides
+   ══════════════════════════════════════════════════════════════════════════ */
+.fc {
+  background: transparent;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--cal-text);
 }
 .fc .fc-button {
-  border-radius: 999px;
-  border: none;
-  padding: .55rem 1rem;
-  font-weight: 600;
-  color: #fff;
-  background: #2563eb;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, .16);
+  background: #1a1f2e;
+  box-shadow: none;
 }
 .fc .fc-button:hover,
-.fc .fc-button:focus {
-  background: #1d4ed8;
-}
-.fc .fc-button:disabled {
-  opacity: .55;
-}
-.fc .fc-button-active {
-  background: #1e40af;
-  box-shadow: 0 0 0 0.15rem rgba(59, 130, 246, .25);
-}
+.fc .fc-button:focus { background: #0f1219; }
+.fc .fc-button-active { background: #0a0d14; }
+
 .fc .fc-col-header-cell-cushion {
   color: #475569;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .04em;
+  font-size: .78rem;
 }
-.fc .fc-daygrid-day-frame {
-  min-height: 7rem;
-}
-.fc .fc-daygrid-day:hover {
-  background: #f8fafc;
-}
-.fc .fc-daygrid-day.today {
-  background: rgba(59, 130, 246, .06);
-}
-.fc .fc-daygrid-day.today .fc-daygrid-day-number {
-  background: #bfdbfe;
-  color: #1d4ed8;
-  border-radius: 999px;
-  padding: .2rem .55rem;
-}
+.fc .fc-daygrid-day-frame { min-height: 6rem; }
+.fc .fc-daygrid-day:hover { background: #f8fafc; }
 .fc .fc-daygrid-day-number {
   font-weight: 600;
   color: #475569;
+  font-size: .82rem;
 }
 
 /* ── Eventos ── */
 .fc-event-custom {
   display: flex;
   align-items: center;
-  gap: .55rem;
-  padding: .55rem .75rem;
-  border-radius: 1rem;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, .12);
+  gap: .45rem;
+  padding: .4rem .6rem;
+  border-radius: .75rem;
+  box-shadow: 0 4px 12px rgba(15,23,42,.12);
   color: #fff;
-  font-size: .88rem;
+  font-size: .8rem;
   line-height: 1.2;
-  min-height: 3rem;
+  min-height: 2.4rem;
 }
 .fc-event-custom .event-icon {
-  width: 2.2rem;
-  height: 2.2rem;
+  width: 1.8rem;
+  height: 1.8rem;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: rgba(255, 255, 255, .18);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12);
-  font-size: 1rem;
-}
-.fc-event-custom .event-text {
-  min-width: 0;
+  background: rgba(255,255,255,.18);
+  font-size: .9rem;
+  flex-shrink: 0;
 }
 .fc-event-custom .event-title {
   font-weight: 700;
-  font-size: .9rem;
+  font-size: .82rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.fc-event-custom .event-status {
-  margin-top: .15rem;
-}
 .event-status-pill {
   display: inline-block;
-  padding: .18rem .5rem;
+  padding: .12rem .4rem;
   border-radius: 999px;
-  font-size: .7rem;
+  font-size: .65rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, .22);
+  background: rgba(255,255,255,.22);
   color: #f8fafc;
   text-transform: capitalize;
 }
 .fc-event-custom.vacation-event {
-  background: linear-gradient(135deg, #22c55e 0%, #14b8a6 100%);
+  background: linear-gradient(135deg, var(--vacation-from) 0%, var(--vacation-to) 100%);
 }
 .fc-event-custom.absence-event {
-  background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  background: linear-gradient(135deg, var(--absence-from) 0%, var(--absence-to) 100%);
 }
 .fc-event-custom.other-event {
-  background: linear-gradient(135deg, #3b82f6 0%, #0ea5e9 100%);
+  background: linear-gradient(135deg, var(--other-from) 0%, var(--other-to) 100%);
 }
 
 /* ── Badges de estado ── */
-.badge-pending  { background: #f59e0b; }
-.badge-approved { background: #10b981; }
-.badge-rejected { background: #ef4444; }
-.badge-canceled { background: #6b7280; }
-
-/* ── Tarjeta de solicitud pendiente ── */
-.pending-card {
-  border-left: 4px solid #f59e0b;
-  padding: .5rem .75rem;
-  margin-bottom: .5rem;
-  background: var(--bs-light);
-  border-radius: 4px;
-  font-size: .82rem;
-}
-.pending-card .btn { font-size: .75rem; padding: 2px 8px; }
+.badge-pending  { background: var(--pending-color); }
+.badge-approved { background: var(--approved-color); }
+.badge-rejected { background: var(--rejected-color); }
+.badge-canceled { background: var(--canceled-color); }

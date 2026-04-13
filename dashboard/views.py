@@ -16,7 +16,7 @@ from users.models import Companies, Users, UserCompany, CompanySettings
 from audit.views import manager_or_admin_required
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
-
+from django.db.utils import IntegrityError as DBIntegrityError
 
 
 # ── helpers ────────────────────────────────────────────────────────────────────
@@ -115,21 +115,12 @@ def api_calendar_events(request):
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    target_user = request.user
     user_id = request.GET.get('user_id')
-    
-    if user_id and _is_manager(request, company):
-        # Corregido: Aseguramos que el ID sea válido para UUID
-        try:
-            target_user = get_object_or_404(Users, id=user_id)
-        except:
-            return JsonResponse({'error': 'Invalid User ID'}, status=400)
 
     start_str = request.GET.get('start', '')[:10]
     end_str   = request.GET.get('end', '')[:10]
 
     try:
-        # Usamos date.fromisoformat asegurando que el string sea correcto
         start = date.fromisoformat(start_str)
         end   = date.fromisoformat(end_str)
     except (ValueError, TypeError):
@@ -143,10 +134,41 @@ def api_calendar_events(request):
         'canceled': '#6b7280',
     }
 
+    # ── Todos los empleados ───────────────────────────────────────────────
+    if user_id == 'all' and _is_manager(request, company):
+        leaves = LeaveRequest.objects.filter(
+            company=company,
+            start_date__lte=end,
+            end_date__gte=start,
+        ).select_related('user')
+
+        for leave in leaves:
+            events.append({
+                'id': f'leave-{leave.id}',
+                'title': f'{leave.user.username} · {leave.get_leave_type_display()}',
+                'start': leave.start_date.isoformat(),
+                'end': (leave.end_date + timedelta(days=1)).isoformat(),
+                'color': STATUS_COLOR.get(leave.status, '#6b7280'),
+                'allDay': True,
+                'extendedProps': {
+                    'status': leave.get_status_display(),
+                    'reason': leave.reason_note or '',
+                },
+            })
+        return JsonResponse(events, safe=False)
+
+    # ── Empleado concreto (manager) o usuario propio ──────────────────────
+    target_user = request.user
+    if user_id and _is_manager(request, company):
+        try:
+            target_user = get_object_or_404(Users, id=user_id)
+        except:
+            return JsonResponse({'error': 'Invalid User ID'}, status=400)
+
     leaves = LeaveRequest.objects.filter(
-        user=target_user, 
+        user=target_user,
         company=company,
-        start_date__lte=end, 
+        start_date__lte=end,
         end_date__gte=start,
     )
 
@@ -466,29 +488,35 @@ def api_leave_request_cancel(request, leave_id):
 @login_required
 @manager_or_admin_required
 def api_leave_pending(request):
-    """Lista de solicitudes pendientes para el manager."""
-    company = _get_company(request)
-    leaves = (
-        LeaveRequest.objects
-        .filter(company=company, status=LeaveRequest.LeaveStatus.PENDING)
-        .select_related('user')
-        .order_by('start_date')
-    )
-    data = [
-        {
-            'id':         str(l.id),
-            'user':       l.user.get_full_name() or l.user.email,
-            'leave_type': l.get_leave_type_display(),
-            'leave_reason': l.get_leave_reason_display(),
-            'start_date': str(l.start_date),
-            'end_date':   str(l.end_date),
-            'reason_note':     l.reason_note or '',
-            'created_at': l.created_at.strftime('%d/%m/%Y'),
-        }
-        for l in leaves
-    ]
-    return JsonResponse(data, safe=False)
- 
+    try:
+        company = _get_company(request)
+        leaves = LeaveRequest.objects.filter(
+            company=company, 
+            status=LeaveRequest.LeaveStatus.PENDING
+        ).select_related('user')
+
+        data = []
+        for l in leaves:
+            # Según tu users/models.py, los campos son 'username' y 'surname'
+            full_name = f"{l.user.username} {l.user.surname}".strip()
+            
+            data.append({
+                'id':           str(l.id),
+                'user':         full_name or l.user.email,
+                'leave_type':   l.get_leave_type_display(),
+                # USAMOS 'reason' directamente si get_reason_display falla
+                'leave_reason': l.get_leave_reason_display(),
+                'start_date':   l.start_date.strftime('%d/%m/%Y'),
+                'end_date':     l.end_date.strftime('%d/%m/%Y'),
+                'reason_note':  l.reason_note or ""
+            })
+        
+        # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
+        return JsonResponse({'requests': data})
+
+    except Exception as e:
+        print(f"DEBUG ERROR: {str(e)}") 
+        return JsonResponse({'error': str(e)}, status=500)
  
 # ── API: aprobar / rechazar (manager) ────────────────────────────────────────
  
@@ -510,6 +538,7 @@ def api_leave_review(request, leave_id):
  
     action = data.get('action')  # 'approve' | 'reject'
     note   = data.get('note', '')
+    note   = note.strip() if note else None
  
     if action == 'approve':
         leave.status = LeaveRequest.LeaveStatus.APPROVED
@@ -521,10 +550,18 @@ def api_leave_review(request, leave_id):
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.review_note = note
-    leave.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_note', 'updated_at'])
- 
+    updated = LeaveRequest.objects.filter(pk=leave.pk).update(
+        status      = leave.status,
+        reviewed_by = leave.reviewed_by,
+        reviewed_at = leave.reviewed_at,
+        review_note = leave.review_note,
+        force_proof = True,
+    )
+
+    if not updated:
+        return JsonResponse({'error': 'No se pudo actualizar la solicitud.'}, status=500)
+
     return JsonResponse({'ok': True, 'new_status': leave.status})
- 
  
 # ── Vistas de equipo ───────────────────────────────────────────────────────────
  
