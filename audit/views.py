@@ -17,6 +17,7 @@ from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from .models import AuditLog
+from django.core.paginator import Paginator
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -676,16 +677,44 @@ def audit_dashboard(request):
 # -------------------------------------------------------------
 
 def audit_fichajes(request):
-    tablas_fichajes = ['timetracking_registro', 'timetracking_pausa'] 
+    tablas_fichajes = ['timetracking_registro', 'timetracking_pausa']
     
-    logs = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
+    # 1. Empezamos con el queryset base
+    logs_list = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
+
+    # 2. FILTRO DE BÚSQUEDA (Por nombre de usuario o email)
+    search_query = request.GET.get('search')
+    if search_query:
+        logs_list = logs_list.filter(
+            Q(user__first_name__icontains=search_query) | 
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+
+    # 3. FILTRO POR FECHAS
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    if desde:
+        logs_list = logs_list.filter(timestamp__date__gte=desde)
+    if hasta:
+        logs_list = logs_list.filter(timestamp__date__lte=hasta)
+
+    # 4. PAGINACIÓN (15 registros por página)
+    paginator = Paginator(logs_list, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'titulo': 'Auditoría de Fichajes',
         'icono': 'fas fa-clock', 
         'color_tema': 'success', 
-        'logs': logs
+        'logs': page_obj,  # Ahora pasamos el objeto paginado
+        'search_query': search_query,
+        'desde': desde,
+        'hasta': hasta,
     }
-    # Apuntamos a la carpeta audit y al archivo específico
+    
     return render(request, 'audit/audit_fichajes.html', context)
 
 def audit_vacaciones(request):
