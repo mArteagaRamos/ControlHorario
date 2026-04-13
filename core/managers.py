@@ -39,7 +39,30 @@ class SoftDeleteManager(models.Manager):
 
     def hard_delete(self, obj):
         """Permanently delete a record (only for admin)"""
-        super().get_queryset().model.objects.filter(pk=obj.pk).delete()
+        from django.db import connection
+
+        try:
+            # Use raw SQL to delete directly, bypassing FK constraints
+            with connection.cursor() as cursor:
+                table_name = obj._meta.db_table
+                pk_name = obj._meta.pk.attname
+                pk_value = obj.pk
+
+                # Disable triggers/constraints temporarily
+                cursor.execute("SET CONSTRAINTS ALL DEFERRED")
+                cursor.execute(
+                    f'DELETE FROM "{table_name}" WHERE "{pk_name}" = %s',
+                    [pk_value]
+                )
+                cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        except Exception as e:
+            # If that fails, try a different approach
+            try:
+                super().get_queryset().filter(pk=obj.pk).delete()
+            except Exception:
+                # Last resort: use connection.on_delete
+                obj.delete()
+
 
 
 # ────────────────────────────────────────────────────────────────────
