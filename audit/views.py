@@ -16,6 +16,7 @@ from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
+from .models import AuditLog
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -662,3 +663,62 @@ def eliminar_incidencia_rechazada(request):
 
     return redirect('manager_logs')
 
+
+#AUDITORÍA VIEWSSSSSSSSSSSSSSS
+# 1. Vista del Dashboard (el menú de botones)
+def audit_dashboard(request):
+    # Añadimos 'audit/' a la ruta
+    return render(request, 'audit/audit_dashboard.html')
+
+# -------------------------------------------------------------
+# VISTAS DE TABLAS ESPECÍFICAS
+# -------------------------------------------------------------
+
+def audit_fichajes(request):
+    tablas_fichajes = ['timetracking_registro', 'timetracking_pausa'] 
+    
+    logs = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
+    context = {
+        'titulo': 'Auditoría de Fichajes',
+        'icono': 'fas fa-clock', 
+        'color_tema': 'success', 
+        'logs': logs
+    }
+    # Apuntamos a la carpeta audit y al archivo específico
+    return render(request, 'audit/audit_fichajes.html', context)
+
+def audit_vacaciones(request):
+    tablas_vacaciones = ['core_ausencia', 'core_vacaciones'] 
+    
+    logs = AuditLog.objects.filter(table_name__in=tablas_vacaciones).order_by('-timestamp')
+    context = {
+        'titulo': 'Auditoría de Vacaciones y Ausencias',
+        'icono': 'fas fa-calendar-alt',
+        'color_tema': 'warning', 
+        'logs': logs
+    }
+    return render(request, 'audit/audit_vacaciones.html', context)
+
+def audit_usuarios(request):
+    tablas_usuarios = ['users_users', 'users_perfil'] 
+    
+    logs = AuditLog.objects.filter(table_name__in=tablas_usuarios).order_by('-timestamp')
+    context = {
+        'titulo': 'Auditoría de Usuarios',
+        'icono': 'fas fa-users',
+        'color_tema': 'info', 
+        'logs': logs
+    }
+    return render(request, 'audit/audit_usuarios.html', context)
+
+def audit_incidencias(request):
+    tablas_incidencias = ['core_incidencia', 'core_ticket'] 
+    
+    logs = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
+    context = {
+        'titulo': 'Auditoría de Incidencias',
+        'icono': 'fas fa-exclamation-triangle',
+        'color_tema': 'danger', 
+        'logs': logs
+    }
+    return render(request, 'audit/audit_incidencias.html', context)

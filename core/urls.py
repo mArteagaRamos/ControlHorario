@@ -63,5 +63,13 @@ urlpatterns = [
     path('admin/restore-record/', user_views.restore_record, name='restore_record'),
     path('admin/permanently-delete-record/', user_views.permanently_delete_record, name='permanently_delete_record'),
     path('admin/delete-company/', user_views.delete_company, name='delete_company'),
+
+    # ==========================================
+    # AUDIT URLs 
+    path('audit/', audit_views.audit_dashboard, name='audit_dashboard'),
+    path('audit/fichajes/', audit_views.audit_fichajes, name='audit_fichajes'),
+    path('audit/vacaciones/', audit_views.audit_vacaciones, name='audit_vacaciones'),
+    path('audit/usuarios/', audit_views.audit_usuarios, name='audit_usuarios'),
+    path('audit/incidencias/', audit_views.audit_incidencias, name='audit_incidencias'),
 ]
 

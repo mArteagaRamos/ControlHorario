@@ -1,0 +1,69 @@
+{% extends 'base/base.html' %} 
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="text-primary"><i class="fas fa-shield-alt"></i> Panel Central de Auditoría</h2>
+            <p class="text-muted">Selecciona el módulo que deseas inspeccionar para ver su registro de cambios.</p>
+            <hr>
+        </div>
+    </div>
+
+    <div class="row row-cols-1 row-cols-md-2 g-4">
+        
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 bg-light">
+                <div class="card-body text-center p-5">
+                    <h1 class="display-4 text-success mb-3"><i class="fas fa-clock"></i></h1>
+                    <h4 class="card-title">Auditoría de Fichajes</h4>
+                    <p class="card-text text-muted">Entradas, salidas, pausas, cierres automáticos y modificaciones manuales de jornada.</p>
+                    <a href="{% url 'audit_fichajes' %}" class="btn btn-success btn-lg mt-3 w-100">
+                        Ver Registros
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 bg-light">
+                <div class="card-body text-center p-5">
+                    <h1 class="display-4 text-warning mb-3"><i class="fas fa-calendar-alt"></i></h1>
+                    <h4 class="card-title">Vacaciones y Ausencias</h4>
+                    <p class="card-text text-muted">Creación de solicitudes, aprobaciones, rechazos y modificaciones de días libres.</p>
+                    <a href="{% url 'audit_vacaciones' %}" class="btn btn-warning btn-lg mt-3 w-100 text-dark">
+                        Ver Registros
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 bg-light">
+                <div class="card-body text-center p-5">
+                    <h1 class="display-4 text-info mb-3"><i class="fas fa-users"></i></h1>
+                    <h4 class="card-title">Auditoría de Usuarios</h4>
+                    <p class="card-text text-muted">Altas, bajas, cambios de permisos, modificaciones de datos personales y accesos.</p>
+                    <a href="{% url 'audit_usuarios' %}" class="btn btn-info btn-lg mt-3 w-100 text-white">
+                        Ver Registros
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card h-100 shadow-sm border-0 bg-light">
+                <div class="card-body text-center p-5">
+                    <h1 class="display-4 text-danger mb-3"><i class="fas fa-exclamation-triangle"></i></h1>
+                    <h4 class="card-title">Auditoría de Incidencias</h4>
+                    <p class="card-text text-muted">Registro de errores, tickets de soporte, cambios de estado en incidencias y resoluciones.</p>
+                    <a href="{% url 'audit_incidencias' %}" class="btn btn-danger btn-lg mt-3 w-100">
+                        Ver Registros
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
