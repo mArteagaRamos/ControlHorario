@@ -45,26 +45,77 @@
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title text-success">Comparativa de Fichaje</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Movimiento</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-danger">Antes (Before)</h6>
-                <div class="bg-light p-3 border rounded" style="max-height: 300px; overflow-y: auto;">
-                    <pre><code>{{ log.before|pprint|default:"N/A" }}</code></pre>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-success">Después (After)</h6>
-                <div class="bg-light p-3 border rounded" style="max-height: 300px; overflow-y: auto;">
-                    <pre><code>{{ log.after|pprint|default:"N/A" }}</code></pre>
+      <div class="modal-body p-4">
+        
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
+                        <span class="badge bg-success px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                    </div>
+                    <div class="col-4 border-start border-end">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
+                        <span class="fw-bold">{{ log.user.username|default:"Sistema" }}</span>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
+                        <span class="fw-bold">{{ log.timestamp|date:"d M Y - H:i" }}</span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <h6 class="text-danger border-bottom border-danger pb-2 mb-3">
+                    <i class="fas fa-history me-1"></i> Estado Anterior
+                </h6>
+                {% if log.before %}
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in log.before.items %}
+                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                <span class="text-muted text-capitalize">{{ key|title }}</span>
+                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-secondary text-center" role="alert">
+                        No existía un registro previo (Creación Nueva).
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-6">
+                <h6 class="text-success border-bottom border-success pb-2 mb-3">
+                    <i class="fas fa-check-circle me-1"></i> Estado Nuevo
+                </h6>
+                {% if log.after %}
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in log.after.items %}
+                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                <span class="text-muted text-capitalize">{{ key|title }}</span>
+                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-secondary text-center" role="alert">
+                        El registro fue eliminado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
