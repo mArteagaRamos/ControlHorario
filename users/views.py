@@ -1,6 +1,7 @@
 # ---------- Backend Views: users/views.py ----------
 
 import json
+import csv
 from functools import wraps
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -20,6 +21,7 @@ from .forms import (
 from .email_utils import send_new_user_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
+from audit.models import AuditLog
 from django.views.decorators.cache import never_cache
 
 
@@ -177,15 +179,43 @@ def login_view(request):
                 if user is not None:
                     # ── Check if user is suspended ──────────────────────────────
                     if user.status == 'suspended':
-                        messages.error(request, 'Tu cuenta ha sido suspendida. Por favor contacta con el administrador.')
+                        # 🔐 AUDITORÍA: Intento de login con cuenta suspendida
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Intento de login: cuenta suspendida',
+                        )
+                        messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
                     # ── Check if user is deleted ────────────────────────────────
                     elif user.deleted_at is not None:
-                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        # 🔐 AUDITORÍA: Intento de login con cuenta eliminada
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Intento de login: cuenta eliminada',
+                        )
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # User is valid, now login
                     auth_login(request, user)
+
+                    # 🔐 AUDITORÍA: Registro de login exitoso
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='user_action',
+                        record_id=user.id,
+                        user=user,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        reason='Login exitoso',
+                    )
 
                     if user.must_change_password:
                         # Clear navigation history on login
@@ -203,7 +233,7 @@ def login_view(request):
                         if memberships.count() == 0:
                             # Desautenticar y mostrar error
                             auth_logout(request)
-                            messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                            messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
                             return render(request, 'login/login.html', {'form': form})
                         else:
                             # Clear navigation history on login
@@ -219,7 +249,33 @@ def login_view(request):
                                     )
                                 return redirect('home_timetracking')
                 else:
+                    # 🔐 AUDITORÍA: Registro de intento de login fallido
+                    email = form.cleaned_data.get('username', 'desconocido')
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='user_action',
+                        record_id=uuid4(),  # Sin usuario asociado (login fallido)
+                        user=None,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        reason=f'Intento de login fallido: {email}',
+                    )
                     messages.error(request, 'Email o contraseña incorrectos.')
+            else:
+                # 🔐 AUDITORÍA: Registro de intento de login con errores de validación
+                email_input = request.POST.get('username', 'desconocido')
+                error_messages = ', '.join([str(e) for errors in form.errors.values() for e in errors])
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='user_action',
+                    record_id=uuid4(),
+                    user=None,
+                    action_type=AuditLog.AuditAction.CREATE,
+                    reason=f'Intento de login fallido (errores de validación): {email_input}',
+                    after={
+                        'tipo': 'Login Fallido - Validación',
+                        'errores': error_messages,
+                    }
+                )
 
         # ── Step 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
@@ -244,7 +300,7 @@ def login_view(request):
 
                     # ── Check if user is deleted ────────────────────────────────
                     if updated_user.deleted_at is not None:
-                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
 
@@ -256,7 +312,7 @@ def login_view(request):
 
                     # ── Check if user has at least one active membership ─────
                     if memberships.count() == 0:
-                        messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                        messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
 
@@ -308,6 +364,17 @@ def login_view(request):
 @login_required
 def logout_view(request):
     """Cierra la sesión del usuario y redirige al login."""
+    # 🔐 AUDITORÍA: Registro de logout
+    user = request.user
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=user.id,
+        user=user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason='Logout',
+    )
+
     auth_logout(request)
     messages.success(request, 'Has cerrado sesión correctamente.')
     return redirect('login')
@@ -909,6 +976,136 @@ def workday(request):
     return render(request, 'user_panel/workday.html', context)
 
 
+@login_required
+@require_POST
+def exportar_workday_entries(request):
+    """
+    Exporta los fichajes del usuario a CSV.
+    POST params: entry_id (lista de IDs seleccionadas)
+    """
+    from audit.views import get_effective_context
+
+    entry_ids = request.POST.getlist('entry_id')
+
+    if not entry_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
+
+    # 🔐 AUDITORÍA: Exportación de fichajes personales
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(entry_ids)} fichajes personales',
+        after={
+            'tipo': 'Fichajes Personales',
+            'tabla': 'timetracking_registro',
+            'cantidad': len(entry_ids),
+            'ids': [str(id) for id in entry_ids],
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_fichajes_personales_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Fecha', 'Entrada', 'Salida', 'Tiempo Total (HH:MM:SS)', 'Estado', 'Notas'])
+
+    for entry in entries:
+        total_s = entry.total_seconds
+        horas = total_s // 3600
+        minutos = (total_s % 3600) // 60
+        segundos = total_s % 60
+        tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
+
+        writer.writerow([
+            entry.date.strftime('%d/%m/%Y'),
+            entry.clock_in.strftime('%H:%M:%S') if entry.clock_in else '--:--:--',
+            entry.clock_out.strftime('%H:%M:%S') if entry.clock_out else '--:--:--',
+            tiempo_formateado,
+            entry.status if hasattr(entry, 'status') else '',
+            entry.notes if entry.notes else ''
+        ])
+
+    return response
+
+
+@login_required
+@require_POST
+def exportar_workday_requests(request):
+    """
+    Exporta las solicitudes de corrección del usuario a CSV.
+    POST params: request_id (lista de IDs seleccionadas)
+    """
+
+    request_ids = request.POST.getlist('request_id')
+
+    if not request_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    corrections = CorrectionRequests.objects.filter(
+        id__in=request_ids
+    ).select_related('requester', 'time_entry').order_by('-request_date')
+
+    # 🔐 AUDITORÍA: Exportación de solicitudes de corrección
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(request_ids)} solicitudes de corrección',
+        after={
+            'tipo': 'Solicitudes de Corrección',
+            'tabla': 'core_correction_requests',
+            'cantidad': len(request_ids),
+            'ids': [str(id) for id in request_ids],
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_solicitudes_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Fecha de Solicitud',
+        'Fecha del Evento',
+        'Entrada Original',
+        'Salida Original',
+        'Entrada Solicitada',
+        'Salida Solicitada',
+        'Motivo',
+        'Estado'
+    ])
+
+    for correction in corrections:
+        writer.writerow([
+            correction.request_date.strftime('%d/%m/%Y %H:%M') if correction.request_date else '--/--/---- --:--',
+            correction.time_entry.date.strftime('%d/%m/%Y') if correction.time_entry else '--/--/----',
+            correction.time_entry.clock_in.strftime('%d/%m/%Y %H:%M') if correction.time_entry and correction.time_entry.clock_in else '--/--/---- --:--',
+            correction.time_entry.clock_out.strftime('%H:%M') if correction.time_entry and correction.time_entry.clock_out else '--:--',
+            correction.new_clock_in.strftime('%d/%m/%Y %H:%M') if correction.new_clock_in else '--/--/---- --:--',
+            correction.new_clock_out.strftime('%H:%M') if correction.new_clock_out else '--:--',
+            correction.reason or '',
+            correction.status or ''
+        ])
+
+    return response
+
+
+
+
 # ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
 def admin_only_required(view_func):
@@ -929,7 +1126,159 @@ def admin_only_required(view_func):
 def admin_dashboard(request):
     """Admin dashboard to manage companies and workers globally"""
 
+    # 🔐 AUDITORÍA: Acceso al panel de administración
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason='Acceso al panel de administración',
+        after={
+            'tipo': 'Acceso Admin',
+            'accion': 'Acceso al panel de control global',
+            'rol': 'administrador',
+        }
+    )
+
     return render(request, 'admin/admin_dashboard.html')
+
+@admin_only_required
+@require_POST
+def exportar_deleted_records(request):
+    """
+    Exporta registros eliminados agrupados por tipo a CSV.
+    POST params: record_type (users, companies, user_companies, corrections, time_entries, time_events)
+    """
+
+    record_type = request.POST.get('record_type', '').strip()
+
+    if not record_type:
+        return HttpResponse("Tipo de registro no especificado.")
+
+    # Map record types to models and fields
+    models_config = {
+        'users': {
+            'model': Users,
+            'queryset': Users.objects.only_deleted().order_by('-deleted_at'),
+            'filename': 'reporte_usuarios_eliminados',
+            'headers': ['Email', 'Usuario', 'Nombre', 'Estado', 'Eliminado'],
+            'row_func': lambda u: [
+                u.email,
+                u.username,
+                f"{u.username} {u.surname}",
+                u.status if hasattr(u, 'status') else '--',
+                u.deleted_at.strftime('%d/%m/%Y %H:%M') if u.deleted_at else '--'
+            ]
+        },
+        'companies': {
+            'model': Companies,
+            'queryset': Companies.objects.only_deleted().order_by('-deleted_at'),
+            'filename': 'reporte_empresas_eliminadas',
+            'headers': ['Nombre', 'Email', 'Teléfono', 'País', 'Eliminada'],
+            'row_func': lambda c: [
+                c.name,
+                c.email if hasattr(c, 'email') else '--',
+                c.phone if hasattr(c, 'phone') else '--',
+                c.country if hasattr(c, 'country') else '--',
+                c.deleted_at.strftime('%d/%m/%Y %H:%M') if c.deleted_at else '--'
+            ]
+        },
+        'user_companies': {
+            'model': UserCompany,
+            'queryset': UserCompany.objects.only_deleted().select_related('user', 'company').order_by('-deleted_at'),
+            'filename': 'reporte_membresias_eliminadas',
+            'headers': ['Usuario', 'Empresa', 'Rol', 'Ingreso', 'Eliminada'],
+            'row_func': lambda uc: [
+                f"{uc.user.username} {uc.user.surname}" if uc.user else '--',
+                uc.company.name if uc.company else '--',
+                uc.get_role_display() if hasattr(uc, 'get_role_display') else uc.role,
+                uc.joined_at.strftime('%d/%m/%Y') if uc.joined_at else '--/--/----',
+                uc.deleted_at.strftime('%d/%m/%Y %H:%M') if uc.deleted_at else '--'
+            ]
+        },
+        'corrections': {
+            'model': CorrectionRequests,
+            'queryset': CorrectionRequests.objects.only_deleted().select_related('requester', 'time_entry').order_by('-deleted_at'),
+            'filename': 'reporte_incidencias_eliminadas',
+            'headers': ['Empleado', 'Fecha Solicitud', 'Motivo', 'Estado', 'Eliminada'],
+            'row_func': lambda c: [
+                f"{c.requester.username} {c.requester.surname}" if c.requester else '--',
+                c.request_date.strftime('%d/%m/%Y %H:%M') if c.request_date else '--/--/---- --:--',
+                c.reason or '--',
+                c.status or '--',
+                c.deleted_at.strftime('%d/%m/%Y %H:%M') if c.deleted_at else '--'
+            ]
+        },
+        'time_entries': {
+            'model': TimeEntries,
+            'queryset': TimeEntries.objects.only_deleted().select_related('user').order_by('-deleted_at'),
+            'filename': 'reporte_fichajes_eliminados',
+            'headers': ['Empleado', 'Fecha', 'Entrada', 'Salida', 'Estado', 'Eliminado'],
+            'row_func': lambda te: [
+                f"{te.user.username} {te.user.surname}" if te.user else '--',
+                te.date.strftime('%d/%m/%Y') if te.date else '--/--/----',
+                te.clock_in.strftime('%H:%M:%S') if te.clock_in else '--:--:--',
+                te.clock_out.strftime('%H:%M:%S') if te.clock_out else '--:--:--',
+                te.status if hasattr(te, 'status') else '--',
+                te.deleted_at.strftime('%d/%m/%Y %H:%M') if te.deleted_at else '--'
+            ]
+        },
+        'time_events': {
+            'model': TimeEntryEvent,
+            'queryset': TimeEntryEvent.objects.only_deleted().select_related('time_entry').order_by('-deleted_at'),
+            'filename': 'reporte_eventos_eliminados',
+            'headers': ['Evento', 'Tipo', 'Fecha', 'Descripción', 'Eliminado'],
+            'row_func': lambda te: [
+                str(te.id) if te.id else '--',
+                te.event_type if hasattr(te, 'event_type') else '--',
+                te.created_at.strftime('%d/%m/%Y %H:%M') if hasattr(te, 'created_at') and te.created_at else '--/--/---- --:--',
+                te.description if hasattr(te, 'description') else '--',
+                te.deleted_at.strftime('%d/%m/%Y %H:%M') if te.deleted_at else '--'
+            ]
+        }
+    }
+
+    if record_type not in models_config:
+        return HttpResponse("Tipo de registro no válido.")
+
+    config = models_config[record_type]
+    records = config['queryset']
+
+    if not records.exists():
+        return HttpResponse("No hay registros de este tipo para exportar.")
+
+    # 🔐 AUDITORÍA: Exportación de registros eliminados (solo admin)
+    record_ids = [str(r.id) for r in records[:50]]  # Primeros 50 IDs
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {records.count()} registros eliminados ({record_type})',
+        after={
+            'tipo': f'Registros Eliminados ({record_type.upper()})',
+            'tabla': f'Registros eliminados',
+            'cantidad': records.count(),
+            'ids': record_ids,
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f"attachment; filename=\"{config['filename']}_{fecha_reporte}.csv\""
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(config['headers'])
+
+    for record in records:
+        writer.writerow(config['row_func'](record))
+
+    return response
 
 
 # ── DELEGATED WORKER SYSTEM ────────────────────────────────────────────────

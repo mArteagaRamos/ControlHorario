@@ -35,7 +35,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     REQUIRED_FIELDS = ['username', 'dni']
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'users'
 
     def __str__(self):

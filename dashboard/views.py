@@ -582,8 +582,12 @@ def api_leave_review(request, leave_id):
     note   = note.strip() if note else None
  
     if action == 'approve':
+
         new_status  = LeaveRequest.LeaveStatus.APPROVED
         action_type = AuditLog.AuditAction.UPDATE
+        
+        # Cambiar status del usuario a 'inactive' cuando se aprueba
+        Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
     elif action == 'reject':
         new_status  = LeaveRequest.LeaveStatus.REJECTED
         action_type = AuditLog.AuditAction.VOIDED

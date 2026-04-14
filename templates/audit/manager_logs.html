@@ -189,28 +189,39 @@
     </div>
 
     <!-- RECHAZADAS TABLE -->
-    <div class="mb-3 mt-5">
-        <h5 class="fw-bold text-secondary">Historial de Incidencias Rechazadas</h5>
+    <div class="mb-3 mt-5 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold text-secondary mb-0">Historial de Incidencias Rechazadas</h5>
+        <button type="submit" form="exportFormRechazadas" id="btnExportarRechazadas" class="btn btn-success d-flex align-items-center gap-2" disabled>
+            <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+        </button>
     </div>
 
     <div class="card shadow-sm border-0 mb-5">
         <div class="table-responsive table-scroll-container">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>Empleado</th>
-                        <th>Fecha Solicitud</th>
-                        <th>Entrada Original</th>
-                        <th>Entrada Solicitada</th>
-                        <th>Motivo</th>
-                        <th>Nota de Rechazo</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaRechazadas">
+            <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
+                {% csrf_token %}
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAllRechazadas" class="form-check-input me-2">
+                                Empleado
+                            </th>
+                            <th>Fecha Solicitud</th>
+                            <th>Entrada Original</th>
+                            <th>Entrada Solicitada</th>
+                            <th>Motivo</th>
+                            <th>Nota de Rechazo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaRechazadas">
                     {% for incidencia in incidencias_rechazadas %}
                     <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
-                        <td>{{ incidencia.requester.username }} {{ incidencia.requester.surname }}</td>
+                        <td>
+                            <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
+                            {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
+                        </td>
                         <td>{{ incidencia.request_date|date:"d/m/Y H:i" }}</td>
                         <td>
                             <small class="text-muted">
@@ -272,6 +283,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </form>
         </div>
         <div class="text-center mt-3 buttonContainer mb-3" id="rechazadasContainer">
             <button class="btn btn-sm btn-outline-secondary" id="rechazadasShowMore" style="{% if incidencias_rechazadas|length <= 5 %}display: none;{% endif %}">Ver Más</button>
@@ -672,6 +684,36 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // --- CHECKBOX AND EXPORT LOGIC FOR RECHAZADAS ---
+    window.actualizarBotonExportarRechazadas = function() {
+        const seleccionados = document.querySelectorAll('.select-row-rechazadas:checked').length;
+        const btnExportar = document.getElementById('btnExportarRechazadas');
+        if (!btnExportar) return;
+
+        if (seleccionados > 0) {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
+            btnExportar.disabled = false;
+        } else {
+            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
+            btnExportar.disabled = true;
+        }
+    };
+
+    // Use event delegation because checkboxes are replaced dynamically
+    document.addEventListener('change', function(e) {
+        if (e.target.id === 'selectAllRechazadas') {
+            document.querySelectorAll('.select-row-rechazadas').forEach(cb => cb.checked = e.target.checked);
+            actualizarBotonExportarRechazadas();
+        }
+        else if (e.target.classList.contains('select-row-rechazadas')) {
+            actualizarBotonExportarRechazadas();
+            const selectAllCheckbox = document.getElementById('selectAllRechazadas');
+            if (!e.target.checked && selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+        }
+    });
 });
 
 // Clear delegation function
