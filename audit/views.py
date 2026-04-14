@@ -270,6 +270,22 @@ def exportar_logs(request):
 
         registros = TimeEntries.objects.filter(id__in=registros_ids).select_related('user').order_by('-date', '-clock_in')
 
+        # 🔐 AUDITORÍA: Exportación de fichajes (manager/admin)
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='user_action',
+            record_id=request.user.id,
+            user=request.user,
+            action_type=AuditLog.AuditAction.CREATE,
+            reason=f'Exportación de {len(registros_ids)} fichajes (manager/admin)',
+            after={
+                'tipo': 'Fichajes (Manager/Admin)',
+                'tabla': 'timetracking_registro',
+                'cantidad': len(registros_ids),
+                'ids': [str(id) for id in registros_ids],
+            }
+        )
+
         response = HttpResponse(content_type='text/csv')
         fecha_reporte = timezone.now().strftime('%d_%m_%Y')
         response['Content-Disposition'] = f'attachment; filename="reporte_fichajes_{fecha_reporte}.csv"'
@@ -322,6 +338,22 @@ def exportar_logs_rechazadas(request):
         status='rejected'
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
+    # 🔐 AUDITORÍA: Exportación de incidencias rechazadas
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(incidencia_ids)} incidencias rechazadas',
+        after={
+            'tipo': 'Incidencias Rechazadas',
+            'tabla': 'core_correction_requests',
+            'cantidad': len(incidencia_ids),
+            'ids': [str(id) for id in incidencia_ids],
+        }
+    )
+
     response = HttpResponse(content_type='text/csv')
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')
     response['Content-Disposition'] = f'attachment; filename="reporte_incidencias_rechazadas_{fecha_reporte}.csv"'
@@ -371,6 +403,22 @@ def exportar_manager_employees(request):
     memberships = UserCompany.objects.filter(
         id__in=employee_ids
     ).select_related('user', 'company').order_by('user__username')
+
+    # 🔐 AUDITORÍA: Exportación de lista de empleados
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(employee_ids)} empleados',
+        after={
+            'tipo': 'Lista de Empleados',
+            'tabla': 'user_company',
+            'cantidad': len(employee_ids),
+            'ids': [str(id) for id in employee_ids],
+        }
+    )
 
     response = HttpResponse(content_type='text/csv')
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')
@@ -788,7 +836,7 @@ def eliminar_incidencia_rechazada(request):
     return redirect('manager_logs')
 
 
-#AUDITORÍA VIEWSSSSSSSSSSSSSSS
+#AUDITORÍA VIEWS
 # 1. Vista del Dashboard (el menú de botones)
 def audit_dashboard(request):
     # Añadimos 'audit/' a la ruta
@@ -808,8 +856,8 @@ def audit_fichajes(request):
     search_query = request.GET.get('search')
     if search_query:
         logs_list = logs_list.filter(
-            Q(user__first_name__icontains=search_query) | 
-            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query) |
+            Q(user__surname__icontains=search_query) |
             Q(user__email__icontains=search_query) |
             Q(reason__icontains=search_query)
         )
@@ -852,14 +900,42 @@ def audit_vacaciones(request):
     return render(request, 'audit/audit_vacaciones.html', context)
 
 def audit_usuarios(request):
-    tablas_usuarios = ['users_users', 'users_perfil'] 
-    
-    logs = AuditLog.objects.filter(table_name__in=tablas_usuarios).order_by('-timestamp')
+    tablas_usuarios = ['user_action']  # Tabla estándar para todos los eventos de usuario
+
+    # 1. Queryset base
+    logs_list = AuditLog.objects.filter(table_name__in=tablas_usuarios).order_by('-timestamp')
+
+    # 2. FILTRO DE BÚSQUEDA (Por nombre de usuario o email)
+    search_query = request.GET.get('search')
+    if search_query:
+        logs_list = logs_list.filter(
+            Q(user__username__icontains=search_query) |
+            Q(user__surname__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+
+    # 3. FILTRO POR FECHAS
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    if desde:
+        logs_list = logs_list.filter(timestamp__date__gte=desde)
+    if hasta:
+        logs_list = logs_list.filter(timestamp__date__lte=hasta)
+
+    # 4. PAGINACIÓN (15 registros por página)
+    paginator = Paginator(logs_list, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'titulo': 'Auditoría de Usuarios',
         'icono': 'fas fa-users',
-        'color_tema': 'info', 
-        'logs': logs
+        'color_tema': 'info',
+        'logs': page_obj,  # Ahora pasamos el objeto paginado
+        'search_query': search_query,
+        'desde': desde,
+        'hasta': hasta,
     }
     return render(request, 'audit/audit_usuarios.html', context)
 

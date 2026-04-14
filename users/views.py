@@ -21,6 +21,7 @@ from .forms import (
 from .email_utils import send_new_user_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
+from audit.models import AuditLog
 from django.views.decorators.cache import never_cache
 
 
@@ -178,15 +179,43 @@ def login_view(request):
                 if user is not None:
                     # ── Check if user is suspended ──────────────────────────────
                     if user.status == 'suspended':
+                        # 🔐 AUDITORÍA: Intento de login con cuenta suspendida
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Intento de login: cuenta suspendida',
+                        )
                         messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
                     # ── Check if user is deleted ────────────────────────────────
                     elif user.deleted_at is not None:
+                        # 🔐 AUDITORÍA: Intento de login con cuenta eliminada
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Intento de login: cuenta eliminada',
+                        )
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # User is valid, now login
                     auth_login(request, user)
+
+                    # 🔐 AUDITORÍA: Registro de login exitoso
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='user_action',
+                        record_id=user.id,
+                        user=user,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        reason='Login exitoso',
+                    )
 
                     if user.must_change_password:
                         # Clear navigation history on login
@@ -220,7 +249,33 @@ def login_view(request):
                                     )
                                 return redirect('home_timetracking')
                 else:
+                    # 🔐 AUDITORÍA: Registro de intento de login fallido
+                    email = form.cleaned_data.get('username', 'desconocido')
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='user_action',
+                        record_id=uuid4(),  # Sin usuario asociado (login fallido)
+                        user=None,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        reason=f'Intento de login fallido: {email}',
+                    )
                     messages.error(request, 'Email o contraseña incorrectos.')
+            else:
+                # 🔐 AUDITORÍA: Registro de intento de login con errores de validación
+                email_input = request.POST.get('username', 'desconocido')
+                error_messages = ', '.join([str(e) for errors in form.errors.values() for e in errors])
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='user_action',
+                    record_id=uuid4(),
+                    user=None,
+                    action_type=AuditLog.AuditAction.CREATE,
+                    reason=f'Intento de login fallido (errores de validación): {email_input}',
+                    after={
+                        'tipo': 'Login Fallido - Validación',
+                        'errores': error_messages,
+                    }
+                )
 
         # ── Step 2: set password ───────────────────────────────────────────────
         elif step == 'set_password':
@@ -309,6 +364,17 @@ def login_view(request):
 @login_required
 def logout_view(request):
     """Cierra la sesión del usuario y redirige al login."""
+    # 🔐 AUDITORÍA: Registro de logout
+    user = request.user
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=user.id,
+        user=user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason='Logout',
+    )
+
     auth_logout(request)
     messages.success(request, 'Has cerrado sesión correctamente.')
     return redirect('login')
@@ -926,6 +992,22 @@ def exportar_workday_entries(request):
 
     entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
 
+    # 🔐 AUDITORÍA: Exportación de fichajes personales
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(entry_ids)} fichajes personales',
+        after={
+            'tipo': 'Fichajes Personales',
+            'tabla': 'timetracking_registro',
+            'cantidad': len(entry_ids),
+            'ids': [str(id) for id in entry_ids],
+        }
+    )
+
     response = HttpResponse(content_type='text/csv')
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')
     response['Content-Disposition'] = f'attachment; filename="reporte_fichajes_personales_{fecha_reporte}.csv"'
@@ -971,6 +1053,22 @@ def exportar_workday_requests(request):
     corrections = CorrectionRequests.objects.filter(
         id__in=request_ids
     ).select_related('requester', 'time_entry').order_by('-request_date')
+
+    # 🔐 AUDITORÍA: Exportación de solicitudes de corrección
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(request_ids)} solicitudes de corrección',
+        after={
+            'tipo': 'Solicitudes de Corrección',
+            'tabla': 'core_correction_requests',
+            'cantidad': len(request_ids),
+            'ids': [str(id) for id in request_ids],
+        }
+    )
 
     response = HttpResponse(content_type='text/csv')
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')
@@ -1027,6 +1125,21 @@ def admin_only_required(view_func):
 @never_cache
 def admin_dashboard(request):
     """Admin dashboard to manage companies and workers globally"""
+
+    # 🔐 AUDITORÍA: Acceso al panel de administración
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason='Acceso al panel de administración',
+        after={
+            'tipo': 'Acceso Admin',
+            'accion': 'Acceso al panel de control global',
+            'rol': 'administrador',
+        }
+    )
 
     return render(request, 'admin/admin_dashboard.html')
 
@@ -1134,6 +1247,23 @@ def exportar_deleted_records(request):
 
     if not records.exists():
         return HttpResponse("No hay registros de este tipo para exportar.")
+
+    # 🔐 AUDITORÍA: Exportación de registros eliminados (solo admin)
+    record_ids = [str(r.id) for r in records[:50]]  # Primeros 50 IDs
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {records.count()} registros eliminados ({record_type})',
+        after={
+            'tipo': f'Registros Eliminados ({record_type.upper()})',
+            'tabla': f'Registros eliminados',
+            'cantidad': records.count(),
+            'ids': record_ids,
+        }
+    )
 
     response = HttpResponse(content_type='text/csv')
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')

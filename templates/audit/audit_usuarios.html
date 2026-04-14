@@ -1,4 +1,4 @@
-{% extends 'base/base.html' %} 
+{% extends 'base/base.html' %}
 
 {% block content %}
 <div class="container-fluid mt-4">
@@ -7,7 +7,33 @@
         <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
     <hr>
-    
+
+    <!-- FILTROS -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Búsqueda (Nombre/Email)</label>
+                    <input type="text" id="search" name="search" class="form-control"
+                           placeholder="Ej: Juan Pérez" value="{{ search_query|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="desde" class="form-label">Desde</label>
+                    <input type="date" id="desde" name="desde" class="form-control"
+                           value="{{ desde|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="hasta" class="form-label">Hasta</label>
+                    <input type="date" id="hasta" name="hasta" class="form-control"
+                           value="{{ hasta|default:'' }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-info w-100">Filtrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="table-responsive shadow-sm bg-white p-3 rounded">
         <table class="table table-striped table-hover align-middle">
             <thead class="table-dark">
@@ -39,9 +65,39 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- PAGINACIÓN -->
+        {% if logs.has_other_pages %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if logs.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}{% if desde %}&desde={{ desde }}{% endif %}{% if hasta %}&hasta={{ hasta }}{% endif %}">Primera</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if desde %}&desde={{ desde }}{% endif %}{% if hasta %}&hasta={{ hasta }}{% endif %}">Anterior</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ logs.number }} de {{ logs.paginator.num_pages }}</span>
+                </li>
+
+                {% if logs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if desde %}&desde={{ desde }}{% endif %}{% if hasta %}&hasta={{ hasta }}{% endif %}">Siguiente</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ logs.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}{% if desde %}&desde={{ desde }}{% endif %}{% if hasta %}&hasta={{ hasta }}{% endif %}">Última</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 </div>
 
+<!-- MODALES -->
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
