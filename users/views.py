@@ -178,11 +178,11 @@ def login_view(request):
                 if user is not None:
                     # ── Check if user is suspended ──────────────────────────────
                     if user.status == 'suspended':
-                        messages.error(request, 'Tu cuenta ha sido suspendida. Por favor contacta con el administrador.')
+                        messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
                     # ── Check if user is deleted ────────────────────────────────
                     elif user.deleted_at is not None:
-                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # User is valid, now login
@@ -204,7 +204,7 @@ def login_view(request):
                         if memberships.count() == 0:
                             # Desautenticar y mostrar error
                             auth_logout(request)
-                            messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                            messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
                             return render(request, 'login/login.html', {'form': form})
                         else:
                             # Clear navigation history on login
@@ -245,7 +245,7 @@ def login_view(request):
 
                     # ── Check if user is deleted ────────────────────────────────
                     if updated_user.deleted_at is not None:
-                        messages.error(request, 'Tu cuenta ha sido eliminada. Por favor contacta con el administrador.')
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
 
@@ -257,7 +257,7 @@ def login_view(request):
 
                     # ── Check if user has at least one active membership ─────
                     if memberships.count() == 0:
-                        messages.error(request, 'No tienes ninguna membresía activa. Por favor contacta con el administrador.')
+                        messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
 

@@ -176,8 +176,16 @@
                                 <span class="badge bg-success">Activo</span>
                             {% elif membership.user.status == 'suspended' %}
                                 <span class="badge bg-danger">Suspendido</span>
-                            {% else %}
+                            {% elif membership.user.status == 'inactive' %}
                                 <span class="badge bg-warning text-dark">Inactivo</span>
+                                {% if membership.active_leave %}
+                                    <br><small class="text-muted d-block mt-1">
+                                        📅 {% if membership.active_leave.leave_type == 'vacation' %}Vacaciones{% else %}Ausencia{% endif %}
+                                        <br>{{ membership.active_leave.start_date|date:"d/m" }} - {{ membership.active_leave.end_date|date:"d/m/Y" }}
+                                    </small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary">Desconocido</span>
                             {% endif %}
                         </td>
                         <td data-label="Ingreso">{{ membership.joined_at|date:"d/m/Y" }}</td>

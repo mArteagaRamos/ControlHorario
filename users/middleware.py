@@ -1,5 +1,7 @@
 from django.urls import resolve
-from .models import UserCompany, Companies
+from .models import UserCompany, Companies, Users
+from datetime import date
+from django.utils import timezone
 
 class CompanyMiddleware:
 
@@ -98,6 +100,49 @@ class NavigationHistoryMiddleware:
                     request.session.modified = True
             except Exception:
                 # If resolution fails, just continue without adding to history
+                pass
+
+        return self.get_response(request)
+
+
+class InactiveUserVerificationMiddleware:
+    """
+    Middleware para verificar y revertir automáticamente el status de usuarios inactivos
+    cuyas vacaciones/ausencias han expirado (verificación Lazy).
+
+    Se ejecuta en cada request si el usuario está autenticado e inactivo.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            try:
+                # Obtener el usuario Django y verificar si está inactivo
+                django_user = request.user
+                user = Users.objects.filter(email=django_user.email).first()
+
+                if user and user.status == Users.StatusChoices.INACTIVE:
+                    # Verificar si hay leaves aprobadas activas (end_date >= hoy)
+                    from dashboard.models import LeaveRequest
+                    today = date.today()
+
+                    # Buscar si tiene alguna leave aprobada vigente
+                    active_leave = LeaveRequest.objects.filter(
+                        user=user,
+                        status=LeaveRequest.LeaveStatus.APPROVED,
+                        end_date__gte=today
+                    ).exists()
+
+                    # Si NO hay leaves aprobadas activas, revertir a 'active'
+                    if not active_leave:
+                        Users.objects.filter(id=user.id).update(
+                            status=Users.StatusChoices.ACTIVE
+                        )
+
+            except Exception:
+                # Si algo falla, simplemente continuar sin romper el request
                 pass
 
         return self.get_response(request)

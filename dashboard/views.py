@@ -542,11 +542,13 @@ def api_leave_review(request, leave_id):
  
     if action == 'approve':
         leave.status = LeaveRequest.LeaveStatus.APPROVED
+        # Cambiar status del usuario a 'inactive' cuando se aprueba
+        Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
     elif action == 'reject':
         leave.status = LeaveRequest.LeaveStatus.REJECTED
     else:
         return JsonResponse({'error': 'Acción no válida. Usa "approve" o "reject"'}, status=400)
- 
+
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.review_note = note

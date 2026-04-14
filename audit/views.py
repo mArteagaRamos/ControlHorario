@@ -516,6 +516,27 @@ def manager_employee(request):
         company=company
     ).select_related('user').order_by('-joined_at')
 
+    # 4. For each membership, obtener leaves activas (aprobadas con end_date >= hoy)
+    from datetime import date
+    today = date.today()
+    from dashboard.models import LeaveRequest
+
+    # Crear diccionario de leaves activas por user_id
+    active_leaves_map = {}
+    for membership in memberships:
+        active_leave = LeaveRequest.objects.filter(
+            user=membership.user,
+            company=company,
+            status=LeaveRequest.LeaveStatus.APPROVED,
+            end_date__gte=today
+        ).first()
+        if active_leave:
+            active_leaves_map[membership.user.id] = active_leave
+
+    # Agregar la information de leaves al contexto de cada membership
+    for membership in memberships:
+        membership.active_leave = active_leaves_map.get(membership.user.id)
+
     context = {
         'memberships': memberships,
         'is_manager': is_manager,
