@@ -794,9 +794,16 @@ def audit_usuarios(request):
     return render(request, 'audit/audit_usuarios.html', context)
 
 def audit_incidencias(request):
-    tablas_incidencias = ['core_incidencia', 'core_ticket'] 
+    # ¡AQUÍ ESTABA EL FALLO! Ponemos el nombre exacto de tu base de datos
+    tablas_incidencias = ['timetracking_correctionrequest'] 
     
-    logs = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
+    logs_list = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
+    
+    # Añadimos el paginador para que tu HTML no rompa al buscar "logs.has_other_pages"
+    paginator = Paginator(logs_list, 10) # Muestra 10 por página
+    page_number = request.GET.get('page')
+    logs = paginator.get_page(page_number)
+
     context = {
         'titulo': 'Auditoría de Incidencias',
         'icono': 'fas fa-exclamation-triangle',
