@@ -1,18 +1,36 @@
+import uuid
+import datetime
 from uuid import uuid4
-
-from datetime import timedelta
 from django.shortcuts import render, redirect
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
+from django.forms.models import model_to_dict
+from django.views.decorators.cache import never_cache
+
 from .models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings
-from django.views.decorators.cache import never_cache
+from audit.models import AuditLog
+
+
+# ==========================================
+# FUNCIÓN AUXILIAR PARA AUDITORÍA (Evita errores JSON)
+# ==========================================
+def safe_dict(instance):
+    if not instance:
+        return None
+    d = model_to_dict(instance)
+    for k, v in d.items():
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            d[k] = v.isoformat()
+        elif isinstance(v, uuid.UUID):
+            d[k] = str(v)
+    return d
+# ==========================================
 
 
 # CALCULATE WORKED SECONDS 
-
 def compute_worked_seconds(entry):
     if not entry.clock_in or not entry.clock_out:
         return 0
@@ -31,7 +49,6 @@ def compute_worked_seconds(entry):
     total = int(elapsed.total_seconds())
 
     # CALCULATE PAUSES IN SECONDS
-
     pause_seconds = 0
     pause_start = None
     for ev in TimeEntryEvent.objects.filter(time_entry=entry).order_by('timestamp'):
@@ -51,11 +68,10 @@ def compute_worked_seconds(entry):
 
 
 # AUTO-CLOSE ENTRIES BASED ON COMPANY SETTINGS/POLICY
-
 def auto_close_entry_if_expired(entry, company):
     settings = CompanySettings.objects.filter(company=company).first()
     max_hours = settings.auto_close_hours if settings and settings.auto_close_hours else 12
-    max_duration = timedelta(hours=max_hours)
+    max_duration = datetime.timedelta(hours=max_hours)
     now = timezone.now()
 
     clock_in = entry.clock_in
@@ -63,6 +79,9 @@ def auto_close_entry_if_expired(entry, company):
         clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
 
     if entry and entry.clock_out is None and now - clock_in >= max_duration:
+        # FOTO ANTES DEL CAMBIO (AUDITORÍA)
+        estado_anterior = safe_dict(entry)
+        
         auto_close_time = entry.clock_in + max_duration
         entry.clock_out = auto_close_time
         entry.status = TimeEntries.EntryStatus.AUTO_CLOSED
@@ -83,13 +102,26 @@ def auto_close_entry_if_expired(entry, company):
             actor=None,
             note=f'Auto-closed after exceeding {max_hours} hours.',
         )
+
+        # REGISTRO DE AUDITORÍA (AUTO-CLOSE)
+        AuditLog.objects.create(
+            id=uuid4(),
+            table_name='timetracking_registro', 
+            record_id=entry.id,
+            user=entry.user,
+            action_type=AuditLog.AuditAction.UPDATE,
+            before=estado_anterior,
+            after=safe_dict(entry),
+            reason=f'Auto-closed by system ({max_hours}h limit)',
+            timestamp=timezone.now()
+        )
+
         return True
 
     return False
 
 
 # save clock-in, clock-out, pause start/end and calculate total hours worked
-
 @never_cache
 @login_required
 def time_entries(request):
@@ -118,7 +150,6 @@ def time_entries(request):
             return redirect('home_timetracking')
 
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
-
     active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
     if active_entry and auto_close_entry_if_expired(active_entry, company):
         messages.info(request, 'An overdue active entry was auto-closed based on company policy.')
@@ -129,8 +160,9 @@ def time_entries(request):
 
         active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
 
-        #CLOCK IN
-
+        # ---------------------------------------------------------
+        # CLOCK IN
+        # ---------------------------------------------------------
         if action == 'clock_in':
             if active_entry:
                 messages.warning(request, 'You already have an ongoing clock-in entry.')
@@ -150,27 +182,41 @@ def time_entries(request):
                     timestamp=timezone.now(),
                     actor=user,
                 )
+                
+                # REGISTRO DE AUDITORÍA (CREATE)
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='timetracking_registro',
+                    record_id=entry.id,
+                    user=user,
+                    action_type=AuditLog.AuditAction.CREATE,
+                    before=None,
+                    after=safe_dict(entry),
+                    reason='Fichaje de entrada (Clock-in)',
+                    timestamp=timezone.now()
+                )
+                
                 messages.success(request, 'Clock-in registered.')
 
-        #CLOCK OUT
-
+        # ---------------------------------------------------------
+        # CLOCK OUT
+        # ---------------------------------------------------------
         elif action == 'clock_out':
             if not active_entry:
                 messages.error(request, 'No active clock-in entry found to clock out.')
-
             else:
-                # Check if this entry should be auto-closed by company policy
                 was_auto_closed = auto_close_entry_if_expired(active_entry, company)
 
                 if was_auto_closed:
                     messages.info(request, 'Entry auto-closed because it exceeded maximum open hours.')
                 else:
+                    estado_anterior = safe_dict(active_entry) # FOTO ANTES
+
                     active_entry.clock_out = timezone.now()
                     active_entry.status = TimeEntries.EntryStatus.CONFIRMED
-
                     active_entry.total_seconds = compute_worked_seconds(active_entry)
-
                     active_entry.save(update_fields=['clock_out', 'status', 'total_seconds'])
+                    
                     TimeEntryEvent.objects.create(
                         id=uuid4(),
                         time_entry=active_entry,
@@ -178,10 +224,25 @@ def time_entries(request):
                         timestamp=timezone.now(),
                         actor=user,
                     )
+                    
+                    # REGISTRO DE AUDITORÍA (UPDATE)
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='timetracking_registro',
+                        record_id=active_entry.id,
+                        user=user,
+                        action_type=AuditLog.AuditAction.UPDATE,
+                        before=estado_anterior,
+                        after=safe_dict(active_entry),
+                        reason='Fichaje de salida (Clock-out)',
+                        timestamp=timezone.now()
+                    )
+
                     messages.success(request, 'Clock-out registered.')
 
-        #PAUSE START
-
+        # ---------------------------------------------------------
+        # PAUSE START
+        # ---------------------------------------------------------
         elif action == 'pause_start':
             if not active_entry:
                 messages.error(request, 'No active time entry to start pause.')
@@ -190,17 +251,32 @@ def time_entries(request):
                 if last_event and last_event.event_type == TimeEntryEvent.EventType.PAUSE_START:
                     messages.warning(request, 'Pause already started.')
                 else:
-                    TimeEntryEvent.objects.create(
+                    evento = TimeEntryEvent.objects.create(
                         id=uuid4(),
                         time_entry=active_entry,
                         event_type=TimeEntryEvent.EventType.PAUSE_START,
                         timestamp=timezone.now(),
                         actor=user,
                     )
+                    
+                    # REGISTRO DE AUDITORÍA (PAUSA INICIO)
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='timetracking_pausa',
+                        record_id=evento.id,
+                        user=user,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        before=None,
+                        after=safe_dict(evento),
+                        reason='Inicio de pausa',
+                        timestamp=timezone.now()
+                    )
+
                     messages.success(request, 'Pause start registered.')
 
-        #PAUSE END
-
+        # ---------------------------------------------------------
+        # PAUSE END
+        # ---------------------------------------------------------
         elif action == 'pause_end':
             if not active_entry:
                 messages.error(request, 'No active time entry to end pause.')
@@ -209,13 +285,27 @@ def time_entries(request):
                 if not last_event or last_event.event_type != TimeEntryEvent.EventType.PAUSE_START:
                     messages.error(request, 'No pause is currently active.')
                 else:
-                    TimeEntryEvent.objects.create(
+                    evento = TimeEntryEvent.objects.create(
                         id=uuid4(),
                         time_entry=active_entry,
                         event_type=TimeEntryEvent.EventType.PAUSE_END,
                         timestamp=timezone.now(),
                         actor=user,
                     )
+                    
+                    # REGISTRO DE AUDITORÍA (PAUSA FIN)
+                    AuditLog.objects.create(
+                        id=uuid4(),
+                        table_name='timetracking_pausa',
+                        record_id=evento.id,
+                        user=user,
+                        action_type=AuditLog.AuditAction.CREATE,
+                        before=None,
+                        after=safe_dict(evento),
+                        reason='Fin de pausa',
+                        timestamp=timezone.now()
+                    )
+
                     messages.success(request, 'Pause end registered.')
 
         else:
@@ -223,6 +313,9 @@ def time_entries(request):
 
         return redirect('home_timetracking')
 
+    # ---------------------------------------------------------
+    # RENDERIZADO DE LA VISTA (SIN CAMBIOS)
+    # ---------------------------------------------------------
     entries = TimeEntries.objects.filter(user=user, company=company).order_by('-date', '-clock_in')
     paginator = Paginator(entries, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
@@ -271,7 +364,6 @@ def time_entries(request):
             ).order_by('-timestamp').first()
 
             # Timer freezes at pause start time for display purposes
-
             frozen_at = current_pause_start.timestamp
             if timezone.is_naive(frozen_at):
                 frozen_at = timezone.make_aware(frozen_at, timezone.get_current_timezone())
