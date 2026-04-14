@@ -3,7 +3,7 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="text-warning"><i class="fas fa-calendar-alt"></i> Auditoría de Vacaciones y Ausencias</h2>
+        <h2 class="text-primary"><i class="fas fa-building"></i> Auditoría de Empresas</h2>
         <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
     <hr>
@@ -11,27 +11,36 @@
     {# ── Filtros ── #}
     <div class="bg-white shadow-sm rounded p-3 mb-3">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label mb-1 fw-semibold">Buscar</label>
                 <input type="text" name="search" class="form-control form-control-sm"
-                       placeholder="Nombre, email o motivo..."
-                       value="{{ search_query|default:'' }}">
+                       placeholder="Actor o motivo..."
+                       value="{{ search_query }}">
             </div>
             <div class="col-md-3">
+                <label class="form-label mb-1 fw-semibold">Tipo de cambio</label>
+                <select name="tipo_cambio" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    <option value="jornada" {% if tipo_cambio == 'jornada' %}selected{% endif %}>Jornada laboral</option>
+                    <option value="pausas"  {% if tipo_cambio == 'pausas'  %}selected{% endif %}>Reglas de pausas</option>
+                    <option value="cierre"  {% if tipo_cambio == 'cierre'  %}selected{% endif %}>Cierre automático</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label mb-1 fw-semibold">Desde</label>
                 <input type="date" name="desde" class="form-control form-control-sm"
-                       value="{{ desde|default:'' }}">
+                       value="{{ desde }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label mb-1 fw-semibold">Hasta</label>
                 <input type="date" name="hasta" class="form-control form-control-sm"
-                       value="{{ hasta|default:'' }}">
+                       value="{{ hasta }}">
             </div>
             <div class="col-md-2 d-flex gap-2">
-                <button type="submit" class="btn btn-warning btn-sm text-dark w-100">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
                     <i class="fas fa-search"></i> Filtrar
                 </button>
-                <a href="{% url 'audit_vacaciones' %}" class="btn btn-outline-secondary btn-sm w-100">
+                <a href="{% url 'audit_company' %}" class="btn btn-outline-secondary btn-sm w-100">
                     <i class="fas fa-times"></i>
                 </a>
             </div>
@@ -45,9 +54,8 @@
                     <th>Fecha y Hora</th>
                     <th>Actor</th>
                     <th>Acción</th>
-                    <th>Empleado afectado</th>
-                    <th>Tipo</th>
-                    <th>Periodo</th>
+                    <th>Categoría</th>
+                    <th>Campos modificados</th>
                     <th>Motivo</th>
                     <th>Detalles</th>
                 </tr>
@@ -72,43 +80,41 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if log.after %}{{ log.after.user_full_name|default:"—" }}
-                        {% elif log.before %}{{ log.before.user_full_name|default:"—" }}
-                        {% else %}<span class="text-muted">—</span>{% endif %}
+                        {% if log.categoria == 'jornada' %}
+                            <span class="badge bg-primary"><i class="fas fa-business-time me-1"></i> Jornada laboral</span>
+                        {% elif log.categoria == 'pausas' %}
+                            <span class="badge bg-info text-white"><i class="fas fa-coffee me-1"></i> Reglas de pausas</span>
+                        {% elif log.categoria == 'cierre' %}
+                            <span class="badge bg-secondary"><i class="fas fa-power-off me-1"></i> Cierre automático</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark border">Configuración</span>
+                        {% endif %}
                     </td>
                     <td>
-                        {% if log.after %}
-                            {% if log.after.leave_type == 'vacation' %}<span class="badge bg-primary">Vacaciones</span>
-                            {% elif log.after.leave_type == 'absence' %}<span class="badge bg-secondary">Ausencia</span>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        {% elif log.before %}
-                            {% if log.before.leave_type == 'vacation' %}<span class="badge bg-primary">Vacaciones</span>
-                            {% elif log.before.leave_type == 'absence' %}<span class="badge bg-secondary">Ausencia</span>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        {% else %}<span class="text-muted">—</span>{% endif %}
-                    </td>
-                    <td class="text-nowrap">
-                        {% if log.after %}
-                            {% if log.after.start_date and log.after.end_date %}{{ log.after.start_date }} → {{ log.after.end_date }}
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        {% elif log.before %}
-                            {% if log.before.start_date and log.before.end_date %}{{ log.before.start_date }} → {{ log.before.end_date }}
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        {% else %}<span class="text-muted">—</span>{% endif %}
+                        <small class="text-muted">
+                            {% if log.after %}
+                                {% for key in log.after.keys %}
+                                    <span class="badge bg-light text-dark border me-1 mb-1">{{ key }}</span>
+                                {% endfor %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </small>
                     </td>
                     <td>{{ log.reason|default:"-" }}</td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-outline-warning text-dark"
+                        <button type="button" class="btn btn-sm btn-outline-primary"
                                 data-bs-toggle="modal"
                                 data-bs-target="#modalDetalle{{ log.id }}">
                             Ver Detalles
                         </button>
                     </td>
                 </tr>
+
                 {% empty %}
                 <tr>
-                    <td colspan="8" class="text-center py-4 text-muted">
-                        No hay registros en la auditoría de vacaciones y ausencias.
+                    <td colspan="7" class="text-center py-4 text-muted">
+                        No hay registros en la auditoría de configuración de empresas.
                     </td>
                 </tr>
                 {% endfor %}
@@ -122,17 +128,17 @@
         <ul class="pagination pagination-sm justify-content-center">
             {% if logs.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ logs.previous_page_number }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">&laquo;</a>
+                    <a class="page-link" href="?page={{ logs.previous_page_number }}&search={{ search_query }}&desde={{ desde }}&hasta={{ hasta }}&tipo_cambio={{ tipo_cambio }}">&laquo;</a>
                 </li>
             {% endif %}
             {% for num in logs.paginator.page_range %}
                 <li class="page-item {% if logs.number == num %}active{% endif %}">
-                    <a class="page-link" href="?page={{ num }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">{{ num }}</a>
+                    <a class="page-link" href="?page={{ num }}&search={{ search_query }}&desde={{ desde }}&hasta={{ hasta }}&tipo_cambio={{ tipo_cambio }}">{{ num }}</a>
                 </li>
             {% endfor %}
             {% if logs.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ logs.next_page_number }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">&raquo;</a>
+                    <a class="page-link" href="?page={{ logs.next_page_number }}&search={{ search_query }}&desde={{ desde }}&hasta={{ hasta }}&tipo_cambio={{ tipo_cambio }}">&raquo;</a>
                 </li>
             {% endif %}
         </ul>
@@ -141,14 +147,14 @@
 
 </div>
 
-{# ── Modales ── #}
+{# ── Modales de detalle ── #}
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-warning text-dark">
-        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Movimiento</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Cambio</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
 
@@ -195,7 +201,7 @@
                     </ul>
                 {% else %}
                     <div class="alert alert-secondary text-center" role="alert">
-                        No existía un registro previo (Creación Nueva).
+                        No existía configuración previa (Creación Nueva).
                     </div>
                 {% endif %}
             </div>
@@ -215,7 +221,7 @@
                     </ul>
                 {% else %}
                     <div class="alert alert-secondary text-center" role="alert">
-                        El registro fue eliminado.
+                        La configuración fue eliminada.
                     </div>
                 {% endif %}
             </div>

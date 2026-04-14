@@ -17,7 +17,8 @@ from audit.views import manager_or_admin_required
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
 from django.db.utils import IntegrityError as DBIntegrityError
-
+import uuid
+from audit.models import AuditLog
 
 # ── helpers ────────────────────────────────────────────────────────────────────
  
@@ -31,6 +32,39 @@ def _is_manager(request, company):
         return True
     uc = UserCompany.objects.filter(user=request.user, company=company).first()
     return uc and uc.role == UserCompany.RoleChoices.MANAGER
+
+def _serialize_leave(leave):
+    def safe(val):
+        if val is None:
+            return None
+        if hasattr(val, 'isoformat'):
+            return val.isoformat()
+        return str(val)
+    return {
+        'leave_type':      leave.leave_type,
+        'leave_reason':    leave.leave_reason,
+        'reason_note':     leave.reason_note,
+        'start_date':      safe(leave.start_date),
+        'end_date':        safe(leave.end_date),
+        'status':          leave.status,
+        'reviewed_by_id':  safe(leave.reviewed_by_id),
+        'reviewed_at':     safe(leave.reviewed_at),
+        'review_note':     leave.review_note,
+        'user_full_name':  f"{leave.user.username} {leave.user.surname}".strip(),
+        'user_id':         str(leave.user_id),
+    }
+
+def _log_leave(leave, actor, action_type, before=None, reason=None):
+    AuditLog.objects.create(
+        id          = uuid.uuid4(),
+        table_name  = 'leave_requests',
+        record_id   = leave.pk,
+        user        = actor,
+        action_type = action_type,
+        before      = before,
+        after       = _serialize_leave(leave),
+        reason      = reason,
+    ) 
  
 WEEKDAY = [
     (0, 'Domingo'),
@@ -63,7 +97,7 @@ def calendar(request):
                 start = parse_date(start_date_str)
                 end   = parse_date(end_date_str)
 
-                LeaveRequest.objects.create(
+                leave = LeaveRequest.objects.create(
                     user=request.user,
                     company=company,
                     leave_type=leave_type,
@@ -73,7 +107,9 @@ def calendar(request):
                     reason_note=reason_note,
                     status=LeaveRequest.LeaveStatus.PENDING
                 )
-                
+                _log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
+                           reason=reason_note or 'Solicitud creada desde calendario')
+
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
                 
@@ -458,6 +494,9 @@ def api_leave_request_create(request):
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
  
+    _log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
+               reason=reason_note or 'Solicitud creada por el empleado')
+    
     return JsonResponse({
         'ok':      True,
         'id':      str(leave.id),
@@ -477,11 +516,13 @@ def api_leave_request_cancel(request, leave_id):
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
         return JsonResponse({'error': 'Solo se pueden cancelar solicitudes pendientes'}, status=400)
  
+    before = _serialize_leave(leave)
     leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save(update_fields=['status', 'updated_at'])
- 
+    _log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
+               before=before, reason='Cancelación por el empleado')
+
     return JsonResponse({'ok': True})
- 
  
 # ── API: solicitudes pendientes (manager) ─────────────────────────────────────
  
@@ -541,17 +582,20 @@ def api_leave_review(request, leave_id):
     note   = note.strip() if note else None
  
     if action == 'approve':
-        leave.status = LeaveRequest.LeaveStatus.APPROVED
+        new_status  = LeaveRequest.LeaveStatus.APPROVED
+        action_type = AuditLog.AuditAction.UPDATE
     elif action == 'reject':
-        leave.status = LeaveRequest.LeaveStatus.REJECTED
+        new_status  = LeaveRequest.LeaveStatus.REJECTED
+        action_type = AuditLog.AuditAction.VOIDED
     else:
         return JsonResponse({'error': 'Acción no válida. Usa "approve" o "reject"'}, status=400)
- 
+
+    before = _serialize_leave(leave)
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.review_note = note
     updated = LeaveRequest.objects.filter(pk=leave.pk).update(
-        status      = leave.status,
+        status      = new_status,
         reviewed_by = leave.reviewed_by,
         reviewed_at = leave.reviewed_at,
         review_note = leave.review_note,
@@ -561,7 +605,11 @@ def api_leave_review(request, leave_id):
     if not updated:
         return JsonResponse({'error': 'No se pudo actualizar la solicitud.'}, status=500)
 
-    return JsonResponse({'ok': True, 'new_status': leave.status})
+    leave.refresh_from_db()
+    _log_leave(leave, request.user, action_type, before=before,
+               reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'))
+
+    return JsonResponse({'ok': True, 'new_status': new_status})
  
 # ── Vistas de equipo ───────────────────────────────────────────────────────────
  

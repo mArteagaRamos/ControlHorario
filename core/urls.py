@@ -70,5 +70,6 @@ path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name
     path('audit/vacaciones/', audit_views.audit_vacaciones, name='audit_vacaciones'),
     path('audit/usuarios/', audit_views.audit_usuarios, name='audit_usuarios'),
     path('audit/incidencias/', audit_views.audit_incidencias, name='audit_incidencias'),
+    path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
 

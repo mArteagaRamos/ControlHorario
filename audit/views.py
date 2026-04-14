@@ -718,14 +718,40 @@ def audit_fichajes(request):
     return render(request, 'audit/audit_fichajes.html', context)
 
 def audit_vacaciones(request):
-    tablas_vacaciones = ['core_ausencia', 'core_vacaciones'] 
-    
-    logs = AuditLog.objects.filter(table_name__in=tablas_vacaciones).order_by('-timestamp')
+
+    logs_list = AuditLog.objects.filter(table_name='leave_requests').order_by('-timestamp')
+
+    # Search filter
+    search_query = request.GET.get('search')
+    if search_query:
+        logs_list = logs_list.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+
+    # Filter by date
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    if desde:
+        logs_list = logs_list.filter(timestamp__date__gte=desde)
+    if hasta:
+        logs_list = logs_list.filter(timestamp__date__lte=hasta)
+
+
+    paginator = Paginator(logs_list, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'titulo': 'Auditoría de Vacaciones y Ausencias',
         'icono': 'fas fa-calendar-alt',
-        'color_tema': 'warning', 
-        'logs': logs
+        'color_tema': 'warning',
+        'logs': page_obj,
+        'search_query': search_query,
+        'desde': desde,
+        'hasta': hasta,
     }
     return render(request, 'audit/audit_vacaciones.html', context)
 
@@ -752,3 +778,96 @@ def audit_incidencias(request):
         'logs': logs
     }
     return render(request, 'audit/audit_incidencias.html', context)
+
+def audit_company(request):
+
+    tablas_company = ['company_settings']
+
+
+    logs_list = AuditLog.objects.filter(table_name__in=tablas_company).order_by('-timestamp')
+
+    # Search filter
+    search_query = request.GET.get('search')
+    if search_query:
+        logs_list = logs_list.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+
+    # Filter by type
+    tipo_cambio = request.GET.get('tipo_cambio')
+    CAMPOS_JORNADA = ['work_hours_per_day', 'work_start_time', 'work_end_time', 'work_days']
+    CAMPOS_PAUSAS  = ['break_duration', 'break_rules', 'max_break_time', 'break_type']
+    CAMPOS_CIERRE  = ['auto_close_enabled', 'auto_close_time', 'auto_close_rule']
+
+    if tipo_cambio == 'jornada':
+        logs_list = [
+            log for log in logs_list
+            if log.before and any(k in log.before for k in CAMPOS_JORNADA)
+            or log.after and any(k in log.after for k in CAMPOS_JORNADA)
+        ]
+    elif tipo_cambio == 'pausas':
+        logs_list = [
+            log for log in logs_list
+            if log.before and any(k in log.before for k in CAMPOS_PAUSAS)
+            or log.after and any(k in log.after for k in CAMPOS_PAUSAS)
+        ]
+    elif tipo_cambio == 'cierre':
+        logs_list = [
+            log for log in logs_list
+            if log.before and any(k in log.before for k in CAMPOS_CIERRE)
+            or log.after and any(k in log.after for k in CAMPOS_CIERRE)
+        ]
+
+    # Filter by date
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    if desde:
+        if isinstance(logs_list, list):
+            from datetime import date
+            desde_date = date.fromisoformat(desde)
+            logs_list = [log for log in logs_list if log.timestamp.date() >= desde_date]
+        else:
+            logs_list = logs_list.filter(timestamp__date__gte=desde)
+    if hasta:
+        if isinstance(logs_list, list):
+            from datetime import date
+            hasta_date = date.fromisoformat(hasta)
+            logs_list = [log for log in logs_list if log.timestamp.date() <= hasta_date]
+        else:
+            logs_list = logs_list.filter(timestamp__date__lte=hasta)
+
+    # Note category
+    CAMPOS_JORNADA = {'work_hours_per_day', 'work_start_time', 'work_end_time', 'work_days'}
+    CAMPOS_PAUSAS  = {'break_duration', 'break_rules', 'max_break_time', 'break_type'}
+    CAMPOS_CIERRE  = {'auto_close_enabled', 'auto_close_time', 'auto_close_rule'}
+
+    def get_categoria(log):
+        campos = set((log.before or {}).keys()) | set((log.after or {}).keys())
+        if campos & CAMPOS_JORNADA:
+            return 'jornada'
+        if campos & CAMPOS_PAUSAS:
+            return 'pausas'
+        if campos & CAMPOS_CIERRE:
+            return 'cierre'
+        return 'otro'
+
+    logs_annotated = list(logs_list) if not isinstance(logs_list, list) else logs_list
+    for log in logs_annotated:
+        log.categoria = get_categoria(log)
+
+    # 15 entries
+    paginator = Paginator(logs_annotated, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'logs': page_obj,
+        'search_query': search_query or '',
+        'desde': desde or '',
+        'hasta': hasta or '',
+        'tipo_cambio': tipo_cambio or '',
+    }
+    return render(request, 'audit/audit_company.html', context)
