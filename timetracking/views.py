@@ -149,6 +149,12 @@ def time_entries(request):
             messages.error(request, 'No tienes una empresa asignada.')
             return redirect('home_timetracking')
 
+    # Bloquear acciones de fichaje si el usuario está inactivo (vacaciones/ausencia)
+    if request.method == 'POST':
+        if user.status == Users.StatusChoices.INACTIVE:
+            messages.error(request, 'No puedes registrar fichajes. Estás marcado como ausente (vacaciones/ausencia).')
+            return redirect('home_timetracking')
+
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
     active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
     if active_entry and auto_close_entry_if_expired(active_entry, company):
@@ -379,6 +385,7 @@ def time_entries(request):
         'is_paused': is_paused,
         'pause_seconds': pause_seconds,
         'paused_elapsed': paused_elapsed,
+        'user_status': user.status,
     }
     context.update(delegation_context)
 

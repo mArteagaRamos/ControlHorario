@@ -80,6 +80,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'users.middleware.CompanyMiddleware',
     'users.middleware.NavigationHistoryMiddleware',
+    'users.middleware.InactiveUserVerificationMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'

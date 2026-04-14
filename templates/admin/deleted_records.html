@@ -35,8 +35,18 @@
             <i class="bi bi-info-circle"></i> No hay registros eliminados.
         </div>
     {% else %}
+        <div class="d-flex justify-content-end mb-3">
+            <form id="exportFormDeletedRecords" action="{% url 'exportar_deleted_records' %}" method="POST" style="display: none;">
+                {% csrf_token %}
+                <input type="hidden" id="recordTypeInput" name="record_type" value="users">
+            </form>
+            <button type="submit" form="exportFormDeletedRecords" id="btnExportarDeletedRecords" class="btn btn-success d-flex align-items-center gap-2">
+                <i class="bi bi-file-earmark-excel"></i> Exportar Tab Actual
+            </button>
+        </div>
+
         <!-- TABS DE TIPOS DE REGISTROS -->
-        <ul class="nav nav-tabs mb-3" role="tablist">
+        <ul class="nav nav-tabs mb-3" role="tablist" id="tabsNavigation">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="tab-users" data-bs-toggle="tab"
                         data-bs-target="#section-users" type="button" role="tab">
@@ -495,5 +505,41 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Map tabs to record types
+    const tabToRecordType = {
+        'tab-users': 'users',
+        'tab-companies': 'companies',
+        'tab-memberships': 'user_companies',
+        'tab-corrections': 'corrections',
+        'tab-entries': 'time_entries',
+        'tab-events': 'time_events'
+    };
+
+    // Update form value when tab changes
+    const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(event) {
+            const tabId = this.id;
+            const recordType = tabToRecordType[tabId];
+            if (recordType) {
+                document.getElementById('recordTypeInput').value = recordType;
+            }
+        });
+    });
+
+    // Initialize with first tab
+    const firstTab = document.querySelector('[data-bs-toggle="tab"]');
+    if (firstTab) {
+        const firstTabId = firstTab.id;
+        const recordType = tabToRecordType[firstTabId];
+        if (recordType) {
+            document.getElementById('recordTypeInput').value = recordType;
+        }
+    }
+});
+</script>
 
 {% endblock %}
