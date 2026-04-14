@@ -23,6 +23,9 @@ from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from audit.models import AuditLog
 from django.views.decorators.cache import never_cache
+from audit.models import AuditLog
+from audit.utils import safe_dict
+from django.core.paginator import Paginator
 
 
 
@@ -820,6 +823,10 @@ def switch_company(request, company_id):
 @never_cache
 def workday(request):
     from audit.views import get_effective_context
+    # IMPORTANTE: Asegúrate de tener estas importaciones al principio de tu views.py
+    from audit.models import AuditLog
+    from audit.utils import safe_dict
+    from uuid import uuid4
 
     delegation_context = get_effective_context(request)
 
@@ -876,7 +883,8 @@ def workday(request):
                     messages.error(request, 'El formato de fecha y hora no es válido.')
                     return redirect('workday')
 
-                CorrectionRequests.objects.create(
+                # Guardamos la creación en una variable para poder auditarla
+                nueva_solicitud = CorrectionRequests.objects.create(
                     id=uuid4(),
                     time_entry=entry,
                     requester=user,
@@ -885,6 +893,19 @@ def workday(request):
                     new_clock_out=new_out,
                     status='pending',
                 )
+
+                # --- INICIO AUDITORÍA (CREACIÓN) ---
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='timetracking_correctionrequest',
+                    record_id=str(nueva_solicitud.id),
+                    user=request.user,
+                    action_type='create',
+                    before=None,
+                    after=safe_dict(nueva_solicitud),
+                    reason="Nueva incidencia reportada"
+                )
+                # --- FIN AUDITORÍA ---
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
@@ -908,10 +929,28 @@ def workday(request):
             correction = CorrectionRequests.objects.filter(id=request_id, requester=user, status='pending').first()
 
             if correction and reason and new_clock_in_str and new_clock_out_str:
+                
+                # --- INICIO AUDITORÍA (FOTO DEL ANTES) ---
+                estado_anterior = safe_dict(correction)
+                # ----------------------------------------
+
                 correction.new_clock_in = parse_local_datetime(new_clock_in_str)
                 correction.new_clock_out = parse_local_datetime(new_clock_out_str)
                 correction.reason = reason
                 correction.save()
+
+                # --- INICIO AUDITORÍA (FOTO DEL DESPUÉS) ---
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='timetracking_correctionrequest',
+                    record_id=str(correction.id),
+                    user=request.user,
+                    action_type='update',
+                    before=estado_anterior,
+                    after=safe_dict(correction),
+                    reason="Edición de datos de la incidencia por el usuario"
+                )
+                # -------------------------------------------
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)

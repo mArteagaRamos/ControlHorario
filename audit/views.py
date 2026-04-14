@@ -1,5 +1,4 @@
 # ---------- Backend Views: audit/views.py ----------
-
 import csv
 from functools import wraps
 from urllib import request
@@ -18,6 +17,7 @@ from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from .models import AuditLog
 from django.core.paginator import Paginator
+from audit.utils import safe_dict
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -208,6 +208,11 @@ def resolver_incidencia(request):
         nota_resolucion = request.POST.get('nota_resolucion', '')
 
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+        
+        # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+        estado_anterior = safe_dict(incidencia)
+        # ----------------------------------------
+
         ficha_original = incidencia.time_entry
 
         # --- Determine who is approving ─────────────────────────────────────
@@ -253,6 +258,19 @@ def resolver_incidencia(request):
 
         # Save all changes (including approver, date and note)
         incidencia.save()
+
+        # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='timetracking_correctionrequest',
+            record_id=str(incidencia.id),
+            user=request.user,
+            action_type='update', # Update
+            before=estado_anterior,
+            after=safe_dict(incidencia),
+            reason=f"Incidencia {accion}da por manager"
+        )
+        # -------------------------------------------
 
         return redirect('manager_logs')
 
@@ -789,6 +807,10 @@ def editar_incidencia_rechazada(request):
 
     incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
 
+    # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+    estado_anterior = safe_dict(incidencia)
+    # ----------------------------------------
+
     # Parse datetime inputs
     try:
         if new_clock_in_str:
@@ -813,6 +835,19 @@ def editar_incidencia_rechazada(request):
     incidencia.status = 'pending'
     incidencia.save()
 
+    # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='timetracking_correctionrequest',
+        record_id=str(incidencia.id),
+        user=request.user,
+        action_type='update',
+        before=estado_anterior,
+        after=safe_dict(incidencia),
+        reason="Edición de incidencia rechazada para volver a revisión"
+    )
+    # -------------------------------------------
+
     return redirect('manager_logs')
 
 
@@ -829,9 +864,26 @@ def eliminar_incidencia_rechazada(request):
 
     incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
 
+    # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+    estado_anterior = safe_dict(incidencia)
+    # ----------------------------------------
+
     # Soft-delete
     incidencia.deleted_at = timezone.now()
     incidencia.save()
+
+    # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='timetracking_correctionrequest',
+        record_id=str(incidencia.id),
+        user=request.user,
+        action_type='voided', # Delete (Soft-delete)
+        before=estado_anterior,
+        after=safe_dict(incidencia),
+        reason="Eliminación (soft-delete) de incidencia rechazada"
+    )
+    # -------------------------------------------
 
     return redirect('manager_logs')
 
@@ -966,9 +1018,16 @@ def audit_usuarios(request):
     return render(request, 'audit/audit_usuarios.html', context)
 
 def audit_incidencias(request):
-    tablas_incidencias = ['core_incidencia', 'core_ticket'] 
+    # ¡AQUÍ ESTABA EL FALLO! Ponemos el nombre exacto de tu base de datos
+    tablas_incidencias = ['timetracking_correctionrequest'] 
     
-    logs = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
+    logs_list = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
+    
+    # Añadimos el paginador para que tu HTML no rompa al buscar "logs.has_other_pages"
+    paginator = Paginator(logs_list, 10) # Muestra 10 por página
+    page_number = request.GET.get('page')
+    logs = paginator.get_page(page_number)
+
     context = {
         'titulo': 'Auditoría de Incidencias',
         'icono': 'fas fa-exclamation-triangle',
