@@ -101,26 +101,82 @@
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title text-info">Comparativa de Usuario</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles de la Acción</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <div class="row">
-            <div class="col-md-6">
-                <h6 class="text-danger">Antes (Before)</h6>
-                <div class="bg-light p-3 border rounded" style="max-height: 300px; overflow-y: auto;">
-                    <pre><code>{{ log.before|pprint|default:"N/A" }}</code></pre>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <h6 class="text-success">Después (After)</h6>
-                <div class="bg-light p-3 border rounded" style="max-height: 300px; overflow-y: auto;">
-                    <pre><code>{{ log.after|pprint|default:"N/A" }}</code></pre>
+      <div class="modal-body p-4">
+
+        <div class="card bg-light border-0 mb-4">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
+                        <span class="badge bg-info px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                    </div>
+                    <div class="col-4 border-start border-end">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
+                        <span class="fw-bold">{{ log.user.username|default:"Sistema" }}</span>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
+                        <span class="fw-bold">{{ log.timestamp|date:"d M Y - H:i" }}</span>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- RAZÓN DEL CAMBIO -->
+        {% if log.reason %}
+        <div class="alert alert-info mb-4" role="alert">
+            <strong><i class="fas fa-comment me-2"></i> Razón:</strong> {{ log.reason }}
+        </div>
+        {% endif %}
+
+        <!-- DETALLES DE LA ACCIÓN -->
+        <div class="card border-0">
+            <div class="card-header bg-info bg-opacity-10 border-bottom border-info">
+                <h6 class="mb-0 text-info"><i class="fas fa-info-circle me-2"></i> Detalles</h6>
+            </div>
+            <div class="card-body">
+                {% if log.after %}
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in log.after.items %}
+                            <li class="list-group-item bg-transparent px-0 py-3 d-flex justify-content-between align-items-start">
+                                <span class="text-muted text-capitalize fw-bold">{{ key|title }}</span>
+                                <span class="text-end text-break ms-3" style="max-width: 60%;">
+                                    {% if value is iterable and value is not string %}
+                                        <!-- Si es lista/array -->
+                                        <div class="badge bg-secondary me-2">{{ value|length }} item(s)</div>
+                                        {% if value|length <= 5 %}
+                                            <small class="text-muted d-block mt-1">
+                                                {% for item in value %}
+                                                    <code>{{ item }}</code>{% if not forloop.last %}<br>{% endif %}
+                                                {% endfor %}
+                                            </small>
+                                        {% else %}
+                                            <small class="text-muted d-block mt-1">[{{ value|truncatechars:50 }}...]</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <!-- Si es valor simple -->
+                                        <strong>{{ value|default:"-" }}</strong>
+                                    {% endif %}
+                                </span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-secondary text-center" role="alert">
+                        Sin detalles adicionales.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
