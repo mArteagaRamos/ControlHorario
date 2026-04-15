@@ -15,10 +15,10 @@ from django.db.models import Q, Count
 from django.views.decorators.http import require_POST
 from uuid import uuid4
 from .forms import (
-    LoginForm, CompanyForm, CompanySelectLoginForm,
+    LoginForm, CompanyForm, CompanyCreateForm, CompanySelectLoginForm,
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
-from .email_utils import send_new_user_email, send_existing_user_email
+from .email_utils import send_new_user_email, send_new_auditor_email, send_existing_user_email
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings, CorrectionRequests
 from audit.models import AuditLog
@@ -208,6 +208,29 @@ def login_view(request):
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
+                    # ── Check if user is auditor ────────────────────────────────
+                    if user.is_auditor:
+                        # 🔐 AUDITORÍA: Registro de login de auditor
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Login exitoso (Auditor)',
+                        )
+
+                        auth_login(request, user)
+                        # Clear navigation history on login
+                        request.session['nav_history'] = []
+
+                        # ── Check if auditor must change password ────────────────
+                        if user.must_change_password:
+                            set_password_form = SetPasswordForm()
+                            show_set_password = True
+                        else:
+                            return redirect('audit_dashboard')
+
                     # User is valid, now login
                     auth_login(request, user)
 
@@ -307,6 +330,11 @@ def login_view(request):
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
+
+                    # ── Check if user is auditor ────────────────────────────────
+                    if updated_user.is_auditor:
+                        # Auditor finished changing password, redirect to audit_dashboard
+                        return redirect('audit_dashboard')
 
                     # ── Get only ACTIVE memberships (not soft-deleted) ───────
                     memberships = UserCompany.objects.filter(
@@ -639,8 +667,10 @@ def register_unified(request):
     if request.method == 'POST':
         company_mode  = request.POST.get('company_mode',  'create')
         worker_action = request.POST.get('worker_action', 'create')
+        is_auditor    = request.POST.get('is_auditor') == 'on'
 
-        company_form  = CompanyForm(request.POST)
+        # For auditors, skip company form validation entirely
+        company_form  = CompanyForm(request.POST) if not is_auditor else None
         worker_create = WorkerCreateForm(request.POST)
         worker_select = WorkerSelectForm(request.POST)
 
@@ -658,7 +688,10 @@ def register_unified(request):
             delegation_context = get_effective_context(request)
 
         # ── 1. Resolve company ────────────────────────────────────────────────
-        if is_admin:
+        if is_auditor:
+            # Auditors don't need a company; skip all company validation
+            company_obj = None
+        elif is_admin:
             # Check if using delegated company
             if delegation_context.get('is_delegating') and delegation_context.get('delegated_company_id'):
                 company_obj = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
@@ -666,6 +699,7 @@ def register_unified(request):
                     errors.append('Empresa delegada no encontrada.')
             elif company_mode == 'create':
                 tax_id           = request.POST.get('tax_id', '').strip()
+                company_form     = CompanyCreateForm(request.POST)
                 existing_company = (
                     Companies.objects.filter(tax_id__iexact=tax_id).first()
                     if tax_id else None
@@ -753,6 +787,7 @@ def register_unified(request):
                     worker_user          = worker_create.save(commit=False)
                     worker_user.id       = uuid4()
                     worker_user.is_admin = False
+                    worker_user.is_auditor = is_auditor
                     worker_user.must_change_password = True
                     temp_password = worker_create.cleaned_data.get('password', '')
                     if temp_password:
@@ -763,38 +798,44 @@ def register_unified(request):
                     errors.append('Corrige los datos del trabajador.')
 
         # ── 3. Create/update membership ─────────────────────────────────────
-        if not errors and worker_user and company_obj:
-            role       = worker_role or UserCompany.RoleChoices.EMPLOYEE
-            membership = UserCompany.objects.filter(
-                user=worker_user,
-                company=company_obj,
-            ).first()
-            if membership:
-                if role and membership.role != role:
-                    # Validate that changing roles won't leave company without managers
-                    is_valid, error_message = validate_manager_role_change(worker_user, company_obj, role)
-                    if not is_valid:
-                        errors.append(error_message)
+        if not errors and worker_user:
+            # If auditor, skip membership creation
+            if is_auditor:
+                # Just send welcome email for new auditor
+                if is_new_user and temp_password:
+                    send_new_auditor_email(worker_user, temp_password)
+            elif company_obj:
+                role       = worker_role or UserCompany.RoleChoices.EMPLOYEE
+                membership = UserCompany.objects.filter(
+                    user=worker_user,
+                    company=company_obj,
+                ).first()
+                if membership:
+                    if role and membership.role != role:
+                        # Validate that changing roles won't leave company without managers
+                        is_valid, error_message = validate_manager_role_change(worker_user, company_obj, role)
+                        if not is_valid:
+                            errors.append(error_message)
+                        else:
+                            membership.role = role
+                            membership.save(update_fields=['role'])
+                            # Send email to existing user registering in new company
+                            send_existing_user_email(worker_user, company_obj, role)
                     else:
-                        membership.role = role
-                        membership.save(update_fields=['role'])
                         # Send email to existing user registering in new company
                         send_existing_user_email(worker_user, company_obj, role)
                 else:
-                    # Send email to existing user registering in new company
-                    send_existing_user_email(worker_user, company_obj, role)
-            else:
-                UserCompany.objects.create(
-                    id=uuid4(),
-                    user=worker_user,
-                    company=company_obj,
-                    role=role,
-                )
-                # Send appropriate email based on user type
-                if is_new_user and temp_password:
-                    send_new_user_email(worker_user, temp_password, company_obj)
-                else:
-                    send_existing_user_email(worker_user, company_obj, role)
+                    UserCompany.objects.create(
+                        id=uuid4(),
+                        user=worker_user,
+                        company=company_obj,
+                        role=role,
+                    )
+                    # Send appropriate email based on user type
+                    if is_new_user and temp_password:
+                        send_new_user_email(worker_user, temp_password, company_obj)
+                    else:
+                        send_existing_user_email(worker_user, company_obj, role)
 
             # Only show success if no validation errors occurred
             if not errors:
