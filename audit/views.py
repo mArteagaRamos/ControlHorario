@@ -936,13 +936,13 @@ def audit_dashboard(request):
 # -------------------------------------------------------------
 
 def audit_fichajes(request):
-    # AÑADIDO: 'timetracking_timeentries' para que lea los logs de editar y anular
+    # Tablas a monitorear
     tablas_fichajes = ['timetracking_registro', 'timetracking_pausa', 'timetracking_timeentries']
     
-    # 1. Empezamos con el queryset base
+    # 1. Queryset base
     logs_list = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
 
-    # 2. FILTRO DE BÚSQUEDA (Por nombre de usuario o email)
+    # 2. FILTRO DE BÚSQUEDA
     search_query = request.GET.get('search')
     if search_query:
         logs_list = logs_list.filter(
@@ -960,20 +960,24 @@ def audit_fichajes(request):
     if hasta:
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
-    # 4. PAGINACIÓN (15 registros por página)
+    # 4. PAGINACIÓN
     paginator = Paginator(logs_list, 15)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     # -----------------------------------------------------------------------
-    # 5. MAGIA PARA EL AUDITOR: TRADUCCIÓN DE DATOS
+    # 5. MAGIA PARA EL AUDITOR: TRADUCCIÓN Y FORMATO DE DATOS
     # -----------------------------------------------------------------------
     
-    # Cargamos mapas para cambiar los UUID por el nombre real
+    # Mapas de UUID a Nombres
     mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
-    mapa_empresas = {str(c.id): c.name for c in Companies.objects.all()} # <-- AÑADIDO: Mapa de compañías
+    
+    try:
+        mapa_empresas = {str(c.id): c.name for c in Companies.objects.all()}
+    except NameError:
+        mapa_empresas = {}
 
-    # Diccionario para traducir las columnas al español
+    # Diccionario para columnas
     traducciones_keys = {
         'id': 'ID Registro',
         'date': 'Fecha de Jornada',
@@ -987,7 +991,17 @@ def audit_fichajes(request):
         'total_seconds': 'Segundos Totales'
     }
 
-    # Interceptamos los registros de esta página para limpiarlos
+    # Diccionario para estados
+    traducciones_estados = {
+        'present': 'Presente',
+        'paused': 'Pausado',
+        'voided': 'Anulado',
+        'completed': 'Completado',
+        'active': 'Activo',
+        'pending': 'Pendiente',
+        'confirmed': 'Confirmado',
+    }
+
     for log in page_obj:
         for atributo in ['before', 'after']:
             estado = getattr(log, atributo)
@@ -995,28 +1009,47 @@ def audit_fichajes(request):
                 estado_limpio = {}
                 for key, value in estado.items():
                     key_lower = key.lower()
-                    
-                    # Traducir la clave
                     key_limpia = traducciones_keys.get(key_lower, key.replace('_', ' ').title())
                     
-                    # Traducir UUID del usuario a su nombre
+                    # 1. Traducir UUIDs
                     if key_lower == 'user' and str(value) in mapa_usuarios:
                         value = mapa_usuarios[str(value)]
-                        
-                    # Traducir UUID de la compañía a su nombre  <-- AÑADIDO: Condición para la compañía
                     elif key_lower == 'company' and str(value) in mapa_empresas:
                         value = mapa_empresas[str(value)]
                         
-                    # Limpiar el formato de las fechas (de ISO 8601 a YYYY-MM-DD HH:MM:SS)
-                    if isinstance(value, str) and 'T' in value and '+00:00' in value:
-                        fecha_str, resto = value.split('T')
-                        hora_str = resto[:8]
-                        anio, mes, dia = fecha_str.split('-')
-                        value = f"{hora_str} - {dia}/{mes}/{anio}"
+                    # 2. Traducir Estados
+                    elif key_lower == 'status' and isinstance(value, str):
+                        value = traducciones_estados.get(value.lower(), value.title())
                         
+                    # 3. Formatear Fechas y Horas correctamente
+                    elif isinstance(value, str):
+                        # SOLO HORAS para Entrada y Salida
+                        if key_lower in ['clock_in', 'clock_out'] and 'T' in value:
+                            try:
+                                value = value.split('T')[1][:8]
+                            except IndexError:
+                                pass
+                        
+                        # FECHA COMPLETA para Eliminado el (o cualquier otra fecha con T)
+                        elif 'T' in value: 
+                            try:
+                                fecha_str, resto = value.split('T')
+                                hora_str = resto[:8]
+                                anio, mes, dia = fecha_str.split('-')
+                                value = f"{dia}/{mes}/{anio} - {hora_str}"
+                            except ValueError:
+                                pass 
+                        
+                        # SOLO FECHA para Fecha de Jornada
+                        elif key_lower == 'date' and '-' in value: 
+                            try:
+                                anio, mes, dia = value.split('-')
+                                value = f"{dia}/{mes}/{anio}"
+                            except ValueError:
+                                pass
+
                     estado_limpio[key_limpia] = value
                 
-                # Guardamos el diccionario limpio en el log temporalmente para renderizarlo
                 setattr(log, atributo, estado_limpio)
     # -----------------------------------------------------------------------   
 
