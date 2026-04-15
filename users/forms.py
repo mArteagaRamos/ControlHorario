@@ -158,6 +158,13 @@ class CompanyForm(forms.ModelForm):
             field.required = False
 
 
+class CompanyCreateForm(CompanyForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.required = True
+
+
 # ── Worker ────────────────────────────────────────────────────────────────
 
 class WorkerCreateForm(_UserBaseForm):
@@ -167,7 +174,16 @@ class WorkerCreateForm(_UserBaseForm):
     is hashed with set_password(), and saved in users.password_hash.
     The view sets must_change_password=True to force a password change on first login.
     """
-    pass
+    is_auditor = forms.BooleanField(
+        label='Registrar como auditor',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field_name in ['username', 'surname', 'dni', 'email', 'status', 'password']:
+            self.fields[field_name].required = True
 
 
 class WorkerSelectForm(_UserBaseForm):

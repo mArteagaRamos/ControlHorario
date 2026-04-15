@@ -288,3 +288,9 @@ BEGIN
         );
     END LOOP;
 END $$;
+
+
+-- ── Auditor column ────────────────────────────────────────────────
+
+alter table users
+add column is_auditor boolean default false;

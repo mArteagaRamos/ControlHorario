@@ -56,6 +56,39 @@ def send_new_user_email(user, password, company):
     return True
 
 
+def send_new_auditor_email(user, password):
+    """Send welcome email to newly created auditor with temporary password."""
+    try:
+        context = {
+            'username': user.username,
+            'email': user.email,
+            'password': password,
+            'login_url': _get_login_url(),
+            'current_year': datetime.now().year,
+            'styles': _get_email_styles(),
+        }
+
+        html_message = render_to_string('emails/new_auditor_email.html', context)
+        text_message = strip_tags(html_message)
+
+        subject = 'Bienvenido a la plataforma Aeptic - Credenciales de acceso (Auditor)'
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email],
+        )
+        email.attach_alternative(html_message, 'text/html')
+        email.send(fail_silently=True)
+        logger.info(f'Email de nuevo auditor enviado a {user.email}')
+
+    except Exception as e:
+        logger.error(f'Error enviando email a auditor {user.email}: {str(e)}')
+        return False
+
+    return True
+
+
 def send_existing_user_email(user, company, role):
     """Send notification email to existing user who was added to a new company."""
     try:
