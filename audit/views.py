@@ -1179,7 +1179,7 @@ def audit_incidencias(request):
     
     mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
     try:
-        mapa_empresas = {str(c.id): c.name for c in Company.objects.all()}
+        mapa_empresas = {str(c.id): c.name for c in Companies.objects.all()}
     except NameError:
         mapa_empresas = {}
 
