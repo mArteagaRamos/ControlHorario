@@ -481,6 +481,10 @@ def editar_registro(request):
         registro_id = request.POST.get('registro_id')
         registro_original = get_object_or_404(TimeEntries, id=registro_id)
 
+        # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+        estado_anterior = safe_dict(registro_original)
+        # ----------------------------------------
+
         hora_entrada = request.POST.get('clock_in')  # Now receives values like "YYYY-MM-DDTHH:MM"
         hora_salida = request.POST.get('clock_out')
 
@@ -511,10 +515,12 @@ def editar_registro(request):
         # Determine who edited the record
         if delegation_context['is_delegating']:
             editor_user = Users.objects.get(id=delegation_context['delegated_user_id'])
+            editor_name = delegation_context['delegated_user_name']
         else:
             editor_user = registro_original.user
+            editor_name = request.user.username
 
-        TimeEntries.objects.create(
+        nuevo_registro = TimeEntries.objects.create(
             id=uuid.uuid4(),
             user=editor_user,
             company=delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else registro_original.company,
@@ -522,9 +528,23 @@ def editar_registro(request):
             clock_in=new_in,
             clock_out=new_out,
             status=TimeEntries.EntryStatus.CONFIRMED,
-            notes=f"Editado manualmente por {(request.user.username if not delegation_context['is_delegating'] else delegation_context['delegated_user_name'])}",
+            notes=f"Editado manualmente por {editor_name}",
             total_seconds=max(0, segundos)
         )
+
+        # --- INICIO AUDITORÍA ---
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='timetracking_timeentries',
+            record_id=str(registro_original.id),
+            user=request.user,
+            action_type='update', # Se considera actualización porque reemplaza el original
+            before=estado_anterior,
+            after=safe_dict(nuevo_registro),
+            reason="Edición manual de fichaje por el manager/admin"
+        )
+        # -------------------------------------------
+
         return redirect('manager_logs')
     return HttpResponse("Método no permitido.")
 
@@ -773,6 +793,10 @@ def anular_registro(request):
 
     registro = get_object_or_404(TimeEntries, id=registro_id)
 
+    # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+    estado_anterior = safe_dict(registro)
+    # ----------------------------------------
+
     # Determine who is voiding the record
     if delegation_context['is_delegating']:
         voiding_username = delegation_context['delegated_user_name']
@@ -787,6 +811,19 @@ def anular_registro(request):
     registro.deleted_at = timezone.now()
 
     registro.save()
+
+    # --- INICIO AUDITORÍA ---
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='timetracking_timeentries',
+        record_id=str(registro.id),
+        user=request.user,
+        action_type='voided', # Registramos el tipo de acción
+        before=estado_anterior,
+        after=safe_dict(registro),
+        reason="Anulación directa de registro"
+    )
+    # -------------------------------------------
 
     return redirect('manager_logs')
 
@@ -899,7 +936,8 @@ def audit_dashboard(request):
 # -------------------------------------------------------------
 
 def audit_fichajes(request):
-    tablas_fichajes = ['timetracking_registro', 'timetracking_pausa']
+    # AÑADIDO: 'timetracking_timeentries' para que lea los logs de editar y anular
+    tablas_fichajes = ['timetracking_registro', 'timetracking_pausa', 'timetracking_timeentries']
     
     # 1. Empezamos con el queryset base
     logs_list = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
@@ -931,7 +969,7 @@ def audit_fichajes(request):
         'titulo': 'Auditoría de Fichajes',
         'icono': 'fas fa-clock', 
         'color_tema': 'success', 
-        'logs': page_obj,  # Ahora pasamos el objeto paginado
+        'logs': page_obj,
         'search_query': search_query,
         'desde': desde,
         'hasta': hasta,

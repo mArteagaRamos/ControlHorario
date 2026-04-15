@@ -25,6 +25,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     must_change_password = models.BooleanField(default=True)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
+    is_auditor = models.BooleanField(default=False)
 
     uppercase_fields = {'username', 'surname', 'email', 'dni'}
     uppercase_excluded_fields = {'password'}

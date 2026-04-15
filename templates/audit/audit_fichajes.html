@@ -25,7 +25,17 @@
                 <tr>
                     <td><strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small></td>
                     <td>{{ log.user.username|default:"Sistema" }}</td>
-                    <td><span class="badge bg-success">{{ log.get_action_type_display|upper }}</span></td>
+                    <td>
+                        {% if log.action_type == 'create' %}
+                            <span class="badge bg-success">{{ log.get_action_type_display|upper }}</span>
+                        {% elif log.action_type == 'update' %}
+                            <span class="badge bg-warning text-dark">{{ log.get_action_type_display|upper }}</span>
+                        {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
+                            <span class="badge bg-danger">{{ log.get_action_type_display|upper }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ log.get_action_type_display|upper }}</span>
+                        {% endif %}
+                    </td>
                     <td>{{ log.record_id|truncatechars:12 }}</td>
                     <td>{{ log.reason|default:"-" }}</td>
                     <td>
@@ -57,7 +67,15 @@
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
-                        <span class="badge bg-success px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% if log.action_type == 'create' %}
+                            <span class="badge bg-success px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% elif log.action_type == 'update' %}
+                            <span class="badge bg-warning text-dark px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
+                            <span class="badge bg-danger px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% endif %}
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
@@ -107,7 +125,7 @@
                     </ul>
                 {% else %}
                     <div class="alert alert-secondary text-center" role="alert">
-                        El registro fue eliminado.
+                        El registro fue eliminado o anulado sin estado posterior.
                     </div>
                 {% endif %}
             </div>
