@@ -13,10 +13,10 @@
             <thead class="table-dark">
                 <tr>
                     <th>Fecha y Hora</th>
-                    <th>Actor</th>
+                    <th>Usuario</th>
                     <th>Acción</th>
                     <th>ID Registro</th>
-                    <th>Motivo del Cambio</th>
+                    <th>Evento</th>
                     <th>Detalles</th>
                 </tr>
             </thead>
@@ -27,13 +27,13 @@
                     <td>{{ log.user.username|default:"Sistema" }}</td>
                     <td>
                         {% if log.action_type == 'create' %}
-                            <span class="badge bg-success">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-success">CREADO</span>
                         {% elif log.action_type == 'update' %}
-                            <span class="badge bg-warning text-dark">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-warning text-dark">ACTUALIZADO</span>
                         {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
-                            <span class="badge bg-danger">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-danger">ANULADO</span>
                         {% else %}
-                            <span class="badge bg-secondary">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-secondary">OTRO</span>
                         {% endif %}
                     </td>
                     <td>{{ log.record_id|truncatechars:12 }}</td>
@@ -68,13 +68,13 @@
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
                         {% if log.action_type == 'create' %}
-                            <span class="badge bg-success px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-success px-3 py-2">CREADO</span>
                         {% elif log.action_type == 'update' %}
-                            <span class="badge bg-warning text-dark px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-warning text-dark px-3 py-2">ACTUALIZADO</span>
                         {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
-                            <span class="badge bg-danger px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-danger px-3 py-2">ANULADO</span>
                         {% else %}
-                            <span class="badge bg-secondary px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                            <span class="badge bg-secondary px-3 py-2">OTRO</span>
                         {% endif %}
                     </div>
                     <div class="col-4 border-start border-end">
@@ -98,7 +98,7 @@
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.before.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted text-capitalize">{{ key|title }}</span>
+                                <span class="text-muted fw-bold">{{ key }}</span>
                                 <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
                             </li>
                         {% endfor %}
@@ -118,7 +118,7 @@
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted text-capitalize">{{ key|title }}</span>
+                                <span class="text-muted fw-bold">{{ key }}</span>
                                 <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
                             </li>
                         {% endfor %}

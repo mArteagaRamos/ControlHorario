@@ -965,6 +965,61 @@ def audit_fichajes(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # -----------------------------------------------------------------------
+    # 5. MAGIA PARA EL AUDITOR: TRADUCCIÓN DE DATOS
+    # -----------------------------------------------------------------------
+    
+    # Cargamos mapas para cambiar los UUID por el nombre real
+    mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
+    mapa_empresas = {str(c.id): c.name for c in Companies.objects.all()} # <-- AÑADIDO: Mapa de compañías
+
+    # Diccionario para traducir las columnas al español
+    traducciones_keys = {
+        'id': 'ID Registro',
+        'date': 'Fecha de Jornada',
+        'user': 'Usuario',
+        'notes': 'Notas / Justificación',
+        'status': 'Estado',
+        'company': 'Compañía',
+        'clock_in': 'Hora de Entrada',
+        'clock_out': 'Hora de Salida',
+        'deleted_at': 'Eliminado el',
+        'total_seconds': 'Segundos Totales'
+    }
+
+    # Interceptamos los registros de esta página para limpiarlos
+    for log in page_obj:
+        for atributo in ['before', 'after']:
+            estado = getattr(log, atributo)
+            if isinstance(estado, dict):
+                estado_limpio = {}
+                for key, value in estado.items():
+                    key_lower = key.lower()
+                    
+                    # Traducir la clave
+                    key_limpia = traducciones_keys.get(key_lower, key.replace('_', ' ').title())
+                    
+                    # Traducir UUID del usuario a su nombre
+                    if key_lower == 'user' and str(value) in mapa_usuarios:
+                        value = mapa_usuarios[str(value)]
+                        
+                    # Traducir UUID de la compañía a su nombre  <-- AÑADIDO: Condición para la compañía
+                    elif key_lower == 'company' and str(value) in mapa_empresas:
+                        value = mapa_empresas[str(value)]
+                        
+                    # Limpiar el formato de las fechas (de ISO 8601 a YYYY-MM-DD HH:MM:SS)
+                    if isinstance(value, str) and 'T' in value and '+00:00' in value:
+                        fecha_str, resto = value.split('T')
+                        hora_str = resto[:8]
+                        anio, mes, dia = fecha_str.split('-')
+                        value = f"{hora_str} - {dia}/{mes}/{anio}"
+                        
+                    estado_limpio[key_limpia] = value
+                
+                # Guardamos el diccionario limpio en el log temporalmente para renderizarlo
+                setattr(log, atributo, estado_limpio)
+    # -----------------------------------------------------------------------   
+
     context = {
         'titulo': 'Auditoría de Fichajes',
         'icono': 'fas fa-clock', 
