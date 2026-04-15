@@ -145,7 +145,7 @@ def time_entries(request):
             return redirect('home_timetracking')
 
         company = request.company
-        if not company:
+        if not company and not user.is_auditor:
             messages.error(request, 'No tienes una empresa asignada.')
             return redirect('home_timetracking')
 

@@ -1,6 +1,27 @@
-{% extends 'base/base.html' %} 
+{% load django_bootstrap5 %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Auditoría{% endblock %}</title>
 
-{% block content %}
+    {% bootstrap_css %}
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'css/workday.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Auditoría de Incidencias</h2>
@@ -181,4 +202,73 @@
   </div>
 </div>
 {% endfor %}
-{% endblock %}
+
+<!-- TOAST -->
+<div id="toast" class="toast-custom hidden"></div>
+
+{% bootstrap_javascript %}
+
+<script>
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.innerText = message;
+    toast.classList.remove("hidden");
+    toast.classList.add("show");
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.classList.add("hidden"), 300);
+    }, 3000);
+}
+</script>
+
+{% if messages %}
+    <div id="django-messages-container" style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        width: 90%;
+        max-width: 400px;
+    ">
+        {% for message in messages %}
+        <div class="alert shadow-lg" style="
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        ">
+            <div style="font-size: 40px; margin-bottom: 10px;">
+                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
+            </div>
+            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
+                {{ message }}
+            </p>
+            <button onclick="document.getElementById('django-messages-container').remove()" style="
+                margin-top: 20px;
+                padding: 8px 20px;
+                border: none;
+                background: #f1f1f1;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: bold;
+            ">Entendido</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        setTimeout(function() {
+            var msg = document.getElementById('django-messages-container');
+            if (msg) msg.remove();
+        }, 5000);
+    </script>
+{% endif %}
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

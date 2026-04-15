@@ -24,11 +24,11 @@
           <div class="btn-group mb-4 w-100" role="group">
             <button type="button" id="btn-company-create"
                     class="btn {% if company_mode == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-              Registrar empresa
+              Registrar
             </button>
             <button type="button" id="btn-company-select"
                     class="btn {% if company_mode == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-              Seleccionar empresa
+              Seleccionar
             </button>
           </div>
           {% endif %}
@@ -95,7 +95,7 @@
                 <h5 class="border-bottom pb-2">
                   <span class="badge bg-primary me-2">1</span>
                   <span id="company-form-title">
-                    {% if company_mode == 'create' %}Datos de la empresa{% else %}Datos de la empresa{% endif %}
+                    {% if company_mode == 'create' %}Empresa{% else %}Empresa{% endif %}
                   </span>
                 </h5>
                 {% bootstrap_form company_form %}
@@ -131,11 +131,11 @@
                     role="group">
                   <button type="button" id="btn-worker-create"
                           class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                    Añadir trabajador
+                    Registrar
                   </button>
                   <button type="button" id="btn-worker-select"
                           class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                    Seleccionar trabajador
+                    Seleccionar
                   </button>
                 </div>
 
@@ -207,6 +207,31 @@
                     {% bootstrap_field worker_create.dni %}
                     {% bootstrap_field worker_create.email %}
                     {% bootstrap_field worker_create.status %}
+
+                    {# Toggle de auditor (solo admin, solo en creación) #}
+                    {% if is_admin and worker_action == 'create' %}
+                    <div class="mb-3">
+                      <button type="button" id="btn-toggle-auditor" class="btn btn-link btn-sm p-0">
+                        <i class="bi bi-plus-circle"></i> Opciones avanzadas
+                      </button>
+                      <div id="auditor-checkbox-block" class="d-none mt-2">
+                        <div class="form-check">
+                          <input type="checkbox"
+                                 class="form-check-input"
+                                 id="id_is_auditor"
+                                 name="is_auditor"
+                                 value="on">
+                          <label class="form-check-label" for="id_is_auditor">
+                            <strong>Auditor</strong>
+                            <small class="d-block text-muted">
+                              Los auditores tienen acceso al panel de auditoría sin estar asociados a una empresa.
+                            </small>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    {% endif %}
+
                     {% bootstrap_field worker_create.role %}
 
                     <div class="mb-3">
@@ -347,6 +372,26 @@ function setWorkerAction(action) {
   if (roleSelect) {
     roleSelect.disabled = false;
     roleSelect.classList.remove('is-invalid');
+  }
+
+  // Hide auditor checkbox when switching to 'select' mode
+  const auditorCheckboxBlock = document.getElementById('auditor-checkbox-block');
+  const auditorCheckbox = document.getElementById('id_is_auditor');
+  const btnToggleAuditor = document.getElementById('btn-toggle-auditor');
+
+  if (auditorCheckboxBlock) {
+    if (action === 'select') {
+      // In select mode: hide auditor option completely
+      auditorCheckboxBlock.classList.add('d-none');
+      btnToggleAuditor?.classList.add('d-none');
+      // Uncheck auditor checkbox
+      if (auditorCheckbox) {
+        auditorCheckbox.checked = false;
+      }
+    } else {
+      // In create mode: show auditor option
+      btnToggleAuditor?.classList.remove('d-none');
+    }
   }
 
   hideSuggestions();
@@ -858,7 +903,41 @@ document.addEventListener('DOMContentLoaded', () => {
 //     });
 //   });
 // }
-// blockFormSubmitOnEnter();
+// ─────────────────────────────────────────────────────────────────────
+// AUDITOR TOGGLE
+// ─────────────────────────────────────────────────────────────────────
+
+const btnToggleAuditor = document.getElementById('btn-toggle-auditor');
+const auditorCheckboxBlock = document.getElementById('auditor-checkbox-block');
+const auditorCheckbox = document.getElementById('id_is_auditor');
+const roleSelect = document.getElementById('id_role');
+
+if (btnToggleAuditor) {
+  btnToggleAuditor.addEventListener('click', (e) => {
+    e.preventDefault();
+    auditorCheckboxBlock?.classList.toggle('d-none');
+  });
+}
+
+// When auditor checkbox is checked/unchecked, update role visibility
+if (auditorCheckbox) {
+  auditorCheckbox.addEventListener('change', () => {
+    if (auditorCheckbox.checked) {
+      // Auditor is checked: hide role field and set to employee
+      if (roleSelect) {
+        roleSelect.disabled = true;
+        roleSelect.value = 'employee';
+        roleSelect.closest('.mb-3')?.classList.add('d-none');
+      }
+    } else {
+      // Auditor is unchecked: show role field
+      if (roleSelect) {
+        roleSelect.disabled = false;
+        roleSelect.closest('.mb-3')?.classList.remove('d-none');
+      }
+    }
+  });
+}
 
 </script>
 {% endblock %}
