@@ -67,21 +67,31 @@
   </div>
 
   <div class="timer-section text-center">
+  <div class="timer-card">
     <div class="timer" id="timerDisplay">00:00:00</div>
-    <div id="buttonGroup" class="btn-entries mt-3">
+    <div id="buttonGroup" class="d-flex justify-content-center gap-3 mt-4">
         {% if not active_entry %}
-            <button class="btn btn-lg btn-primary" onclick="postAction('clock_in')">Clock In</button>
+            <button class="btn-timer btn-clock-in px-5" onclick="postAction('clock_in')">
+                <i class="bi bi-play-fill"></i> Clock In
+            </button>
         {% else %}
-            <button class="btn btn-lg btn-danger" onclick="postAction('clock_out')">Clock Out</button>
+            <button class="btn-timer btn-clock-out" onclick="postAction('clock_out')">
+                <i class="bi bi-stop-fill"></i> Clock Out
+            </button>
             
             {% if is_paused %}
-                <button class="btn btn-lg btn-success" onclick="postAction('pause_end')">Resume</button>
+                <button class="btn-timer btn-resume" onclick="postAction('pause_end')">
+                    <i class="bi bi-play-circle"></i> Resume
+                </button>
             {% else %}
-                <button class="btn btn-lg btn-secondary" onclick="postAction('pause_start')">Pause</button>
+                <button class="btn-timer btn-pause" onclick="postAction('pause_start')">
+                    <i class="bi bi-pause-fill"></i> Pause
+                </button>
             {% endif %}
         {% endif %}
     </div>
   </div>
+</div>
 
   <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
 
