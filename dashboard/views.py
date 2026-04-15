@@ -1,6 +1,5 @@
 import json
-from datetime import date,timedelta, datetime
-
+from datetime import date,timedelta
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import IntegrityError
@@ -13,7 +12,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
 from users.models import Companies, Users, UserCompany, CompanySettings
-from audit.views import manager_or_admin_required
+from audit.views import manager_or_admin_required, auditor_cannot_access
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
 from django.db.utils import IntegrityError as DBIntegrityError
@@ -79,6 +78,7 @@ WEEKDAY = [
 
 
 @login_required
+@auditor_cannot_access
 def calendar(request):
     company = _get_company(request)
     is_manager = _is_manager(request, company)
@@ -225,6 +225,7 @@ def api_calendar_events(request):
     return JsonResponse(events, safe=False)
 
 @login_required
+@auditor_cannot_access
 def profile(request):
     """
     User profile page: display and edit personal data, view associated companies.
