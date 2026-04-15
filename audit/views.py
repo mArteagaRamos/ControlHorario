@@ -1143,22 +1143,135 @@ def audit_usuarios(request):
     }
     return render(request, 'audit/audit_usuarios.html', context)
 
+from django.db.models import Q
+from django.core.paginator import Paginator
+from django.shortcuts import render
+# Asegúrate de tener importados tus modelos AuditLog, Users, Company...
+
 def audit_incidencias(request):
-    # ¡AQUÍ ESTABA EL FALLO! Ponemos el nombre exacto de tu base de datos
     tablas_incidencias = ['timetracking_correctionrequest'] 
     
     logs_list = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
     
-    # Añadimos el paginador para que tu HTML no rompa al buscar "logs.has_other_pages"
-    paginator = Paginator(logs_list, 10) # Muestra 10 por página
+    search_query = request.GET.get('search')
+    if search_query:
+        logs_list = logs_list.filter(
+            Q(user__username__icontains=search_query) |
+            Q(user__surname__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(reason__icontains=search_query)
+        )
+
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+    if desde:
+        logs_list = logs_list.filter(timestamp__date__gte=desde)
+    if hasta:
+        logs_list = logs_list.filter(timestamp__date__lte=hasta)
+
+    paginator = Paginator(logs_list, 10) 
     page_number = request.GET.get('page')
-    logs = paginator.get_page(page_number)
+    page_obj = paginator.get_page(page_number)
+
+    # -----------------------------------------------------------------------
+    # MAGIA DE TRADUCCIÓN (AMPLIADA PARA INCIDENCIAS)
+    # -----------------------------------------------------------------------
+    
+    mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
+    try:
+        mapa_empresas = {str(c.id): c.name for c in Company.objects.all()}
+    except NameError:
+        mapa_empresas = {}
+
+    traducciones_keys = {
+        'id': 'ID Incidencia',
+        'date': 'Fecha Afectada',
+        'user': 'Usuario',
+        'status': 'Estado',
+        'reason': 'Motivo / Justificación',
+        'company': 'Compañía',
+        'clock_in': 'Hora de Entrada',
+        'clock_out': 'Hora de Salida',
+        'created_at': 'Creado el',
+        'updated_at': 'Actualizado el',
+        'deleted_at': 'Eliminado el',
+        # --- CAMPOS NUEVOS DE LA CAPTURA ---
+        'approver': 'Aprobador',
+        'requester': 'Solicitante',
+        'time_entry': 'ID Fichaje Original',
+        'new_clock_in': 'Nueva Hora de Entrada',
+        'new_clock_out': 'Nueva Hora de Salida',
+        'request_date': 'Fecha de Solicitud',
+        'approval_date': 'Fecha de Aprobación',
+        'correction_note': 'Nota de Corrección'
+    }
+
+    traducciones_estados = {
+        'pending': 'Pendiente',
+        'approved': 'Aprobada',
+        'rejected': 'Rechazada',
+        'voided': 'Anulada',
+    }
+
+    for log in page_obj:
+        for atributo in ['before', 'after']:
+            estado = getattr(log, atributo)
+            if isinstance(estado, dict):
+                estado_limpio = {}
+                for key, value in estado.items():
+                    key_lower = key.lower()
+                    key_limpia = traducciones_keys.get(key_lower, key.replace('_', ' ').title())
+                    
+                    # 1. Traducir UUIDs de CUALQUIER usuario (solicitante, aprobador, etc)
+                    if key_lower in ['user', 'approver', 'requester'] and str(value) in mapa_usuarios:
+                        value = mapa_usuarios[str(value)]
+                    elif key_lower == 'company' and str(value) in mapa_empresas:
+                        value = mapa_empresas[str(value)]
+                        
+                    # 2. Traducir Estados
+                    elif key_lower == 'status' and isinstance(value, str):
+                        value = traducciones_estados.get(value.lower(), value.title())
+                        
+                    # 3. Fechas y Horas
+                    elif isinstance(value, str):
+                        # SOLO HORAS (Añadidos los new_clock)
+                        if key_lower in ['clock_in', 'clock_out', 'new_clock_in', 'new_clock_out'] and 'T' in value:
+                            try:
+                                value = value.split('T')[1][:8]
+                            except IndexError:
+                                pass
+                        
+                        # FECHA Y HORA COMPLETA
+                        elif 'T' in value: 
+                            try:
+                                fecha_str, resto = value.split('T')
+                                hora_str = resto[:8]
+                                anio, mes, dia = fecha_str.split('-')
+                                value = f"{dia}/{mes}/{anio} - {hora_str}"
+                            except ValueError:
+                                pass 
+                        
+                        # SOLO FECHA
+                        elif key_lower == 'date' and '-' in value: 
+                            try:
+                                anio, mes, dia = value.split('-')
+                                value = f"{dia}/{mes}/{anio}"
+                            except ValueError:
+                                pass
+
+                    estado_limpio[key_limpia] = value
+                
+                setattr(log, atributo, estado_limpio)
+    # -----------------------------------------------------------------------   
 
     context = {
         'titulo': 'Auditoría de Incidencias',
         'icono': 'fas fa-exclamation-triangle',
         'color_tema': 'danger', 
-        'logs': logs
+        'logs': page_obj,
+        'search_query': search_query,
+        'desde': desde,
+        'hasta': hasta,
     }
     return render(request, 'audit/audit_incidencias.html', context)
 
