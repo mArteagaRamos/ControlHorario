@@ -29,6 +29,7 @@ from django.core.paginator import Paginator
 
 
 
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 def validate_manager_role_change(user, company, new_role):
@@ -671,6 +672,8 @@ def register_unified(request):
                 )
                 if existing_company:
                     if company_form.is_valid():
+
+                        estado_anterior = safe_dict(existing_company)
                         for field in ['name', 'legal_name', 'tax_id']:
                             value = company_form.cleaned_data.get(field)
                             if value:
@@ -678,6 +681,17 @@ def register_unified(request):
                         existing_company.updated_at = timezone.now()
                         existing_company.save()
                         company_obj = existing_company
+
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='company_settings', # Importante: coincide con tu filtro de audit_company
+                            record_id=str(company_obj.id),
+                            user=request.user,
+                            action_type='update',
+                            before=estado_anterior,
+                            after=safe_dict(company_obj),
+                            reason="Actualización de datos de empresa en registro unificado"
+                        )
                     else:
                         errors.append('Corrige los datos de la empresa.')
                 else:
