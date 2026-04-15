@@ -1,6 +1,5 @@
 import json
-from datetime import date,timedelta, datetime
-
+from datetime import date,timedelta
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db import IntegrityError
@@ -13,12 +12,14 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
 from users.models import Companies, Users, UserCompany, CompanySettings
-from audit.views import manager_or_admin_required
+from audit.views import manager_or_admin_required, auditor_cannot_access
 from dashboard.models import LeaveRequest, Note
 from django.views.decorators.http import require_POST
 from django.db.utils import IntegrityError as DBIntegrityError
 import uuid
 from audit.models import AuditLog
+from audit.views import get_effective_context
+from uuid import uuid4
 
 # ── helpers ────────────────────────────────────────────────────────────────────
  
@@ -79,6 +80,7 @@ WEEKDAY = [
 
 
 @login_required
+@auditor_cannot_access
 def calendar(request):
     company = _get_company(request)
     is_manager = _is_manager(request, company)
@@ -225,6 +227,7 @@ def api_calendar_events(request):
     return JsonResponse(events, safe=False)
 
 @login_required
+@auditor_cannot_access
 def profile(request):
     """
     User profile page: display and edit personal data, view associated companies.
@@ -400,6 +403,20 @@ def entity_info(request):
         # Workday settings
 
         if settings_obj:
+
+            # Capturar estado ANTES
+            before_jornada = {
+                'work_start':    str(settings_obj.work_start),
+                'work_end':      str(settings_obj.work_end),
+                'max_tolerance': str(settings_obj.max_tolerance),
+                'weekend_days':  list(settings_obj.weekend_days),
+                'holidays':      [str(h) for h in settings_obj.holidays],
+            }
+            before_cierre = {
+                'auto_close_hours': settings_obj.auto_close_hours,
+            }
+
+            # Aplicar cambios
             work_start = request.POST.get('work_start')
             if work_start:
                 settings_obj.work_start = work_start
@@ -421,24 +438,61 @@ def entity_info(request):
             ]
 
             holidays = []
-
             for raw in request.POST.get('holidays', '').split(','):
                 raw = raw.strip()
                 if raw:
                     parsed = parse_date(raw)
                     if parsed:
                         holidays.append(parsed)
-            settings_obj.holidays = holidays
+            settings_obj.holidays  = holidays
             settings_obj.updated_at = timezone.now()
             settings_obj.save()
+
+            # Capturar estado DESPUÉS
+            after_jornada = {
+                'work_start':    str(settings_obj.work_start),
+                'work_end':      str(settings_obj.work_end),
+                'max_tolerance': str(settings_obj.max_tolerance),
+                'weekend_days':  list(settings_obj.weekend_days),
+                'holidays':      [str(h) for h in settings_obj.holidays],
+            }
+            after_cierre = {
+                'auto_close_hours': settings_obj.auto_close_hours,
+            }
+
+            # 🔐 Auditoría: Jornada laboral
+            if before_jornada != after_jornada:
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='company_settings',
+                    record_id=settings_obj.id,
+                    user=request.user,
+                    action_type=AuditLog.AuditAction.UPDATE,
+                    before=before_jornada,
+                    after=after_jornada,
+                    reason=f'Modificación de jornada laboral en empresa {company.name}',
+                )
+
+            # 🔐 Auditoría: Cierre automático
+            if before_cierre != after_cierre:
+                AuditLog.objects.create(
+                    id=uuid4(),
+                    table_name='company_settings',
+                    record_id=settings_obj.id,
+                    user=request.user,
+                    action_type=AuditLog.AuditAction.UPDATE,
+                    before=before_cierre,
+                    after=after_cierre,
+                    reason=f'Modificación de cierre automático en empresa {company.name}',
+                )
 
         return redirect('entity_info')
 
     context = {
-        'company': company,
+        'company':   company,
         'user_role': user_role,
-        'settings': settings_obj,
-        'weekdays': WEEKDAY,
+        'settings':  settings_obj,
+        'weekdays':  WEEKDAY,
     }
     context.update(delegation_context)
 

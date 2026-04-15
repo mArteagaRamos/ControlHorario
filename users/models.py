@@ -150,3 +150,6 @@ class CorrectionRequests(UppercaseNormalizationMixin, models.Model):
     class Meta:
         managed = False
         db_table = 'correction_requests'
+
+
+is_auditor = models.BooleanField(default=False)

@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from .models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings
 from audit.models import AuditLog
+from audit.views import auditor_cannot_access
 
 
 # ==========================================
@@ -124,6 +125,7 @@ def auto_close_entry_if_expired(entry, company):
 # save clock-in, clock-out, pause start/end and calculate total hours worked
 @never_cache
 @login_required
+@auditor_cannot_access
 def time_entries(request):
     from audit.views import get_effective_context
 

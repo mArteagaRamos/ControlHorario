@@ -18,6 +18,7 @@ from django.views.decorators.cache import never_cache
 from .models import AuditLog
 from django.core.paginator import Paginator
 from audit.utils import safe_dict
+from uuid import uuid4
 
 def combine_local_date_time(date_value, time_value):
     naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
@@ -43,6 +44,23 @@ def manager_or_admin_required(view_func):
             return view_func(request, *args, **kwargs)
         else:
             return render(request, 'error/sin_permisos.html', status=403)
+
+    return _wrapped_view
+
+
+def auditor_cannot_access(view_func):
+    """Decorator to prevent auditors from accessing certain views."""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        # If not logged in, redirect to login
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        # Block auditors
+        if request.user.is_auditor:
+            return render(request, 'error/sin_permisos.html', status=403)
+
+        return view_func(request, *args, **kwargs)
 
     return _wrapped_view
 
@@ -1063,7 +1081,7 @@ def audit_fichajes(request):
         'hasta': hasta,
     }
     
-    return render(request, 'audit/audit_fichajes.html', context)
+    return render(request, 'audit/audit_timetracking.html', context)
 
 def audit_vacaciones(request):
 
@@ -1101,7 +1119,7 @@ def audit_vacaciones(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_vacaciones.html', context)
+    return render(request, 'audit/audit_leave_requests.html', context)
 
 def audit_usuarios(request):
     tablas_usuarios = ['user_action']  # Tabla estándar para todos los eventos de usuario
@@ -1141,7 +1159,7 @@ def audit_usuarios(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_usuarios.html', context)
+    return render(request, 'audit/audit_users.html', context)
 
 from django.db.models import Q
 from django.core.paginator import Paginator
@@ -1273,97 +1291,81 @@ def audit_incidencias(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_incidencias.html', context)
+    return render(request, 'audit/audit_corrections_requests.html', context)
 
+
+JORNADA_FIELDS = {'work_start', 'work_end', 'max_tolerance', 'weekend_days', 'holidays'}
+CIERRE_FIELDS  = {'auto_close_hours'}
+PAUSA_FIELDS   = set()  # CompanySettings no tiene campos de pausas
+
+def _infer_categoria(log):
+    keys = set((log.after or {}).keys()) | set((log.before or {}).keys())
+    if keys & CIERRE_FIELDS:
+        return 'cierre'
+    if keys & JORNADA_FIELDS:
+        return 'jornada'
+    return 'otros'
+
+
+@login_required
 def audit_company(request):
 
-    tablas_company = ['company_settings']
+    # ── Filtros ───────────────────────────────────────────────────────────────
+    search_query = request.GET.get('search', '').strip()
+    tipo_cambio  = request.GET.get('tipo_cambio', '').strip()
+    desde        = request.GET.get('desde', '').strip()
+    hasta        = request.GET.get('hasta', '').strip()
 
+    qs = (
+        AuditLog.objects
+        .filter(table_name='company_settings')
+        .select_related('user')
+        .order_by('-timestamp')
+    )
 
-    logs_list = AuditLog.objects.filter(table_name__in=tablas_company).order_by('-timestamp')
-
-    # Search filter
-    search_query = request.GET.get('search')
+    # Búsqueda libre: actor (username) o motivo
     if search_query:
-        logs_list = logs_list.filter(
-            Q(user__first_name__icontains=search_query) |
-            Q(user__last_name__icontains=search_query) |
-            Q(user__email__icontains=search_query) |
+        qs = qs.filter(
+            Q(user__username__icontains=search_query) |
+            Q(user__email__icontains=search_query)    |
             Q(reason__icontains=search_query)
         )
 
-    # Filter by type
-    tipo_cambio = request.GET.get('tipo_cambio')
-    CAMPOS_JORNADA = ['work_hours_per_day', 'work_start_time', 'work_end_time', 'work_days']
-    CAMPOS_PAUSAS  = ['break_duration', 'break_rules', 'max_break_time', 'break_type']
-    CAMPOS_CIERRE  = ['auto_close_enabled', 'auto_close_time', 'auto_close_rule']
-
-    if tipo_cambio == 'jornada':
-        logs_list = [
-            log for log in logs_list
-            if log.before and any(k in log.before for k in CAMPOS_JORNADA)
-            or log.after and any(k in log.after for k in CAMPOS_JORNADA)
-        ]
-    elif tipo_cambio == 'pausas':
-        logs_list = [
-            log for log in logs_list
-            if log.before and any(k in log.before for k in CAMPOS_PAUSAS)
-            or log.after and any(k in log.after for k in CAMPOS_PAUSAS)
-        ]
-    elif tipo_cambio == 'cierre':
-        logs_list = [
-            log for log in logs_list
-            if log.before and any(k in log.before for k in CAMPOS_CIERRE)
-            or log.after and any(k in log.after for k in CAMPOS_CIERRE)
-        ]
-
-    # Filter by date
-    desde = request.GET.get('desde')
-    hasta = request.GET.get('hasta')
+    # Filtro por fecha
     if desde:
-        if isinstance(logs_list, list):
-            from datetime import date
-            desde_date = date.fromisoformat(desde)
-            logs_list = [log for log in logs_list if log.timestamp.date() >= desde_date]
-        else:
-            logs_list = logs_list.filter(timestamp__date__gte=desde)
+        qs = qs.filter(timestamp__date__gte=desde)
     if hasta:
-        if isinstance(logs_list, list):
-            from datetime import date
-            hasta_date = date.fromisoformat(hasta)
-            logs_list = [log for log in logs_list if log.timestamp.date() <= hasta_date]
-        else:
-            logs_list = logs_list.filter(timestamp__date__lte=hasta)
+        qs = qs.filter(timestamp__date__lte=hasta)
 
-    # Note category
-    CAMPOS_JORNADA = {'work_hours_per_day', 'work_start_time', 'work_end_time', 'work_days'}
-    CAMPOS_PAUSAS  = {'break_duration', 'break_rules', 'max_break_time', 'break_type'}
-    CAMPOS_CIERRE  = {'auto_close_enabled', 'auto_close_time', 'auto_close_rule'}
 
-    def get_categoria(log):
-        campos = set((log.before or {}).keys()) | set((log.after or {}).keys())
-        if campos & CAMPOS_JORNADA:
-            return 'jornada'
-        if campos & CAMPOS_PAUSAS:
-            return 'pausas'
-        if campos & CAMPOS_CIERRE:
-            return 'cierre'
-        return 'otro'
+    if tipo_cambio in ('jornada', 'cierre', 'pausas'):
+        field_map = {
+            'jornada': JORNADA_FIELDS,
+            'cierre':  CIERRE_FIELDS,
+            'pausas':  PAUSA_FIELDS,
+        }
+        target_fields = field_map[tipo_cambio]
+        # Filtramos en memoria; primero traemos solo los candidatos del QS
+        ids_match = [
+            log.id for log in qs
+            if (set((log.after or {}).keys()) | set((log.before or {}).keys())) & target_fields
+        ]
+        qs = AuditLog.objects.filter(id__in=ids_match).select_related('user').order_by('-timestamp')
 
-    logs_annotated = list(logs_list) if not isinstance(logs_list, list) else logs_list
-    for log in logs_annotated:
-        log.categoria = get_categoria(log)
+    # Anotamos la categoría en cada log para usarla en el template sin lógica extra
+    log_list = list(qs)
+    for log in log_list:
+        log.categoria = _infer_categoria(log)
 
-    # 15 entries
-    paginator = Paginator(logs_annotated, 15)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    # ── Paginación ────────────────────────────────────────────────────────────
+    paginator = Paginator(log_list, 20)
+    page_number = request.GET.get('page', 1)
+    logs = paginator.get_page(page_number)
 
-    context = {
-        'logs': page_obj,
-        'search_query': search_query or '',
-        'desde': desde or '',
-        'hasta': hasta or '',
-        'tipo_cambio': tipo_cambio or '',
-    }
-    return render(request, 'audit/audit_company.html', context)
+    return render(request, 'audit/audit_company.html', {
+        'logs':         logs,
+        'search_query': search_query,
+        'tipo_cambio':  tipo_cambio,
+        'desde':        desde,
+        'hasta':        hasta,
+    })
