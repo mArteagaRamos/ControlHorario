@@ -1,30 +1,12 @@
-{% load django_bootstrap5 %}
-{% load static %}
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Auditoría{% endblock %}</title>
+{% extends 'audit/audit_base.html' %}
 
-    {% bootstrap_css %}
+{% block title %}Auditoría de Incidencias{% endblock %}
 
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
-    <link rel="stylesheet" href="{% static 'css/workday.css' %}">
-    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
-
-    {% block extra_head %}{% endblock %}
-</head>
-<body>
+{% block content %}
 
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 class="text-success"><i class="fas fa-clock"></i> Auditoría de Fichajes</h2>
+        <h2 class="text-danger"><i class="fas fa-exclamation-triangle"></i> Auditoría de Incidencias</h2>
         <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
     <hr>
@@ -35,7 +17,7 @@
                 <tr>
                     <th>Fecha y Hora</th>
                     <th>Usuario</th>
-                    <th>Acción</th>
+                    <th>Estado / Acción</th>
                     <th>ID Registro</th>
                     <th>Evento</th>
                     <th>Detalles</th>
@@ -46,39 +28,81 @@
                 <tr>
                     <td><strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small></td>
                     <td>{{ log.user.username|default:"Sistema" }}</td>
+                    
                     <td>
                         {% if log.action_type == 'create' %}
-                            <span class="badge bg-success">CREADO</span>
+                            <span class="badge bg-success">SOLICITADA</span>
                         {% elif log.action_type == 'update' %}
-                            <span class="badge bg-warning text-dark">ACTUALIZADO</span>
-                        {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
-                            <span class="badge bg-danger">ANULADO</span>
+                            <span class="badge bg-warning text-dark">MODIFICADA / RESUELTA</span>
+                        {% elif log.action_type == 'voided' or log.action_type == 'delete' %}
+                            <span class="badge bg-dark">ELIMINADA</span>
                         {% else %}
-                            <span class="badge bg-secondary">OTRO</span>
+                            <span class="badge bg-secondary">{{ log.get_action_type_display|upper }}</span>
                         {% endif %}
                     </td>
-                    <td>{{ log.record_id|truncatechars:12 }}</td>
-                    <td>{{ log.reason|default:"-" }}</td>
+                    
+                    <td><span class="font-monospace text-muted">{{ log.record_id|truncatechars:12 }}</span></td>
+                    
+                    <td><strong>{{ log.reason|default:"-" }}</strong></td>
+                    
                     <td>
-                        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
-                            Ver Detalles
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
+                            <i class="fas fa-search me-1"></i> Ver Detalles
                         </button>
                     </td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="6" class="text-center py-4 text-muted">No hay registros en la auditoría de fichajes.</td></tr>
+                <tr><td colspan="6" class="text-center py-4 text-muted">No hay registros de incidencias.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    {% if logs.has_other_pages %}
+    <nav aria-label="Navegación de páginas de incidencias" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if logs.has_previous %}
+                <li class="page-item">
+                    <a class="page-link text-danger" href="?page={{ logs.previous_page_number }}">&laquo; Anterior</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo; Anterior</span>
+                </li>
+            {% endif %}
+
+            {% for i in logs.paginator.page_range %}
+                {% if logs.number == i %}
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link bg-danger border-danger text-white">{{ i }}</span>
+                    </li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link text-danger" href="?page={{ i }}">{{ i }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if logs.has_next %}
+                <li class="page-item">
+                    <a class="page-link text-danger" href="?page={{ logs.next_page_number }}">Siguiente &raquo;</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Siguiente &raquo;</span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Movimiento</h5>
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles de la Incidencia</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
@@ -88,6 +112,10 @@
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
+                        <span class="badge bg-danger px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                    </div>
+                    <div class="col-4 border-start border-end">
+                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
                         {% if log.action_type == 'create' %}
                             <span class="badge bg-success px-3 py-2">CREADO</span>
                         {% elif log.action_type == 'update' %}
@@ -97,10 +125,6 @@
                         {% else %}
                             <span class="badge bg-secondary px-3 py-2">OTRO</span>
                         {% endif %}
-                    </div>
-                    <div class="col-4 border-start border-end">
-                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
-                        <span class="fw-bold">{{ log.user.username|default:"Sistema" }}</span>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
@@ -112,41 +136,41 @@
 
         <div class="row g-4">
             <div class="col-md-6">
-                <h6 class="text-danger border-bottom border-danger pb-2 mb-3">
+                <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3">
                     <i class="fas fa-history me-1"></i> Estado Anterior
                 </h6>
                 {% if log.before %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.before.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold">{{ key }}</span>
+                                <span class="text-muted text-capitalize">{{ key|title }}</span>
                                 <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
                             </li>
                         {% endfor %}
                     </ul>
                 {% else %}
                     <div class="alert alert-secondary text-center" role="alert">
-                        No existía un registro previo (Creación Nueva).
+                        No existía un registro previo.
                     </div>
                 {% endif %}
             </div>
 
             <div class="col-md-6">
-                <h6 class="text-success border-bottom border-success pb-2 mb-3">
-                    <i class="fas fa-check-circle me-1"></i> Estado Nuevo
+                <h6 class="text-danger border-bottom border-danger pb-2 mb-3">
+                    <i class="fas fa-exclamation-circle me-1"></i> Estado Nuevo
                 </h6>
                 {% if log.after %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold">{{ key }}</span>
+                                <span class="text-muted text-capitalize">{{ key|title }}</span>
                                 <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
                             </li>
                         {% endfor %}
                     </ul>
                 {% else %}
                     <div class="alert alert-secondary text-center" role="alert">
-                        El registro fue eliminado o anulado sin estado posterior.
+                        El registro fue eliminado.
                     </div>
                 {% endif %}
             </div>
@@ -161,72 +185,4 @@
 </div>
 {% endfor %}
 
-<!-- TOAST -->
-<div id="toast" class="toast-custom hidden"></div>
-
-{% bootstrap_javascript %}
-
-<script>
-function showToast(message) {
-    const toast = document.getElementById("toast");
-    toast.innerText = message;
-    toast.classList.remove("hidden");
-    toast.classList.add("show");
-
-    setTimeout(() => {
-        toast.classList.remove("show");
-        setTimeout(() => toast.classList.add("hidden"), 300);
-    }, 3000);
-}
-</script>
-
-{% if messages %}
-    <div id="django-messages-container" style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
-        width: 90%;
-        max-width: 400px;
-    ">
-        {% for message in messages %}
-        <div class="alert shadow-lg" style="
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        ">
-            <div style="font-size: 40px; margin-bottom: 10px;">
-                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
-            </div>
-            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
-                {{ message }}
-            </p>
-            <button onclick="document.getElementById('django-messages-container').remove()" style="
-                margin-top: 20px;
-                padding: 8px 20px;
-                border: none;
-                background: #f1f1f1;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-            ">Entendido</button>
-            </div>
-        {% endfor %}
-    </div>
-
-    <script>
-        setTimeout(function() {
-            var msg = document.getElementById('django-messages-container');
-            if (msg) msg.remove();
-        }, 5000);
-    </script>
-{% endif %}
-
-{% block extra_scripts %}{% endblock %}
-
-</body>
-</html>
+{% endblock %}

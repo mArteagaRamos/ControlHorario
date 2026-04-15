@@ -48,6 +48,23 @@ def manager_or_admin_required(view_func):
     return _wrapped_view
 
 
+def auditor_cannot_access(view_func):
+    """Decorator to prevent auditors from accessing certain views."""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        # If not logged in, redirect to login
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        # Block auditors
+        if request.user.is_auditor:
+            return render(request, 'error/sin_permisos.html', status=403)
+
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
 # ── HELPER: Contexto de delegación de usuario ────────────────────────────────
 
 def get_effective_context(request):
@@ -1064,7 +1081,7 @@ def audit_fichajes(request):
         'hasta': hasta,
     }
     
-    return render(request, 'audit/audit_fichajes.html', context)
+    return render(request, 'audit/audit_timetracking.html', context)
 
 def audit_vacaciones(request):
 
@@ -1102,7 +1119,7 @@ def audit_vacaciones(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_vacaciones.html', context)
+    return render(request, 'audit/audit_leave_requests.html', context)
 
 def audit_usuarios(request):
     tablas_usuarios = ['user_action']  # Tabla estándar para todos los eventos de usuario
@@ -1142,7 +1159,7 @@ def audit_usuarios(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_usuarios.html', context)
+    return render(request, 'audit/audit_users.html', context)
 
 from django.db.models import Q
 from django.core.paginator import Paginator
@@ -1274,7 +1291,7 @@ def audit_incidencias(request):
         'desde': desde,
         'hasta': hasta,
     }
-    return render(request, 'audit/audit_incidencias.html', context)
+    return render(request, 'audit/audit_corrections_requests.html', context)
 
 
 JORNADA_FIELDS = {'work_start', 'work_end', 'max_tolerance', 'weekend_days', 'holidays'}

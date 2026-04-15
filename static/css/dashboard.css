@@ -60,13 +60,55 @@
 }
 
 
+/* ── Botón Estandarizado ────────────────────────────────────────────────── */
+button.std-btn,
+.std-btn {
+  display: block !important;
+  width: 100% !important;
+  padding: .55rem 1rem !important;
+  font-size: .83rem !important;
+  font-weight: 700 !important;
+  border: none !important;
+  border-radius: .5rem !important;
+  cursor: pointer !important;
+  transition: opacity .15s, transform .1s !important;
+  letter-spacing: .01em !important;
+  background-color: #1a1f2e !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+}
+
+button.std-btn:hover,
+.std-btn:hover {
+  opacity: .9 !important;
+  transform: translateY(-1px) !important;
+  background-color: #1a1f2e !important;
+  color: #fff !important;
+}
+
+button.std-btn:active,
+.std-btn:active {
+  transform: translateY(0) !important;
+  background-color: #1a1f2e !important;
+  color: #fff !important;
+}
+
+button.std-btn:focus,
+.std-btn:focus {
+  background-color: #1a1f2e !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 @media (max-width: 768px) {
 
 .sidebar {
         position: fixed;
         top: 0;
-        padding-top: 56px;   
-        height: 100vh;       
+        padding-top: 56px;
+        height: 100vh;
         left: 0;
         transform: translateX(-100%);
         z-index: 1000;
