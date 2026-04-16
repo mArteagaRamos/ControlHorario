@@ -117,7 +117,6 @@
         <div class="legend-item"><span class="legend-dot" style="background:#d97706"></span> Pendiente</div>
         <div class="legend-item"><span class="legend-dot" style="background:#5a8f5a"></span> Aprobada</div>
         <div class="legend-item"><span class="legend-dot" style="background:#b94040"></span> Rechazada</div>
-        <div class="legend-item"><span class="legend-dot" style="background:#888"></span> Cancelada</div>
       </div>
       <div class="card shadow-sm">
         <div class="card-body">
@@ -135,6 +134,18 @@
         </div>
       </div>
       {% endif %}
+
+      <!-- ── Solicitudes resueltas (todos los usuarios) ──────────────── -->
+      <div class="pending-section mt-3" id="resolvedSection">
+        <div class="pending-section__header" style="cursor:pointer;user-select:none;" onclick="toggleResolved()">
+          <span id="resolvedTitle">Mis solicitudes resueltas</span>
+          <span id="resolvedToggleIcon" style="font-size:.8rem;font-weight:400;color:#64748b;">▲ ocultar</span>
+        </div>
+        <div id="resolvedContainer" style="overflow-x:auto;margin-top:.5rem;">
+          <small class="text-muted ps-2">Cargando…</small>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -166,7 +177,7 @@
               <div class="input-group input-group-sm mb-2">
                 <input type="file" id="fileInput" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
               </div>
-              <button class="btn btn-outline-primary btn-sm w-100" onclick="uploadAttachment(currentLeaveId)" style="font-weight: 500;">
+              <button class="std-btn w-100" onclick="uploadAttachment(currentLeaveId)" style="font-weight: 500;">
                 <i class="bi bi-cloud-arrow-up"></i> Subir justificante
               </button>
               <div id="uploadMsg" class="mt-2 text-center" style="font-size: 0.75rem;"></div>
@@ -226,10 +237,11 @@
 
 {% block extra_scripts %}
 <script>
-  const EVENTS_URL        = '{% url "api_calendar_events" %}';
-  const LEAVE_CREATE_URL  = '{% url "api_leave_create" %}';
-  const LEAVE_PENDING_URL = '{% url "api_leave_pending" %}';
-  const CSRF_TOKEN        = '{{ csrf_token }}';
+  const EVENTS_URL         = '{% url "api_calendar_events" %}';
+  const LEAVE_CREATE_URL   = '{% url "api_leave_create" %}';
+  const LEAVE_PENDING_URL  = '{% url "api_leave_pending" %}';
+  const LEAVE_RESOLVED_URL = '{% url "api_leave_resolved" %}';
+  const CSRF_TOKEN         = '{{ csrf_token }}';
 
   let currentUserId    = null;
   let calendarObj      = null;
@@ -265,6 +277,7 @@
       teamSelector.addEventListener('change', function () {
         currentUserId = this.value || null;
         calendarObj.refetchEvents();
+        loadResolvedRequests(currentUserId);
       });
     }
 
@@ -272,6 +285,9 @@
     if (document.getElementById('pendingContainer')) {
       loadPendingRequests();
     }
+
+    // ── Cargar resueltas ──────────────────────────────────────────────────
+    loadResolvedRequests(null);
 
     // ── Botón vacaciones ──────────────────────────────────────────────────
     document.getElementById('btnSendVacation').addEventListener('click', function () {
@@ -365,7 +381,7 @@
         container.innerHTML = `
             <div class="d-flex align-items-center gap-2 mb-2" style="font-size:.82rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.45rem; padding:.45rem .7rem; color:#166534;">
                 <i class="bi bi-check-circle-fill"></i> Justificante adjunto
-                <a href="/media/${event.extendedProps.attachment_path}" target="_blank" class="ms-2 text-success fw-bold">Ver archivo</a>
+                <a href="/media/${event.extendedProps.attachment_path}" target="_blank" class="ms-2 fw-bold">Ver archivo</a>
                 <button onclick="showUploadZone()" class="ms-auto btn btn-link btn-sm p-0 text-muted" style="font-size:.7rem; text-decoration:none;">Reemplazar</button>
             </div>`;
     } else {
@@ -514,6 +530,108 @@
     } catch (e) {
       console.error('Error en la petición:', e);
       alert('Error de conexión con el servidor.');
+    }
+  }
+  // ── Solicitudes resueltas ───────────────────────────────────────────────
+  let _resolvedVisible = true;
+
+  function toggleResolved() {
+    const container = document.getElementById('resolvedContainer');
+    const icon = document.getElementById('resolvedToggleIcon');
+    _resolvedVisible = !_resolvedVisible;
+    container.style.display = _resolvedVisible ? '' : 'none';
+    icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
+  }
+
+  async function loadResolvedRequests(userId) {
+    const container = document.getElementById('resolvedContainer');
+    const titleEl   = document.getElementById('resolvedTitle');
+
+    // Título dinámico según filtro
+    if (titleEl) {
+      if (!userId) {
+        titleEl.textContent = 'Mis solicitudes resueltas';
+      } else if (userId === 'all') {
+        titleEl.textContent = 'Solicitudes resueltas — Todos los empleados';
+      } else {
+        const sel = document.getElementById('teamSelector');
+        const selectedText = sel ? sel.options[sel.selectedIndex].text : 'Empleado';
+        titleEl.textContent = `Solicitudes resueltas — ${selectedText}`;
+      }
+    }
+
+    container.innerHTML = '<small class="text-muted ps-2">Cargando…</small>';
+
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.set('user_id', userId);
+
+      const res  = await fetch(`${LEAVE_RESOLVED_URL}?${params}`);
+      const data = await res.json();
+      const list = data.requests;
+      const showUserCol = data.show_user_col;
+
+      if (!list || list.length === 0) {
+        container.innerHTML = '<small class="text-muted ps-2">No hay solicitudes resueltas.</small>';
+        return;
+      }
+
+      const STATUS_STYLE = {
+        approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
+        rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
+      };
+
+      const rows = list.map(l => {
+        const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
+        const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
+
+        let attachCell = '<span style="color:#94a3b8;font-size:.78rem;">—</span>';
+        if (l.attachment_path) {
+          attachCell = `<a href="/media/${l.attachment_path}" target="_blank"
+            style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600; #1a1f2e:;text-decoration:none;"
+            title="Ver justificante"><i class="bi bi-file-earmark-text"></i> Ver</a>`;
+        }
+
+        const reviewNote = l.review_note
+          ? `<span title="${l.review_note}" style="color:#6b7280;font-size:.75rem;cursor:help;margin-left:.25rem;">💬</span>`
+          : '';
+
+        const userCell = showUserCol
+          ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
+          : '';
+
+        return `<tr style="font-size:.82rem;border-bottom:1px solid #f1f5f9;">
+          ${userCell}
+          <td style="padding:.5rem .6rem;white-space:nowrap;">${l.start_date}</td>
+          <td style="padding:.5rem .6rem;white-space:nowrap;">${l.end_date}</td>
+          <td style="padding:.5rem .6rem;">${l.leave_type}</td>
+          <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
+          <td style="padding:.5rem .6rem;">${badge}${reviewNote}</td>
+          <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
+        </tr>`;
+      }).join('');
+
+      const userHeader = showUserCol
+        ? `<th style="padding:.4rem .6rem;font-weight:600;">Empleado</th>`
+        : '';
+
+      container.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-bottom:2px solid #e2e8f0;">
+              ${userHeader}
+              <th style="padding:.4rem .6rem;font-weight:600;">Desde</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Hasta</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Tipo</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Motivo</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Estado</th>
+              <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Justificante</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } catch (e) {
+      container.innerHTML = '<small class="text-danger ps-2">Error al cargar.</small>';
     }
   }
 

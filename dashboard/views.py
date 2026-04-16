@@ -169,9 +169,9 @@ def api_calendar_events(request):
 
     events = []
     STATUS_COLOR = {
-        'pending':  '#f59e0b',
-        'approved': '#10b981',
-        'rejected': '#ef4444',
+        'pending':  '#d97706',
+        'approved': '#5a8f5a',
+        'rejected': '#b94040',
         'canceled': '#6b7280',
     }
 
@@ -647,6 +647,71 @@ def api_leave_pending(request):
         print(f"DEBUG ERROR: {str(e)}") 
         return JsonResponse({'error': str(e)}, status=500)
  
+# ── API: solicitudes resueltas ────────────────────────────────────────────────
+
+@login_required
+def api_leave_resolved(request):
+    """
+    Devuelve solicitudes resueltas (aprobadas, rechazadas, canceladas).
+    - Empleados: siempre sus propias solicitudes.
+    - Managers: pueden filtrar por ?user_id=<uuid> (empleado concreto)
+                o ?user_id=all (todos los empleados de la empresa).
+                Sin parámetro → sus propias solicitudes.
+    """
+    company = _get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    is_manager = _is_manager(request, company)
+    user_id    = request.GET.get('user_id', '')
+
+    resolved_statuses = [
+        LeaveRequest.LeaveStatus.APPROVED,
+        LeaveRequest.LeaveStatus.REJECTED,
+        LeaveRequest.LeaveStatus.CANCELED,
+    ]
+
+    base_qs = LeaveRequest.objects.filter(
+        company=company,
+        status__in=resolved_statuses,
+    ).select_related('user', 'reviewed_by').order_by('-updated_at')
+
+    if is_manager and user_id == 'all':
+        leaves = base_qs[:50]
+    elif is_manager and user_id:
+        try:
+            target = get_object_or_404(Users, id=user_id)
+        except Exception:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
+        leaves = base_qs.filter(user=target)[:30]
+    else:
+        leaves = base_qs.filter(user=request.user)[:30]
+
+    show_user_col = is_manager and user_id in ('all', '') is False or (is_manager and user_id == 'all')
+
+    data = []
+    for l in leaves:
+        data.append({
+            'id':               str(l.id),
+            'user_name':        f"{l.user.username} {l.user.surname}".strip(),
+            'leave_type':       l.get_leave_type_display(),
+            'leave_reason':     l.get_leave_reason_display(),
+            'start_date':       l.start_date.strftime('%d/%m/%Y'),
+            'end_date':         l.end_date.strftime('%d/%m/%Y'),
+            'status':           l.status,
+            'status_display':   l.get_status_display(),
+            'reason_note':      l.reason_note or '',
+            'review_note':      l.review_note or '',
+            'reviewed_by':      f"{l.reviewed_by.username} {l.reviewed_by.surname}".strip() if l.reviewed_by else '',
+            'attachment_path':  l.attachment_path or '',
+        })
+
+    return JsonResponse({
+        'requests':      data,
+        'show_user_col': is_manager and user_id == 'all',
+    })
+
+
 # ── API: aprobar / rechazar (manager) ────────────────────────────────────────
  
 @login_required
