@@ -2,7 +2,6 @@
 
 import json
 import csv
-from functools import wraps
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
@@ -27,137 +26,18 @@ from audit.models import AuditLog
 from audit.utils import safe_dict
 from django.core.paginator import Paginator
 
+# Import centralized decorators and services
+from core.decorators import admin_only_required
+from core.services import (
+    validate_manager_role_change,
+    compute_worked_seconds,
+    parse_local_datetime,
+    get_display_date,
+    get_or_create_demo_user,
+    format_date_spanish,
+    ensure_membership,
+)
 
-
-
-# ── Helpers ────────────────────────────────────────────────────────────────────
-
-def validate_manager_role_change(user, company, new_role):
-    """
-    Validates that changing a user's role won't leave the company without managers.
-
-    Args:
-        user: Users instance being edited
-        company: Companies instance context
-        new_role: The new role being assigned (RoleChoices value)
-
-    Returns:
-        Tuple: (is_valid: bool, message: str or None)
-        If valid, returns (True, None)
-        If invalid, returns (False, error_message)
-    """
-    try:
-        with transaction.atomic():
-            # Only validate if changing TO something other than manager
-            if new_role == UserCompany.RoleChoices.MANAGER:
-                return (True, None)
-
-            # Get current membership (lock the row to avoid race conditions)
-            current_membership = (
-                UserCompany.objects
-                .select_for_update()
-                .filter(user=user, company=company)
-                .first()
-            )
-
-            # If no membership or not currently a manager, no restriction
-            if not current_membership or current_membership.role == UserCompany.RoleChoices.EMPLOYEE:
-                return (True, None)
-
-            # User IS a manager and wants to change to employee
-            # Count other managers in the company (excluding this user)
-            other_managers_count = (
-                UserCompany.objects
-                .filter(
-                    company=company,
-                    role=UserCompany.RoleChoices.MANAGER
-                )
-                .exclude(user=user)
-                .count()
-            )
-
-            if other_managers_count == 0:
-                return (False, 'No se puede cambiar el rol: es el único Manager de la empresa.')
-
-            return (True, None)
-    except Exception as e:
-        # If transaction fails, fail safely and log
-        return (False, f'Error al validar el rol: {str(e)}')
-
-
-def compute_worked_seconds(entry):
-    if not entry.clock_in or not entry.clock_out:
-        return 0
-    elapsed = entry.clock_out - entry.clock_in
-    total = int(elapsed.total_seconds())
-    pause_seconds = 0
-    pause_start = None
-    events = TimeEntryEvent.objects.filter(time_entry=entry).order_by('timestamp')
-    for ev in events:
-        if ev.event_type == TimeEntryEvent.EventType.PAUSE_START:
-            pause_start = ev.timestamp
-        elif ev.event_type == TimeEntryEvent.EventType.PAUSE_END and pause_start:
-            pause_end = ev.timestamp
-            if pause_end > pause_start:
-                pause_seconds += int((pause_end - pause_start).total_seconds())
-            pause_start = None
-    return max(0, total - pause_seconds)
-
-
-def parse_local_datetime(value):
-    if not value:
-        return None
-    parsed = parse_datetime(value)
-    if parsed is None:
-        return None
-    if timezone.is_naive(parsed):
-        parsed = timezone.make_aware(parsed, timezone.get_current_timezone())
-    return parsed
-
-
-def get_display_date(value):
-    if not value:
-        return None
-    if timezone.is_naive(value):
-        return value.date()
-    return timezone.localtime(value).date()
-
-
-def get_or_create_demo_user():
-    user = Users.objects.first()
-    if not user:
-        user = Users.objects.create(
-            id=uuid4(), username='demo', email='demo@example.com',
-            surname='Demo', password='demo'
-        )
-    return user
-
-
-def format_date_spanish(date_obj):
-    """Format date as '1 ENERO, 2026' format"""
-    if not date_obj:
-        return None
-    months = {
-        1: 'ENERO', 2: 'FEBRERO', 3: 'MARZO', 4: 'ABRIL',
-        5: 'MAYO', 6: 'JUNIO', 7: 'JULIO', 8: 'AGOSTO',
-        9: 'SEPTIEMBRE', 10: 'OCTUBRE', 11: 'NOVIEMBRE', 12: 'DICIEMBRE'
-    }
-    return f"{date_obj.day} {months[date_obj.month]}, {date_obj.year}"
-
-
-def ensure_membership(user):
-    membership = UserCompany.objects.filter(user=user).order_by('-joined_at').first()
-    if not membership:
-        company = Companies.objects.first()
-        if not company:
-            company = Companies.objects.create(
-                id=uuid4(), name='DemoCorp', legal_name='Demo Corporation'
-            )
-        membership = UserCompany.objects.create(
-            id=uuid4(), user=user, company=company,
-            role=UserCompany.RoleChoices.EMPLOYEE
-        )
-    return membership
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -684,7 +564,7 @@ def register_unified(request):
         # Get effective context (delegation info if any)
         delegation_context = {}
         if request.user.is_admin:
-            from audit.views import get_effective_context
+            from core.services import get_effective_context
             delegation_context = get_effective_context(request)
 
         # ── 1. Resolve company ────────────────────────────────────────────────
@@ -877,7 +757,7 @@ def switch_company(request, company_id):
 @login_required
 @never_cache
 def workday(request):
-    from audit.views import get_effective_context
+    from core.services import get_effective_context
     # IMPORTANTE: Asegúrate de tener estas importaciones al principio de tu views.py
     from audit.models import AuditLog
     from audit.utils import safe_dict
@@ -1067,7 +947,7 @@ def workday(request):
     }
     context.update(delegation_context)
 
-    return render(request, 'user_panel/workday.html', context)
+    return render(request, 'dashboard/workday.html', context)
 
 
 @login_required
@@ -1077,7 +957,7 @@ def exportar_workday_entries(request):
     Exporta los fichajes del usuario a CSV.
     POST params: entry_id (lista de IDs seleccionadas)
     """
-    from audit.views import get_effective_context
+    from core.services import get_effective_context
 
     entry_ids = request.POST.getlist('entry_id')
 
@@ -1201,19 +1081,6 @@ def exportar_workday_requests(request):
 
 
 # ── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
-
-def admin_only_required(view_func):
-    """Decorator to ensure only admin users can access the view"""
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
-
-        if not request.user.is_admin:
-            return render(request, 'error/sin_permisos.html', status=403)
-
-        return view_func(request, *args, **kwargs)
-    return _wrapped_view
 
 @admin_only_required
 @never_cache

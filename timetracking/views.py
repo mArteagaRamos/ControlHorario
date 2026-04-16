@@ -12,114 +12,8 @@ from django.views.decorators.cache import never_cache
 from .models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany, CompanySettings
 from audit.models import AuditLog
-from audit.views import auditor_cannot_access
-
-
-# ==========================================
-# FUNCIÓN AUXILIAR PARA AUDITORÍA (Evita errores JSON)
-# ==========================================
-def safe_dict(instance):
-    if not instance:
-        return None
-    d = model_to_dict(instance)
-    for k, v in d.items():
-        if isinstance(v, (datetime.datetime, datetime.date)):
-            d[k] = v.isoformat()
-        elif isinstance(v, uuid.UUID):
-            d[k] = str(v)
-    return d
-# ==========================================
-
-
-# CALCULATE WORKED SECONDS 
-def compute_worked_seconds(entry):
-    if not entry.clock_in or not entry.clock_out:
-        return 0
-
-    clock_in = entry.clock_in
-    clock_out = entry.clock_out
-    if timezone.is_naive(clock_in):
-        clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
-    if timezone.is_naive(clock_out):
-        clock_out = timezone.make_aware(clock_out, timezone.get_current_timezone())
-
-    if clock_out <= clock_in:
-        return 0
-
-    elapsed = clock_out - clock_in
-    total = int(elapsed.total_seconds())
-
-    # CALCULATE PAUSES IN SECONDS
-    pause_seconds = 0
-    pause_start = None
-    for ev in TimeEntryEvent.objects.filter(time_entry=entry).order_by('timestamp'):
-        if ev.event_type == TimeEntryEvent.EventType.PAUSE_START:
-            pause_start = ev.timestamp
-        elif ev.event_type == TimeEntryEvent.EventType.PAUSE_END and pause_start is not None:
-            pause_end = ev.timestamp
-            if timezone.is_naive(pause_start):
-                pause_start = timezone.make_aware(pause_start, timezone.get_current_timezone())
-            if timezone.is_naive(pause_end):
-                pause_end = timezone.make_aware(pause_end, timezone.get_current_timezone())
-            if pause_end > pause_start:
-                pause_seconds += int((pause_end - pause_start).total_seconds())
-            pause_start = None
-
-    return max(0, total - pause_seconds)
-
-
-# AUTO-CLOSE ENTRIES BASED ON COMPANY SETTINGS/POLICY
-def auto_close_entry_if_expired(entry, company):
-    settings = CompanySettings.objects.filter(company=company).first()
-    max_hours = settings.auto_close_hours if settings and settings.auto_close_hours else 12
-    max_duration = datetime.timedelta(hours=max_hours)
-    now = timezone.now()
-
-    clock_in = entry.clock_in
-    if timezone.is_naive(clock_in):
-        clock_in = timezone.make_aware(clock_in, timezone.get_current_timezone())
-
-    if entry and entry.clock_out is None and now - clock_in >= max_duration:
-        # FOTO ANTES DEL CAMBIO (AUDITORÍA)
-        estado_anterior = safe_dict(entry)
-        
-        auto_close_time = entry.clock_in + max_duration
-        entry.clock_out = auto_close_time
-        entry.status = TimeEntries.EntryStatus.AUTO_CLOSED
-
-        # Calc duration and save
-        elapsed = entry.clock_out - entry.clock_in
-        pause_seconds = compute_worked_seconds(entry)
-        work_seconds = max(0, int(elapsed.total_seconds()) - pause_seconds)
-        entry.total_seconds = work_seconds
-
-        entry.save(update_fields=['clock_out', 'status', 'total_seconds'])
-
-        TimeEntryEvent.objects.create(
-            id=uuid4(),
-            time_entry=entry,
-            event_type=TimeEntryEvent.EventType.AUTO_CLOSE,
-            timestamp=auto_close_time,
-            actor=None,
-            note=f'Auto-closed after exceeding {max_hours} hours.',
-        )
-
-        # REGISTRO DE AUDITORÍA (AUTO-CLOSE)
-        AuditLog.objects.create(
-            id=uuid4(),
-            table_name='timetracking_registro', 
-            record_id=entry.id,
-            user=entry.user,
-            action_type=AuditLog.AuditAction.UPDATE,
-            before=estado_anterior,
-            after=safe_dict(entry),
-            reason=f'Auto-closed by system ({max_hours}h limit)',
-            timestamp=timezone.now()
-        )
-
-        return True
-
-    return False
+from core.decorators import auditor_cannot_access
+from core.services import safe_dict, compute_worked_seconds, auto_close_entry_if_expired, get_effective_context
 
 
 # save clock-in, clock-out, pause start/end and calculate total hours worked
@@ -127,8 +21,6 @@ def auto_close_entry_if_expired(entry, company):
 @login_required
 @auditor_cannot_access
 def time_entries(request):
-    from audit.views import get_effective_context
-
     delegation_context = get_effective_context(request)
 
     # Get the effective user (delegated or authenticated)

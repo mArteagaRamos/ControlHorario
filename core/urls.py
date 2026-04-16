@@ -12,8 +12,6 @@ urlpatterns = [
     # Dashboard Home
     path('home/', timetracking_views.time_entries, name='home_timetracking'),
 
-    # Control Panel
-
     # Auth
     path('', user_views.login_view, name='login'),
     path('register/', user_views.register_unified, name='register_unified'),
@@ -36,7 +34,6 @@ urlpatterns = [
     # Dashboard - Team Management
     path('entity_info/', dashboard_views.entity_info, name='entity_info'),
     path('staff/', dashboard_views.staff, name='staff'),
-    path('notes/', dashboard_views.notes, name='notes'),
 
     # Manager Panel URLs 
     # Manager Logs
@@ -49,10 +46,10 @@ urlpatterns = [
     path('editar-incidencia-rechazada/', audit_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
     path('eliminar-incidencia-rechazada/', audit_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
     # Manager Employees
-    path('manager_employees/', audit_views.manager_employee, name='manager_employee'),
-    path('manager_employees/edit/', audit_views.edit_employee, name='edit_employee'),
-    path('manager_employees/delete/', audit_views.delete_employee, name='delete_employee'),
-    path('manager_employees/exportar/', audit_views.exportar_manager_employees, name='exportar_manager_employees'),
+    path('staff/', audit_views.manager_employee, name='manager_employee'),
+    path('staff/edit/', audit_views.edit_employee, name='edit_employee'),
+    path('staff/delete/', audit_views.delete_employee, name='delete_employee'),
+    path('staff/exportar/', audit_views.exportar_staff, name='exportar_staff'),
 
     path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
     path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),

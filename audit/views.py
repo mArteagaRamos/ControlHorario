@@ -1,6 +1,5 @@
 # ---------- Backend Views: audit/views.py ----------
 import csv
-from functools import wraps
 from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
@@ -20,94 +19,9 @@ from django.core.paginator import Paginator
 from audit.utils import safe_dict
 from uuid import uuid4
 
-def combine_local_date_time(date_value, time_value):
-    naive_dt = datetime.strptime(f"{date_value} {time_value}", '%Y-%m-%d %H:%M')
-    return timezone.make_aware(naive_dt, timezone.get_current_timezone())
-
-
-# Decorator to verify that the user is a manager or admin before accessing certain views
-def manager_or_admin_required(view_func):
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        # If not even logged in, get out
-        if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
-
-        is_admin = request.user.is_admin
-        is_manager = UserCompany.objects.all_with_deleted().filter(
-            user=request.user,
-            role=UserCompany.RoleChoices.MANAGER,
-            deleted_at__isnull=True
-        ).exists()
-
-        if is_admin or is_manager:
-            return view_func(request, *args, **kwargs)
-        else:
-            return render(request, 'error/sin_permisos.html', status=403)
-
-    return _wrapped_view
-
-
-def auditor_cannot_access(view_func):
-    """Decorator to prevent auditors from accessing certain views."""
-    @wraps(view_func)
-    def _wrapped_view(request, *args, **kwargs):
-        # If not logged in, redirect to login
-        if not request.user.is_authenticated:
-            return redirect('login')
-
-        # Block auditors
-        if request.user.is_auditor:
-            return render(request, 'error/sin_permisos.html', status=403)
-
-        return view_func(request, *args, **kwargs)
-
-    return _wrapped_view
-
-
-# ── HELPER: Contexto de delegación de usuario ────────────────────────────────
-
-def get_effective_context(request):
-    """
-    Retorna un diccionario con el contexto unificado de delegación de usuario.
-
-    Usado por las vistas para determinar si hay un usuario delegado activo
-    y pasar información al template para mostrar el banner.
-
-    Retorna dict:
-    {
-        'delegated_user_id': str(UUID) or None,
-        'delegated_user_name': str or None,
-        'delegated_company_id': str(UUID) or None,
-        'delegated_user_role': 'manager' or 'employee' or None,
-        'is_delegating': bool,
-    }
-    """
-    context = {
-        'delegated_user_id': None,
-        'delegated_user_name': None,
-        'delegated_company_id': None,
-        'delegated_user_role': None,
-        'is_delegating': False,
-    }
-
-    # Solo si es admin y hay delegado activo en sesión
-    if not request.user.is_admin:
-        return context
-
-    delegated_user_id = request.session.get('delegated_user_id')
-    if not delegated_user_id:
-        return context
-
-    context.update({
-        'delegated_user_id': delegated_user_id,
-        'delegated_user_name': request.session.get('delegated_user_name'),
-        'delegated_company_id': request.session.get('delegated_company_id'),
-        'delegated_user_role': request.session.get('delegated_user_role'),
-        'is_delegating': True,
-    })
-
-    return context
+# Import centralized decorators and services
+from core.decorators import manager_or_admin_required, auditor_cannot_access
+from core.services import combine_local_date_time, get_effective_context
 
 
 @manager_or_admin_required
@@ -211,7 +125,7 @@ def manager_logs(request):
     # Add delegation context
     context.update(delegation_context)
 
-    return render(request, 'audit/manager_logs.html', context)  
+    return render(request, 'team/manager_logs.html', context)  
 
 # View for the manager to accept or deny an incident, with their resolution note
 @manager_or_admin_required
@@ -426,7 +340,7 @@ def exportar_logs_rechazadas(request):
 
 @manager_or_admin_required
 @require_POST
-def exportar_manager_employees(request):
+def exportar_staff(request):
     """
     Exporta la lista de empleados de una empresa a CSV.
     POST params: employee_id (lista de IDs seleccionadas)
@@ -659,7 +573,7 @@ def manager_employee(request):
     }
     context.update(delegation_context)
 
-    return render(request, 'audit/manager_employee.html', context)
+    return render(request, 'team/staff.html', context)
 
 @manager_or_admin_required
 @require_POST

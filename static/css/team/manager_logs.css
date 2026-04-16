@@ -1,0 +1,13 @@
+.table-scroll-container {
+    max-height: 500px; 
+    overflow-y: auto;
+}
+.table-scroll-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #212529; /* Ajustado al color de table-dark */
+    color: white;
+}
+.table-scroll-container::-webkit-scrollbar { width: 8px; }
+.table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
