@@ -190,3 +190,6 @@ CONTACT_FORM_RECIPIENTS = [
     for email in os.environ.get('CONTACT_FORM_RECIPIENTS', 'info@aeptic.es').split(',')
     if email.strip()
 ]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

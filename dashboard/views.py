@@ -20,6 +20,9 @@ import uuid
 from audit.models import AuditLog
 from audit.views import get_effective_context
 from uuid import uuid4
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
 
 # ── helpers ────────────────────────────────────────────────────────────────────
  
@@ -557,7 +560,38 @@ def api_leave_request_create(request):
         'message': 'Solicitud enviada correctamente',
     }, status=201)
  
- 
+@login_required
+def api_leave_upload_attachment(request, leave_id):
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    archivo = request.FILES.get('attachment')
+
+    if archivo:
+        # Limpiamos nombre de usuario (ej: "Juan Perez" -> "JuanPerez")
+        nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
+        
+        # Creamos el timestamp y sacamos la extensión
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        _, extension = os.path.splitext(archivo.name)
+        
+        # Nombre final: JuanPerez_20240520_123000.pdf
+        nombre_final = f"{nombre_usuario}_{timestamp}{extension.lower()}"
+        
+        # Ruta relativa: justificantes/ID_SOLICITUD/archivo.pdf
+        ruta = f"justificantes/{leave_id}/{nombre_final}"
+        
+        # Borrar el anterior si existe para no llenar el servidor de basura
+        if leave.attachment_path:
+            default_storage.delete(leave.attachment_path)
+            
+        # Guardar físicamente (Django crea las carpetas solo)
+        default_storage.save(ruta, ContentFile(archivo.read()))
+        
+        # Guardar la ruta en la base de datos
+        leave.attachment_path = ruta
+        leave.save()
+        
+        return JsonResponse({'ok': True, 'message': 'Subido con éxito'})
+    
 # ── API: cancelar solicitud (empleado) ────────────────────────────────────────
  
 @login_required
