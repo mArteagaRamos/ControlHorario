@@ -45,8 +45,8 @@ urlpatterns = [
     path('anular-registro/', audit_views.anular_registro, name='anular_registro'),
     path('editar-incidencia-rechazada/', audit_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
     path('eliminar-incidencia-rechazada/', audit_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
-    # Manager Employees
-    path('staff/', audit_views.manager_employee, name='manager_employee'),
+    # Manager Staff
+    path('staff/', audit_views.staff, name='staff'),
     path('staff/edit/', audit_views.edit_employee, name='edit_employee'),
     path('staff/delete/', audit_views.delete_employee, name='delete_employee'),
     path('staff/exportar/', audit_views.exportar_staff, name='exportar_staff'),

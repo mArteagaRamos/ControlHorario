@@ -19,7 +19,6 @@ Este documento guía la reorganización del proyecto Django desde **4 apps** a *
 | audit/ | |
 
 **Cambios principales:**
-- ✅ `manager_employee()` → `staff()` (renombrado)
 - ✅ URLs simplificadas (`/leave/create/` en lugar de `/api/leave/create/`)
 - ✅ Separación clara de responsabilidades por dominio
 
@@ -64,7 +63,7 @@ Antes de empezar:
 
 # FASE 1: PREPARACIÓN - CREAR ESTRUCTURA DE NUEVAS APPS
 
-**Duración:** ~5 minutos  
+**Duración:** ~3 minutos  
 **Objetivo:** Crear la estructura base de las 3 nuevas apps
 
 ## Paso 1.1: Crear las 3 nuevas apps Django
@@ -90,8 +89,7 @@ control_horario/
 │   ├── apps.py
 │   ├── models.py
 │   ├── tests.py
-│   ├── views.py                    # ← Aquí va el código
-│   └── urls.py                     # ← Crear este (puede estar vacío)
+│   └── views.py                    # ← Aquí va el código
 ├── management/                     # ⭐ NUEVA
 │   ├── migrations/
 │   │   └── __init__.py
@@ -100,8 +98,7 @@ control_horario/
 │   ├── apps.py
 │   ├── models.py
 │   ├── tests.py
-│   ├── views.py                    # ← Aquí va el código
-│   └── urls.py                     # ← Crear este (puede estar vacío)
+│   └── views.py                    # ← Aquí va el código
 ├── corrections/                    # ⭐ NUEVA
 │   ├── migrations/
 │   │   └── __init__.py
@@ -110,8 +107,7 @@ control_horario/
 │   ├── apps.py
 │   ├── models.py
 │   ├── tests.py
-│   ├── views.py                    # ← Aquí va el código
-│   └── urls.py                     # ← Crear este (puede estar vacío)
+│   └── views.py                    # ← Aquí va el código
 └── (rest of apps...)
 ```
 
@@ -127,47 +123,7 @@ Debe mostrar ambas carpetas con estructura Django estándar.
 
 ---
 
-## Paso 1.2: Crear archivos urls.py faltantes
-
-Las apps generadas por startapp NO incluyen `urls.py`. Créalos (aunque vacíos):
-
-```bash
-# Crear urls.py vacíos en cada app
-touch admin/urls.py
-touch management/urls.py
-touch corrections/urls.py
-```
-
-O manualmente edita cada archivo y añade (puede estar vacío o con comentario):
-
-**admin/urls.py:**
-```python
-# admin/urls.py
-# URLs manejadas centralmente en core/urls.py
-```
-
-**management/urls.py:**
-```python
-# management/urls.py
-# URLs manejadas centralmente en core/urls.py
-```
-
-**corrections/urls.py:**
-```python
-# corrections/urls.py
-# URLs manejadas centralmente en core/urls.py
-```
-
-### ✅ CHECKPOINT 1.2
-```bash
-ls admin/urls.py management/urls.py corrections/urls.py
-```
-
-Debe listar los 3 archivos.
-
----
-
-## Paso 1.3: Registrar las 3 nuevas apps en settings.py
+## Paso 1.2: Registrar las 3 nuevas apps en settings.py
 
 Abre `control_horario/settings.py` y localiza `INSTALLED_APPS`:
 
@@ -194,7 +150,7 @@ INSTALLED_APPS = [
 ]
 ```
 
-### ✅ CHECKPOINT 1.3
+### ✅ CHECKPOINT 1.2
 
 Ejecuta validación Django:
 ```bash
@@ -226,14 +182,14 @@ Si hay errores, verifica que los nombres en `INSTALLED_APPS` coincidan exactamen
 Este es el archivo más grande. Vamos a copiar funciones desde `audit/views.py`.
 
 **Funciones a MIGRAR a management/views.py:**
-- `manager_logs()` (línea 29) → **Mantener el nombre**
-- `exportar_logs()` (línea 213) → **Mantener el nombre**
-- `exportar_manager_employees()` (línea 343) → **RENOMBRAR A: `exportar_staff()`**
-- `editar_registro()` (línea 408) → **Mantener el nombre**
-- `manager_employee()` (línea 487) → **RENOMBRAR A: `staff()`** ⭐ IMPORTANTE
-- `edit_employee()` (línea 580) → **Mantener el nombre**
-- `delete_employee()` (línea 624) → **Mantener el nombre**
-- `anular_registro()` (línea 727) → **Mantener el nombre**
+- `manager_logs()` (línea 29)
+- `exportar_logs()` (línea 213)
+- `exportar_staff()` (línea 343)
+- `editar_registro()` (línea 408)
+- `staff()` (línea 487)
+- `edit_employee()` (línea 580)
+- `delete_employee()` (línea 624)
+- `anular_registro()` (línea 727)
 - `entity_info()` (desde dashboard/views.py) → **Copiar versión managers**
 
 ### Crear el archivo management/views.py
@@ -288,11 +244,10 @@ def exportar_logs(request):
 
 # ═══════════════════════════════════════════════════════════════════════════
 # COPIAR DESDE audit/views.py (línea 343-403)
-# ⭐ IMPORTANTE: RENOMBRAR exportar_manager_employees → exportar_staff
 # ═══════════════════════════════════════════════════════════════════════════
 @manager_or_admin_required
 @require_POST
-def exportar_staff(request):  # ⭐ era: exportar_manager_employees
+def exportar_staff(request):
     """
     Exporta la lista de empleados de una empresa a CSV.
     POST params: employee_id (lista de IDs seleccionadas)
@@ -310,12 +265,11 @@ def editar_registro(request):
 
 # ═══════════════════════════════════════════════════════════════════════════
 # COPIAR DESDE audit/views.py (línea 487-576)
-# ⭐ IMPORTANTE: RENOMBRAR manager_employee → staff
 # ═══════════════════════════════════════════════════════════════════════════
 @login_required
 @never_cache
 @manager_or_admin_required
-def staff(request):  # ⭐ era: manager_employee
+def staff(request):
     # [CÓDIGO COMPLETO DE audit/views.py:487-576, SIN CAMBIOS EN LÓGICA]
     pass
 
@@ -659,9 +613,9 @@ Debe listar (entre otros): `resolver_incidencia`, `editar_incidencia_rechazada`,
 # ❌ ELIMINAR (línea 132-209): resolver_incidencia()
 # ❌ ELIMINAR (línea 213-271): exportar_logs()
 # ❌ ELIMINAR (línea 276-338): exportar_logs_rechazadas()
-# ❌ ELIMINAR (línea 343-403): exportar_manager_employees()
+# ❌ ELIMINAR (línea 343-403): exportar_staff()
 # ❌ ELIMINAR (línea 408-481): editar_registro()
-# ❌ ELIMINAR (línea 487-576): manager_employee()
+# ❌ ELIMINAR (línea 487-576): staff()
 # ❌ ELIMINAR (línea 580-620): edit_employee()
 # ❌ ELIMINAR (línea 624-723): delete_employee()
 # ❌ ELIMINAR (línea 727-770): anular_registro()
@@ -849,8 +803,8 @@ urlpatterns = [
     path('logs/edit/', management_views.editar_registro, name='editar_registro'),
     path('logs/void/', management_views.anular_registro, name='anular_registro'),
     
-    # Staff Management (UPDATED: manager_employees → staff)
-    path('staff/', management_views.staff, name='staff'),  # ⭐ MOVED HERE
+    # Staff Management
+    path('staff/', management_views.staff, name='staff'),
     path('staff/edit/', management_views.edit_employee, name='edit_employee'),
     path('staff/delete/', management_views.delete_employee, name='delete_employee'),
     path('staff/export/', management_views.exportar_staff, name='exportar_staff'),
@@ -1079,9 +1033,9 @@ Y actualiza a `/team/`:
 
 ```bash
 # En la raíz del proyecto, ejecuta:
-grep -r "manager_employees" templates/
-grep -r "manager_employee" templates/
-grep -r "{% url 'manager_employee" templates/
+grep -r "staff" templates/
+grep -r "staff" templates/
+grep -r "{% url 'staff" templates/
 grep -r "store-manager-employees" templates/
 ```
 

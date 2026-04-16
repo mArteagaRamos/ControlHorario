@@ -484,7 +484,7 @@ def editar_registro(request):
 @login_required
 @never_cache
 @manager_or_admin_required
-def manager_employee(request):
+def staff(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
 
@@ -617,7 +617,7 @@ def edit_employee(request):
     membership.role = role
     membership.save()
 
-    return redirect('manager_employee')
+    return redirect('staff')
 
 @manager_or_admin_required
 @require_POST
