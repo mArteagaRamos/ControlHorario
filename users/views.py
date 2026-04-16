@@ -503,8 +503,8 @@ def lookup_user(request):
     if company_id:
         # Explicit company_id provided
         company_filter = {'company_id': company_id}
-    elif is_admin and name:
-        # Admin doing name search: search all users WITHOUT company filter
+    elif is_admin:
+        # Admin search: search all users regardless of field
         company_filter = None
     else:
         # Regular user or non-name search: use their current company

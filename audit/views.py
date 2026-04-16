@@ -768,7 +768,7 @@ def delete_employee(request):
             deleted_at__isnull=True
         ).first()
         if membership and str(user_id) == str(request.user.id):
-            return redirect('manager_employee')
+            return redirect('deleted_records')
 
     # 5. Delete from all specified companies
     now = timezone.now()
@@ -796,7 +796,7 @@ def delete_employee(request):
         user.deleted_at = now
         user.save(update_fields=['status', 'deleted_at'])
 
-    return redirect('manager_employee')
+    return redirect('deleted_records')
 
 @manager_or_admin_required
 @require_POST
@@ -1197,7 +1197,7 @@ def audit_incidencias(request):
     
     mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
     try:
-        mapa_empresas = {str(c.id): c.name for c in Company.objects.all()}
+        mapa_empresas = {str(c.id): c.name for c in Companies.objects.all()}
     except NameError:
         mapa_empresas = {}
 

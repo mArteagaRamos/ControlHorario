@@ -43,7 +43,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="step" value="set_password">
                         {% bootstrap_form set_password_form %}
-                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                        <button type="submit" class="std-btn" style="width: 100%;">
                             Guardar contraseña y entrar
                         </button>
                     </form>
@@ -54,7 +54,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="step" value="select_company">
                         {% bootstrap_form company_form %}
-                        <button type="submit" class="btn btn-primary w-100 mt-2">
+                        <button type="submit" class="std-btn" style="width: 100%;">
                             Entrar
                         </button>
                     </form>
@@ -65,7 +65,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="step" value="credentials">
                         {% bootstrap_form form %}
-                        <button type="submit" class="std-btn">
+                        <button type="submit" class="std-btn" style="width: 100%;">
                             Iniciar sesión
                         </button>
                     </form>

@@ -119,7 +119,7 @@
                                                     {% if item.companies %}
                                                         <div class="d-flex flex-wrap gap-1">
                                                             {% for company in item.companies %}
-                                                                <span class="badge bg-info">{{ company.name }}</span>
+                                                                <span class="badge" style="background-color: #6c757d; color: #fff;">{{ company.name }}</span>
                                                             {% endfor %}
                                                         </div>
                                                     {% else %}
@@ -169,7 +169,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay usuarios eliminados.
                             </div>
                         {% endif %}
@@ -231,7 +231,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay empresas eliminadas.
                             </div>
                         {% endif %}
@@ -261,7 +261,11 @@
                                                 <td data-label="Usuario">{{ membership.user.email }}</td>
                                                 <td data-label="Empresa">{{ membership.company.name }}</td>
                                                 <td data-label="Rol">
-                                                    <span class="badge bg-info">{{ membership.role }}</span>
+                                                    {% if membership.role == 'manager' %}
+                                                        <span class="badge" style="background-color: #1a1f2e; color: #fff;">Manager</span>
+                                                    {% else %}
+                                                        <span class="badge" style="background-color: #6c757d; color: #fff;">Empleado</span>
+                                                    {% endif %}
                                                 </td>
                                                 <td data-label="Eliminado">
                                                     <small>{{ membership.deleted_at|date:"d/m/Y H:i" }}</small>
@@ -295,7 +299,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay membresías eliminadas.
                             </div>
                         {% endif %}
@@ -324,7 +328,15 @@
                                             <tr>
                                                 <td data-label="Solicitante">{{ correction.requester.email }}</td>
                                                 <td data-label="Estado">
-                                                    <span class="badge bg-warning">{{ correction.status }}</span>
+                                                    {% if correction.status == 'approved' %}
+                                                        <span class="badge bg-success">Aprobada</span>
+                                                    {% elif correction.status == 'pending' %}
+                                                        <span class="badge bg-warning">Pendiente</span>
+                                                    {% elif correction.status == 'rejected' %}
+                                                        <span class="badge bg-danger">Anulada</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ correction.status }}</span>
+                                                    {% endif %}
                                                 </td>
                                                 <td data-label="Fecha Solicitud">
                                                     <small>{{ correction.request_date|date:"d/m/Y H:i" }}</small>
@@ -361,7 +373,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay incidencias eliminadas.
                             </div>
                         {% endif %}
@@ -391,8 +403,10 @@
                                         {% for entry in deleted_time_entries %}
                                             <tr>
                                                 <td data-label="Usuario">{{ entry.user.email }}</td>
-                                                <td data-label="Empresa">{{ entry.company.name }}</td>
-                                                <td data-label="Fecha">{{ entry.date }}</td>
+                                                <td data-label="Empresa">
+                                                    <span class="badge bg-secondary">{{ entry.company.name }}</span>
+                                                </td>
+                                                <td data-label="Fecha">{{ entry.date|date:"j F Y" }}</td>
                                                 <td data-label="Entrada">
                                                     <small>{{ entry.clock_in|date:"H:i" }}</small>
                                                 </td>
@@ -431,7 +445,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay fichajes eliminados.
                             </div>
                         {% endif %}
@@ -495,7 +509,7 @@
                                 </table>
                             </div>
                         {% else %}
-                            <div class="alert alert-info mb-0" role="alert">
+                            <div class="alert alert-info mb-0" role="alert" style="background-color: #1e2a38a1; border-color: #1e2a38; color: #fff;">
                                 <i class="bi bi-info-circle"></i> No hay eventos eliminados.
                             </div>
                         {% endif %}

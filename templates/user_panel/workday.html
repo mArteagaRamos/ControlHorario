@@ -59,7 +59,7 @@
                     <input type="date" class="form-control" id="filterToDate">
                 </div>
                 <div>
-                    <button class="btn btn-primary mt-2" id="filterButton">Buscar</button>
+                    <button class="btn std-btn mt-2" id="filterButton">Buscar</button>
                 </div>
             </div>
         </div>
@@ -98,9 +98,9 @@
                             <td>{{ entry.clock_in|date:"H:i" }}</td>
                             <td>{% if entry.clock_out %}{{ entry.clock_out|date:"H:i" }}{% else %}--{% endif %}</td>
                             <td>{{ entry.worked }}</td>
-                            <td class="text-center">
+                            <td class="text-center d-flex justify-content-center">
                                 {% if entry.clock_out %}
-                                    <button class="btn btn-sm btn-primary"
+                                    <button type="button" class="btn btn-sm std-btn"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalCorreccion"
                                             data-action="request_correction"
@@ -176,7 +176,7 @@
                             <td>
                                 {% if r.status == 'pending' %}
                                     <span class="badge bg-warning text-dark">Pendiente</span>
-                                    <button class="btn btn-sm btn-primary"
+                                    <button type="button" class="btn btn-sm btn-primary" style="background-color: #6c757d; border-color: #6c757d; border-radius: .5rem;"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalCorreccion"
                                             data-action="edit_correction"
@@ -253,7 +253,7 @@
                 </div>
 
                 <div class="modal-footer justify-content-center">
-                    <button form="correctionForm" type="submit" class="btn btn-primary px-4">
+                    <button form="correctionForm" type="submit" class="btn std-btn px-4">
                         Enviar Solicitud
                     </button>
                 </div>
