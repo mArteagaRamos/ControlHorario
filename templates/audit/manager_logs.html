@@ -11,11 +11,12 @@
         max-height: 500px; 
         overflow-y: auto;
     }
-    .table-scroll-container thead {
+    .table-scroll-container thead th {
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #f8f9fa; 
+        background-color: #212529; /* Ajustado al color de table-dark */
+        color: white;
     }
     .table-scroll-container::-webkit-scrollbar { width: 8px; }
     .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
@@ -31,298 +32,292 @@
 </div>
 {% endif %}
 
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h4 fw-bold mb-0">Correción de fichajes</h2>
-        <button type="submit" form="exportForm" id="btnExportar" class="btn btn-success d-flex align-items-center gap-2" disabled>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 style="color: #1a1f2e;"><i class="bi bi-pencil-square me-2"></i> Corrección de fichajes</h2>
+        <button type="submit" form="exportForm" id="btnExportar" class="std-btn d-flex align-items-center gap-2" disabled>
             <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
         </button>
     </div>
+    <hr>
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <form id="filterForm" onsubmit="event.preventDefault();">
-                <div class="row g-3 mb-4 align-items-end" id="filtros-container">
-                    <div class="col-md-3">
-                        <label class="form-label text-muted">Empleado</label>
-                        <select id="empleado-select" name="empleado" class="form-select">
-                            <option value=""></option> 
-                            {% for emp in empleados %}
-                                <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ emp.username }} {{ emp.surname }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-2">
-                        <label class="form-label text-muted">Fecha de registro</label>
-                        <input type="date" id="filtroFecha" name="fecha" value="{{ request.GET.fecha }}" class="form-control js-filter">
-                    </div>
-
-                    <div class="col-md-2">
-                        <label class="form-label text-muted">Hora Desde</label>
-                        <input type="time" id="filtroDesde" name="hora_desde" value="{{ request.GET.hora_desde }}" class="form-control js-filter">
-                    </div>
-
-                    <div class="col-md-2">
-                        <label class="form-label text-muted">Hora Hasta</label>
-                        <input type="time" id="filtroHasta" name="hora_hasta" value="{{ request.GET.hora_hasta }}" class="form-control js-filter">
-                    </div>
-
-                    <div class="col-md-3">
-                        <label class="form-label d-none d-md-block">&nbsp;</label>
-                        <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
-                                <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
-                            </div>
-                            <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
-                                <input class="form-check-input ms-0 mt-0 js-filter" type="checkbox" role="switch" id="solo_incidencias" name="solo_incidencias" value="on" {% if request.GET.solo_incidencias %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
-                            </div>
-                        </label>
-                    </div>
+    <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
+        <form id="filterForm" onsubmit="event.preventDefault();">
+            <div class="row g-3 align-items-end" id="filtros-container">
+                <div class="col-md-3">
+                    <label class="form-label text-muted small fw-bold">Empleado</label>
+                    <select id="empleado-select" name="empleado" class="form-select">
+                        <option value=""></option> 
+                        {% for emp in empleados %}
+                            <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
+                                {{ emp.username }} {{ emp.surname }}
+                            </option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </form>
-        </div>
+                
+                <div class="col-md-2">
+                    <label class="form-label text-muted small fw-bold">Fecha de registro</label>
+                    <input type="date" id="filtroFecha" name="fecha" value="{{ request.GET.fecha }}" class="form-control js-filter">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-muted small fw-bold">Hora Desde</label>
+                    <input type="time" id="filtroDesde" name="hora_desde" value="{{ request.GET.hora_desde }}" class="form-control js-filter">
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label text-muted small fw-bold">Hora Hasta</label>
+                    <input type="time" id="filtroHasta" name="hora_hasta" value="{{ request.GET.hora_hasta }}" class="form-control js-filter">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label d-none d-md-block">&nbsp;</label>
+                    <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-circle-fill text-danger me-2"></i>
+                            <span class="fw-bold text-danger" style="font-size: 0.95rem;">Solo incidencias</span>
+                        </div>
+                        <div class="form-check form-switch m-0 p-0 d-flex align-items-center">
+                            <input class="form-check-input ms-0 mt-0 js-filter" type="checkbox" role="switch" id="solo_incidencias" name="solo_incidencias" value="on" {% if request.GET.solo_incidencias %}checked{% endif %} style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </form>
     </div>
 
-    <div class="mb-3 mt-5">
-        <h5 class="fw-bold text-secondary">Historial General de Fichajes</h5>
+    <div class="mb-3 mt-4">
+        <h5 style="color: #1a1f2e;"><i class="bi bi-list-check me-2"></i> Historial General de Fichajes</h5>
     </div>
     
-    <div id="resultados-actualizables" class="card shadow-sm border-0 mb-5">
-        <div class="table-responsive table-scroll-container" style="transition: opacity 0.2s ease;">
-            <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
-                {% csrf_token %}
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>
-                                <input type="checkbox" id="selectAll" class="form-check-input me-2">
-                                Empleado
-                            </th>
-                            <th>Fecha</th>
-                            <th>Entrada / Salida</th>
-                            <th>Total Horas</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaRegistros">
-                        {% for registro in registros_list %}
-                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
-                            <td>
-                                <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
-                                {{ registro.user.username }} {{ registro.user.surname }}
-                            </td>
-                            <td>{{ registro.date|date:"d/m/Y" }}</td>
-                            <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
-                            <td class="fw-bold text-primary">
-                                {{ registro.horas_formateadas }}
-                            </td>
-                            <td>
-                                {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
-                                    <span class="badge bg-danger">Incidencia</span>
-                                {% elif registro.status == 'corrected' %}
-                                    <span class="badge bg-info text-dark">Corregido</span>
-                                {% elif registro.status == 'voided' %}
-                                    <span class="badge bg-secondary">Anulado</span>
-                                {% else %}
-                                    <span class="badge bg-success">Confirmado</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex gap-2">
-                                    {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
-                                        {% for incidencia in incidencias %}
-                                            {% if incidencia.time_entry.id == registro.id %}
-                                                <button type="button" class="btn btn-sm btn-danger"
-                                                    data-bs-toggle="modal"
-                                                    data-bs-target="#modalResolver"
-                                                    data-id="{{ incidencia.id }}"
-                                                    data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
-                                                    data-motivo="{{ incidencia.reason }}"
-                                                    data-old-in="{{ registro.clock_in|date:'d/m/Y H:i' }}"
-                                                    data-old-out="{% if registro.clock_out %}{{ registro.clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
-                                                    data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
-                                                    data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}">
-                                                    <i class="bi bi-wrench"></i> Resolver
-                                                </button>
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-outline-primary {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalEditar"
-                                                data-entry-id="{{ registro.id }}"
-                                                data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
-                                                data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
-                                                <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
-                                            </button>
-
-                                            <button type="button" class="btn btn-sm btn-outline-danger {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalAnular"
-                                                data-entry-id="{{ registro.id }}">
-                                                <i class="bi bi-trash" style="pointer-events: none;"></i> Anular
-                                            </button>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </form>
-        </div>
-
-        <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
-            <button class="btn btn-sm btn-outline-primary" id="registrosShowMore" style="{% if registros_list|length <= 5 %}display: none;{% endif %}">Ver Más</button>
-        </div>
-    </div>
-
-    <!-- RECHAZADAS TABLE -->
-    <div class="mb-3 mt-5 d-flex justify-content-between align-items-center">
-        <h5 class="fw-bold text-secondary mb-0">Historial de Incidencias Rechazadas</h5>
-        <button type="submit" form="exportFormRechazadas" id="btnExportarRechazadas" class="btn btn-success d-flex align-items-center gap-2" disabled>
-            <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
-        </button>
-    </div>
-
-    <div class="card shadow-sm border-0 mb-5">
-        <div class="table-responsive table-scroll-container">
-            <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
-                {% csrf_token %}
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>
-                                <input type="checkbox" id="selectAllRechazadas" class="form-check-input me-2">
-                                Empleado
-                            </th>
-                            <th>Fecha Solicitud</th>
-                            <th>Entrada Original</th>
-                            <th>Entrada Solicitada</th>
-                            <th>Motivo</th>
-                            <th>Nota de Rechazo</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaRechazadas">
-                    {% for incidencia in incidencias_rechazadas %}
-                    <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+    <div id="resultados-actualizables" class="table-responsive shadow-sm bg-white p-3 rounded table-scroll-container mb-5" style="transition: opacity 0.2s ease;">
+        <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
+            {% csrf_token %}
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" class="form-check-input me-2">
+                            Empleado
+                        </th>
+                        <th>Fecha</th>
+                        <th>Entrada / Salida</th>
+                        <th>Total Horas</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaRegistros">
+                    {% for registro in registros_list %}
+                    <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
                         <td>
-                            <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
-                            {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
+                            <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
+                            {{ registro.user.username }} {{ registro.user.surname }}
                         </td>
-                        <td>{{ incidencia.request_date|date:"d/m/Y H:i" }}</td>
-                        <td>
-                            <small class="text-muted">
-                                {{ incidencia.time_entry.clock_in|date:"d/m/Y H:i" }} -
-                                {% if incidencia.time_entry.clock_out %}
-                                    {{ incidencia.time_entry.clock_out|date:"H:i" }}
-                                {% else %}
-                                    --:--
-                                {% endif %}
-                            </small>
+                        <td><strong>{{ registro.date|date:"d/m/Y" }}</strong></td>
+                        <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
+                        <td class="fw-bold text-primary">
+                            {{ registro.horas_formateadas }}
                         </td>
                         <td>
-                            <small>
-                                {% if incidencia.new_clock_in %}
-                                    {{ incidencia.new_clock_in|date:"d/m/Y H:i" }}
-                                {% else %}
-                                    --/--/---- --:--
-                                {% endif %}
-                                -
-                                {% if incidencia.new_clock_out %}
-                                    {{ incidencia.new_clock_out|date:"H:i" }}
-                                {% else %}
-                                    --:--
-                                {% endif %}
-                            </small>
-                        </td>
-                        <td>{{ incidencia.reason }}</td>
-                        <td>
-                            {% if incidencia.correction_note %}
-                                <span class="text-muted small">{{ incidencia.correction_note }}</span>
+                            {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
+                                <span class="badge bg-danger">Incidencia</span>
+                            {% elif registro.status == 'corrected' %}
+                                <span class="badge bg-info text-dark">Corregido</span>
+                            {% elif registro.status == 'voided' %}
+                                <span class="badge bg-secondary">Anulado</span>
                             {% else %}
-                                <span class="text-muted small">Sin nota</span>
+                                <span class="badge bg-success">Confirmado</span>
                             {% endif %}
                         </td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-sm btn-outline-primary"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#modalEditarRechazada"
-                                    data-incidencia-id="{{ incidencia.id }}"
-                                    data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'Y-m-d\TH:i' }}{% endif %}"
-                                    data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'Y-m-d\TH:i' }}{% endif %}"
-                                    data-reason="{{ incidencia.reason }}">
-                                    <i class="bi bi-pencil"></i> Editar
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#modalEliminarRechazada"
-                                    data-incidencia-id="{{ incidencia.id }}">
-                                    <i class="bi bi-trash"></i> Eliminar
-                                </button>
+                            <div class="d-flex gap-2">
+                                {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
+                                    {% for incidencia in incidencias %}
+                                        {% if incidencia.time_entry.id == registro.id %}
+                                            <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalResolver"
+                                                data-id="{{ incidencia.id }}"
+                                                data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
+                                                data-motivo="{{ incidencia.reason }}"
+                                                data-old-in="{{ registro.clock_in|date:'d/m/Y H:i' }}"
+                                                data-old-out="{% if registro.clock_out %}{{ registro.clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}">
+                                                <i class="bi bi-wrench"></i> Resolver
+                                            </button>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditar"
+                                            data-entry-id="{{ registro.id }}"
+                                            data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
+                                            data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
+                                            <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
+                                        </button>
+
+                                        <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalAnular"
+                                            data-entry-id="{{ registro.id }}">
+                                            <i class="bi bi-trash" style="pointer-events: none;"></i> Anular
+                                        </button>
+                                    </div>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-4 text-muted">No hay incidencias rechazadas.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            </form>
-        </div>
-        <div class="text-center mt-3 buttonContainer mb-3" id="rechazadasContainer">
-            <button class="btn btn-sm btn-outline-secondary" id="rechazadasShowMore" style="{% if incidencias_rechazadas|length <= 5 %}display: none;{% endif %}">Ver Más</button>
-        </div>
+        </form>
     </div>
 
+    <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
+        <button class="std-btn-secondary" id="registrosShowMore" style="{% if registros_list|length <= 5 %}display: none;{% endif %}">Ver Más</button>
+    </div>
+
+    <div class="mb-3 mt-5 d-flex justify-content-between align-items-center">
+        <h5 style="color: #1a1f2e;"><i class="bi bi-x-circle me-2"></i> Historial de Incidencias Rechazadas</h5>
+        <button type="submit" form="exportFormRechazadas" id="btnExportarRechazadas" class="std-btn d-flex align-items-center gap-2" disabled>
+            <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+        </button>
+    </div>
+
+    <div class="table-responsive shadow-sm bg-white p-3 rounded table-scroll-container mb-5">
+        <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
+            {% csrf_token %}
+            <table class="table table-striped table-hover align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAllRechazadas" class="form-check-input me-2">
+                            Empleado
+                        </th>
+                        <th>Fecha Solicitud</th>
+                        <th>Entrada Original</th>
+                        <th>Entrada Solicitada</th>
+                        <th>Motivo</th>
+                        <th>Nota de Rechazo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaRechazadas">
+                {% for incidencia in incidencias_rechazadas %}
+                <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                    <td>
+                        <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
+                        {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
+                    </td>
+                    <td><strong>{{ incidencia.request_date|date:"d/m/Y H:i" }}</strong></td>
+                    <td>
+                        <small class="text-muted fw-bold">
+                            {{ incidencia.time_entry.clock_in|date:"d/m/Y H:i" }} -
+                            {% if incidencia.time_entry.clock_out %}
+                                {{ incidencia.time_entry.clock_out|date:"H:i" }}
+                            {% else %}
+                                --:--
+                            {% endif %}
+                        </small>
+                    </td>
+                    <td>
+                        <small class="fw-bold">
+                            {% if incidencia.new_clock_in %}
+                                {{ incidencia.new_clock_in|date:"d/m/Y H:i" }}
+                            {% else %}
+                                --/--/---- --:--
+                            {% endif %}
+                            -
+                            {% if incidencia.new_clock_out %}
+                                {{ incidencia.new_clock_out|date:"H:i" }}
+                            {% else %}
+                                --:--
+                            {% endif %}
+                        </small>
+                    </td>
+                    <td>{{ incidencia.reason }}</td>
+                    <td>
+                        {% if incidencia.correction_note %}
+                            <span class="text-muted small">{{ incidencia.correction_note }}</span>
+                        {% else %}
+                            <span class="text-muted small">Sin nota</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalEditarRechazada"
+                                data-incidencia-id="{{ incidencia.id }}"
+                                data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'Y-m-d\TH:i' }}{% endif %}"
+                                data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'Y-m-d\TH:i' }}{% endif %}"
+                                data-reason="{{ incidencia.reason }}">
+                                <i class="bi bi-pencil"></i> Editar
+                            </button>
+                            <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                data-bs-toggle="modal"
+                                data-bs-target="#modalEliminarRechazada"
+                                data-incidencia-id="{{ incidencia.id }}">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-muted">No hay incidencias rechazadas.</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </form>
+    </div>
+    
+    <div class="text-center mt-3 buttonContainer mb-3" id="rechazadasContainer">
+        <button class="std-btn-secondary" id="rechazadasShowMore" style="{% if incidencias_rechazadas|length <= 5 %}display: none;{% endif %}">Ver Más</button>
+    </div>
 </div>
 
 <div class="modal fade" id="modalResolver" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
+            <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title"><i class="bi bi-exclamation-circle me-2"></i> Resolver Incidencia</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 <p><strong>Empleado:</strong> <span id="modalEmpleado" class="text-primary fw-semibold"></span></p>
                 <div class="bg-light p-3 rounded mb-4">
-                    <strong>Motivo de la solicitud:</strong>
-                    <p id="modalMotivo" class="mb-0 mt-1 text-muted fst-italic"></p>
+                    <strong class="text-muted small text-uppercase">Motivo de la solicitud:</strong>
+                    <p id="modalMotivo" class="mb-0 mt-1 fst-italic"></p>
                 </div>
                 <div class="row text-center mb-3">
                     <div class="col-md-6 border-end">
                         <h6 class="fw-bold text-secondary">Registros Actuales</h6>
                         <div class="d-flex flex-column gap-3 mt-3">
-                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-secondary fs-6 w-75" id="modalOldIn"></span></div>
-                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-secondary fs-6 w-75" id="modalOldOut"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-secondary fs-6 w-75" id="modalOldIn"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-secondary fs-6 w-75" id="modalOldOut"></span></div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <h6 class="fw-bold text-success">Registros Solicitados</h6>
                         <div class="d-flex flex-column gap-3 mt-3">
-                            <div><small class="text-muted d-block">Entrada</small><span class="badge bg-success fs-6 w-75" id="modalNewIn"></span></div>
-                            <div><small class="text-muted d-block">Salida</small><span class="badge bg-success fs-6 w-75" id="modalNewOut"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-success fs-6 w-75" id="modalNewIn"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-success fs-6 w-75" id="modalNewOut"></span></div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer justify-content-center bg-light">
+            <div class="modal-footer bg-light justify-content-center gap-2">
                 <form id="resolverForm" method="POST" action="{% url 'resolver_incidencia' %}"> 
                     {% csrf_token %}
                     <input type="hidden" name="incidencia_id" id="incidenciaIdInput">
@@ -331,9 +326,11 @@
                         <label for="nota_resolucion" class="form-label small fw-bold text-muted">Nota de resolución (Opcional):</label>
                         <textarea name="nota_resolucion" class="form-control form-control-sm" rows="2" placeholder="Ej: Se acepta tras revisar cámaras..."></textarea>
                     </div>
-
-                    <button type="submit" name="accion" value="denegar" class="btn btn-outline-danger px-4">Denegar</button>
-                    <button type="submit" name="accion" value="aceptar" class="btn btn-success px-4 fw-bold">Aceptar Cambios</button>
+                    
+                    <div class="d-flex justify-content-end gap-2 w-100">
+                        <button type="submit" name="accion" value="denegar" class="std-btn-secondary px-4">Denegar</button>
+                        <button type="submit" name="accion" value="aceptar" class="std-btn px-4">Aceptar Cambios</button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -341,9 +338,9 @@
 </div>
 
 <div class="modal fade" id="modalEditar" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Modificar Entrada</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -363,8 +360,8 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar Cambios</button>
+                    <button type="button" class="std-btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="std-btn px-4">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -374,8 +371,8 @@
 <div class="modal fade" id="modalAnular" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> Anular Entrada</h5>
+            <div class="modal-header text-white" style="background-color: #1a1f2e;">
+                <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i> Anular Entrada</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{% url 'anular_registro' %}"> 
@@ -387,19 +384,18 @@
                     <p class="text-muted small">Esta acción marcará el fichaje como anulado, pondrá sus horas a cero y no se podrá deshacer.</p>
                 </div>
                 <div class="modal-footer bg-light justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Anular</button>
+                    <button type="button" class="std-btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="std-btn px-4">Sí, Anular</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- MODAL EDITAR INCIDENCIA RECHAZADA -->
 <div class="modal fade" id="modalEditarRechazada" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
+            <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Incidencia Rechazada</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
@@ -424,20 +420,19 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold">Guardar Cambios</button>
+                    <button type="button" class="std-btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="std-btn px-4">Guardar Cambios</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<!-- MODAL ELIMINAR INCIDENCIA RECHAZADA (SOFT-DELETE) -->
 <div class="modal fade" id="modalEliminarRechazada" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2"></i> Eliminar Incidencia Rechazada</h5>
+            <div class="modal-header text-white" style="background-color: #1a1f2e;">
+                <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2 text-danger"></i> Eliminar Incidencia Rechazada</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form method="POST" action="{% url 'eliminar_incidencia_rechazada' %}">
@@ -449,8 +444,8 @@
                     <p class="text-muted small">La incidencia será marcada como eliminada y no aparecerá en la lista.</p>
                 </div>
                 <div class="modal-footer bg-light justify-content-between">
-                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger px-4 fw-bold">Sí, Eliminar</button>
+                    <button type="button" class="std-btn-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="std-btn px-4">Sí, Eliminar</button>
                 </div>
             </form>
         </div>

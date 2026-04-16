@@ -23,11 +23,11 @@
           {% if is_admin %}
           <div class="btn-group mb-4 w-100" role="group">
             <button type="button" id="btn-company-create"
-                    class="btn {% if company_mode == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    class="btn {% if company_mode == 'create' %}std-btn-toggle active{% else %}std-btn-toggle{% endif %}">
               Registrar
             </button>
             <button type="button" id="btn-company-select"
-                    class="btn {% if company_mode == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    class="btn {% if company_mode == 'select' %}std-btn-toggle active{% else %}std-btn-toggle{% endif %}">
               Seleccionar
             </button>
           </div>
@@ -49,7 +49,7 @@
               {# ── Flujo SELECCIONAR: buscador por CIF o nombre── #}
               <div id="company-lookup-block" class="{% if company_mode != 'select' %}d-none{% endif %}">
                 <h5 class="border-bottom pb-2">
-                  <span class="badge bg-primary me-2">1</span>Empresa
+                  <span class="badge me-2" style="background-color: #1a1f2e; color: #fff;">1</span>Empresa
                 </h5>
 
                 {# Pestañas de modo de búsqueda #}
@@ -93,7 +93,7 @@
               <div id="company-form-block"
                    class="{% if company_mode == 'select' %}d-none{% endif %}">
                 <h5 class="border-bottom pb-2">
-                  <span class="badge bg-primary me-2">1</span>
+                  <span class="badge me-2" style="background-color: #1a1f2e; color: #fff;">1</span>
                   <span id="company-form-title">
                     {% if company_mode == 'create' %}Empresa{% else %}Empresa{% endif %}
                   </span>
@@ -108,7 +108,7 @@
             {% if is_admin or current_role == 'manager' %}
               <section id="section-worker" class="mb-4">
                 <h5 class="border-bottom pb-2">
-                  <span class="badge bg-primary me-2">{% if is_admin %}2{% else %}1{% endif %}</span>
+                  <span class="badge me-2" style="background-color: #1a1f2e; color: #fff;">{% if is_admin %}2{% else %}1{% endif %}</span>
                   Trabajador
                 </h5>
 
@@ -128,13 +128,14 @@
                 {# Toggles solo en flujo 'seleccionar empresa' o para Manager #}
                 <div id="worker-toggle-group"
                     class="btn-group mb-3 {% if is_admin and company_mode == 'create' %}d-none{% endif %}"
-                    role="group">
+                    role="group"
+                    style="width: 100%;">
                   <button type="button" id="btn-worker-create"
-                          class="btn {% if worker_action == 'create' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                          class="btn {% if worker_action == 'create' %}std-btn-toggle active{% else %}std-btn-toggle{% endif %}">
                     Registrar
                   </button>
                   <button type="button" id="btn-worker-select"
-                          class="btn {% if worker_action == 'select' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                          class="btn {% if worker_action == 'select' %}std-btn-toggle active{% else %}std-btn-toggle{% endif %}">
                     Seleccionar
                   </button>
                 </div>
@@ -211,7 +212,7 @@
                     {# Toggle de auditor (solo admin, solo en creación) #}
                     {% if is_admin and worker_action == 'create' %}
                     <div class="mb-3">
-                      <button type="button" id="btn-toggle-auditor" class="btn btn-link btn-sm p-0">
+                      <button type="button" id="btn-toggle-auditor" class="btn btn-link btn-sm p-0" style="color: #1a1f2e;">
                         <i class="bi bi-plus-circle"></i> Opciones avanzadas
                       </button>
                       <div id="auditor-checkbox-block" class="d-none mt-2">
@@ -258,8 +259,8 @@
             {% endif %}
 
             <div class="d-grid gap-2 mt-4">
-              <button type="submit" class="btn btn-primary">Guardar registro</button>
-              <a href="{% url 'home_timetracking' %}" class="btn btn-outline-secondary">Cancelar</a>
+              <button type="submit" class="btn std-btn">Guardar registro</button>
+              <a href="{% url 'home_timetracking' %}" class="btn std-btn-secondary">Cancelar</a>
             </div>
 
           </form>
@@ -344,6 +345,15 @@ function setCompanyMode(mode) {
 
 btnCompanyCreate?.addEventListener('click', () => setCompanyMode('create'));
 btnCompanySelect?.addEventListener('click', () => setCompanyMode('select'));
+
+// ── Initialize company mode on page load ──────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const currentMode = companyModeInput?.value || 'create';
+  setCompanyMode(currentMode);
+
+  const currentAction = workerActionInput?.value || 'create';
+  setWorkerAction(currentAction);
+});
 
 // ── Worker toggle ──────────────────────────────────────────────────────────
 function setWorkerAction(action) {
