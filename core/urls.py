@@ -6,6 +6,8 @@ from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
 from audit import views as audit_views
+from django.conf import settings
+from django.conf.urls.static import static
 
 # Project URL patterns
 urlpatterns = [
@@ -56,7 +58,10 @@ urlpatterns = [
 
     path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
     path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),
-path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name='api_leave_review'),    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
+    path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name='api_leave_review'),    
+    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
+    path('api/leave/resolved/',      dashboard_views.api_leave_resolved,        name='api_leave_resolved'),
+    path('api/leave/<uuid:leave_id>/upload/', dashboard_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
     path('api/calendar/events/',     dashboard_views.api_calendar_events,       name='api_calendar_events'),
     # Admin Dashboard
     path('admin/', user_views.admin_dashboard, name='admin_dashboard'),
@@ -78,3 +83,5 @@ path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
 
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

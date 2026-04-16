@@ -95,6 +95,13 @@
             <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
             <textarea id="absenceNote" class="form-control form-control-sm" rows="2"></textarea>
           </div>
+          <div class="mb-3">
+              <label class="form-label form-label-sm mb-1 fw-medium text-secondary">
+                  <i class="bi bi-paperclip"></i> Adjuntar justificante
+              </label>
+              <input type="file" id="absenceAttachment" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
+              <div class="form-text" style="font-size: 0.7rem;">PDF, PNG o JPG (Máx. 5MB)</div>
+          </div>
           <button class="cal-btn cal-btn--absence" id="btnSendAbsence" type="button">
             Solicitar ausencia
           </button>
@@ -110,7 +117,6 @@
         <div class="legend-item"><span class="legend-dot" style="background:#d97706"></span> Pendiente</div>
         <div class="legend-item"><span class="legend-dot" style="background:#5a8f5a"></span> Aprobada</div>
         <div class="legend-item"><span class="legend-dot" style="background:#b94040"></span> Rechazada</div>
-        <div class="legend-item"><span class="legend-dot" style="background:#888"></span> Cancelada</div>
       </div>
       <div class="card shadow-sm">
         <div class="card-body">
@@ -128,6 +134,18 @@
         </div>
       </div>
       {% endif %}
+
+      <!-- ── Solicitudes resueltas (todos los usuarios) ──────────────── -->
+      <div class="pending-section mt-3" id="resolvedSection">
+        <div class="pending-section__header" style="cursor:pointer;user-select:none;" onclick="toggleResolved()">
+          <span id="resolvedTitle">Mis solicitudes resueltas</span>
+          <span id="resolvedToggleIcon" style="font-size:.8rem;font-weight:400;color:#64748b;">▲ ocultar</span>
+        </div>
+        <div id="resolvedContainer" style="overflow-x:auto;margin-top:.5rem;">
+          <small class="text-muted ps-2">Cargando…</small>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -137,12 +155,40 @@
 <div class="modal fade" id="eventModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius:var(--cal-radius);border:1.5px solid var(--cal-border);overflow:hidden;box-shadow:var(--cal-shadow-lg);">
+      
       <div class="modal-header" style="background:#f8fafc;border-bottom:1.5px solid var(--cal-border);padding:1rem 1.25rem;">
         <h5 class="modal-title" id="eventModalTitle" style="font-weight:700;font-size:.95rem;color:var(--cal-text);">Detalle</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="eventModalBody" style="padding:1.1rem 1.25rem;background:#fff;font-size:.85rem;"></div>
-      <div class="modal-footer" id="eventModalFooter" style="background:#f8fafc;border-top:1.5px solid var(--cal-border);padding:.75rem 1.25rem;"></div>
+
+      <div class="modal-body" style="padding:1.1rem 1.25rem;background:#fff;font-size:.85rem;">
+        <div id="eventModalBody"></div>
+
+        <div id="attachmentSection" class="mt-4 pt-3 border-top">
+          <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.05em;">
+            <i class="bi bi-paperclip"></i> Justificante de ausencia
+          </h6>
+          
+          <div id="attachmentContainer">
+            <div id="attachStatus" class="d-none">
+                </div>
+
+            <div id="uploadZone">
+              <div class="input-group input-group-sm mb-2">
+                <input type="file" id="fileInput" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+              </div>
+              <button class="std-btn w-100" onclick="uploadAttachment(currentLeaveId)" style="font-weight: 500;">
+                <i class="bi bi-cloud-arrow-up"></i> Subir justificante
+              </button>
+              <div id="uploadMsg" class="mt-2 text-center" style="font-size: 0.75rem;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="eventModalFooter" style="background:#f8fafc;border-top:1.5px solid var(--cal-border);padding:.75rem 1.25rem;">
+        </div>
+      
     </div>
   </div>
 </div>
@@ -191,14 +237,16 @@
 
 {% block extra_scripts %}
 <script>
-  const EVENTS_URL        = '{% url "api_calendar_events" %}';
-  const LEAVE_CREATE_URL  = '{% url "api_leave_create" %}';
-  const LEAVE_PENDING_URL = '{% url "api_leave_pending" %}';
-  const CSRF_TOKEN        = '{{ csrf_token }}';
+  const EVENTS_URL         = '{% url "api_calendar_events" %}';
+  const LEAVE_CREATE_URL   = '{% url "api_leave_create" %}';
+  const LEAVE_PENDING_URL  = '{% url "api_leave_pending" %}';
+  const LEAVE_RESOLVED_URL = '{% url "api_leave_resolved" %}';
+  const CSRF_TOKEN         = '{{ csrf_token }}';
 
   let currentUserId    = null;
   let calendarObj      = null;
   let _pendingRejectId = null;
+  let currentLeaveId   = null;
   window._leaveDataMap = {};
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -229,6 +277,7 @@
       teamSelector.addEventListener('change', function () {
         currentUserId = this.value || null;
         calendarObj.refetchEvents();
+        loadResolvedRequests(currentUserId);
       });
     }
 
@@ -236,6 +285,9 @@
     if (document.getElementById('pendingContainer')) {
       loadPendingRequests();
     }
+
+    // ── Cargar resueltas ──────────────────────────────────────────────────
+    loadResolvedRequests(null);
 
     // ── Botón vacaciones ──────────────────────────────────────────────────
     document.getElementById('btnSendVacation').addEventListener('click', function () {
@@ -250,13 +302,21 @@
 
     // ── Botón ausencia ────────────────────────────────────────────────────
     document.getElementById('btnSendAbsence').addEventListener('click', function () {
-      sendLeaveRequest({
-        leave_type:   'absence',
-        leave_reason: document.getElementById('absenceReason').value,
-        start_date:   document.getElementById('absenceStart').value,
-        end_date:     document.getElementById('absenceEnd').value,
-        reason_note:  document.getElementById('absenceNote').value,
-      }, 'absenceMsg');
+        
+        const fileInput = document.getElementById('absenceAttachment');
+        const formData = new FormData();
+        
+        formData.append('leave_type', 'absence');
+        formData.append('leave_reason', document.getElementById('absenceReason').value);
+        formData.append('start_date', document.getElementById('absenceStart').value);
+        formData.append('end_date', document.getElementById('absenceEnd').value);
+        formData.append('reason_note', document.getElementById('absenceNote').value);
+        
+        if (fileInput && fileInput.files[0]) {
+            formData.append('attachment', fileInput.files[0]);
+        }
+
+        sendLeaveRequest(formData, 'absenceMsg', true); // true indica que es FormData
     });
 
     // ── Confirmar rechazo ─────────────────────────────────────────────────
@@ -269,22 +329,22 @@
   });
 
   // ── Enviar solicitud ────────────────────────────────────────────────────
-  async function sendLeaveRequest(payload, msgElementId) {
+  async function sendLeaveRequest(payload, msgElementId, isFormData = false) {
     const msgEl = document.getElementById(msgElementId);
     msgEl.textContent = '';
 
-    if (!payload.start_date || !payload.end_date) {
-      msgEl.className = 'mt-2 small text-danger';
-      msgEl.textContent = 'Debes indicar fecha de inicio y fin.';
-      return;
+    const fetchOptions = {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: isFormData ? payload : JSON.stringify(payload)
+    };
+
+    if (!isFormData) {
+      fetchOptions.headers['Content-Type'] = 'application/json';
     }
 
     try {
-      const response = await fetch(LEAVE_CREATE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(LEAVE_CREATE_URL, fetchOptions);
       const data = await response.json();
 
       if (response.ok) {
@@ -292,6 +352,9 @@
         msgEl.textContent = data.message || 'Solicitud enviada correctamente.';
         calendarObj.refetchEvents();
         if (document.getElementById('pendingContainer')) loadPendingRequests();
+        // Limpiar file input si existe
+        const f = document.getElementById('absenceAttachment');
+        if(f) f.value = '';
       } else {
         msgEl.className = 'mt-2 small text-danger';
         msgEl.textContent = data.error || 'Error al enviar la solicitud.';
@@ -300,6 +363,98 @@
       msgEl.className = 'mt-2 small text-danger';
       msgEl.textContent = 'Error de red. Inténtalo de nuevo.';
     }
+  }
+
+  // Gestión de Justificantes en el Modal ─────────────────────────
+  function prepareAttachmentSection(event) {
+    currentLeaveId = event.id;
+    const container = document.getElementById('attachStatus');
+    const uploadZone = document.getElementById('uploadZone');
+    const msg = document.getElementById('uploadMsg');
+    
+    msg.textContent = '';
+    document.getElementById('fileInput').value = '';
+
+    if (event.extendedProps.attachment_path) {
+        uploadZone.classList.add('d-none');
+        container.classList.remove('d-none');
+        container.innerHTML = `
+            <div class="d-flex align-items-center gap-2 mb-2" style="font-size:.82rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.45rem; padding:.45rem .7rem; color:#166534;">
+                <i class="bi bi-check-circle-fill"></i> Justificante adjunto
+                <a href="/media/${event.extendedProps.attachment_path}" target="_blank" class="ms-2 fw-bold">Ver archivo</a>
+                <button onclick="showUploadZone()" class="ms-auto btn btn-link btn-sm p-0 text-muted" style="font-size:.7rem; text-decoration:none;">Reemplazar</button>
+            </div>`;
+    } else {
+        uploadZone.classList.remove('d-none');
+        container.classList.add('d-none');
+    }
+  }
+
+  function showUploadZone() {
+    document.getElementById('uploadZone').classList.remove('d-none');
+    document.getElementById('attachStatus').classList.add('d-none');
+  }
+
+  async function uploadAttachment(leaveId) {
+    const fileInput = document.getElementById('fileInput');
+    const msgEl = document.getElementById('uploadMsg');
+    
+    if (!fileInput.files[0]) {
+    msgEl.className = 'mt-1 small text-danger';
+    msgEl.textContent = 'Selecciona un archivo primero.';
+    return;
+  }
+
+  // LIMPIEZA DEL ID: Esto quita "leave-" si existe
+  const cleanId = leaveId.replace('leave-', '');
+
+  const formData = new FormData();
+  formData.append('attachment', fileInput.files[0]);
+
+  msgEl.className = 'mt-1 small text-muted';
+  msgEl.textContent = 'Subiendo…';
+
+  try {
+    // Usamos el cleanId aquí
+    const res = await fetch(`/api/leave/${cleanId}/upload/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    });
+    
+    const data = await res.json();
+
+    if (res.ok) {
+      msgEl.className = 'mt-1 small text-success';
+      msgEl.textContent = '¡Subido con éxito!';
+      // Refrescar calendario para ver cambios
+      calendarObj.refetchEvents(); 
+      setTimeout(() => location.reload(), 1000); // Recarga para actualizar el modal
+    } else {
+      msgEl.className = 'mt-1 small text-danger';
+      msgEl.textContent = data.message || 'Error en el servidor';
+    }
+  } catch (err) {
+    msgEl.className = 'mt-1 small text-danger';
+    msgEl.textContent = 'Error de conexión.';
+  }
+}
+
+  // ── Modal detalle de evento (Modificado) ────────────────────────────────
+  function showEventModal(event) {
+    const props = event.extendedProps;
+    currentLeaveId = event.id; // Guardamos el ID actual
+    
+    document.getElementById('eventModalTitle').textContent = event.title;
+    document.getElementById('eventModalBody').innerHTML =
+      '<p class="mb-1"><strong>Estado:</strong> ' + (props.status || 'N/A') + '</p>' +
+      '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
+      '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
+    
+    //Preparamos la sección de archivos
+    prepareAttachmentSection(event);
+    
+    new bootstrap.Modal(document.getElementById('eventModal')).show();
   }
 
   // ── Cargar solicitudes pendientes ───────────────────────────────────────
@@ -377,16 +532,108 @@
       alert('Error de conexión con el servidor.');
     }
   }
+  // ── Solicitudes resueltas ───────────────────────────────────────────────
+  let _resolvedVisible = true;
 
-  // ── Modal detalle de evento ─────────────────────────────────────────────
-  function showEventModal(event) {
-    const props = event.extendedProps;
-    document.getElementById('eventModalTitle').textContent = event.title;
-    document.getElementById('eventModalBody').innerHTML =
-      '<p class="mb-1"><strong>Estado:</strong> ' + (props.status || 'N/A') + '</p>' +
-      '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
-      '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
-    new bootstrap.Modal(document.getElementById('eventModal')).show();
+  function toggleResolved() {
+    const container = document.getElementById('resolvedContainer');
+    const icon = document.getElementById('resolvedToggleIcon');
+    _resolvedVisible = !_resolvedVisible;
+    container.style.display = _resolvedVisible ? '' : 'none';
+    icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
   }
+
+  async function loadResolvedRequests(userId) {
+    const container = document.getElementById('resolvedContainer');
+    const titleEl   = document.getElementById('resolvedTitle');
+
+    // Título dinámico según filtro
+    if (titleEl) {
+      if (!userId) {
+        titleEl.textContent = 'Mis solicitudes resueltas';
+      } else if (userId === 'all') {
+        titleEl.textContent = 'Solicitudes resueltas — Todos los empleados';
+      } else {
+        const sel = document.getElementById('teamSelector');
+        const selectedText = sel ? sel.options[sel.selectedIndex].text : 'Empleado';
+        titleEl.textContent = `Solicitudes resueltas — ${selectedText}`;
+      }
+    }
+
+    container.innerHTML = '<small class="text-muted ps-2">Cargando…</small>';
+
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.set('user_id', userId);
+
+      const res  = await fetch(`${LEAVE_RESOLVED_URL}?${params}`);
+      const data = await res.json();
+      const list = data.requests;
+      const showUserCol = data.show_user_col;
+
+      if (!list || list.length === 0) {
+        container.innerHTML = '<small class="text-muted ps-2">No hay solicitudes resueltas.</small>';
+        return;
+      }
+
+      const STATUS_STYLE = {
+        approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
+        rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
+      };
+
+      const rows = list.map(l => {
+        const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
+        const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
+
+        let attachCell = '<span style="color:#94a3b8;font-size:.78rem;">—</span>';
+        if (l.attachment_path) {
+          attachCell = `<a href="/media/${l.attachment_path}" target="_blank"
+            style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600; #1a1f2e:;text-decoration:none;"
+            title="Ver justificante"><i class="bi bi-file-earmark-text"></i> Ver</a>`;
+        }
+
+        const reviewNote = l.review_note
+          ? `<span title="${l.review_note}" style="color:#6b7280;font-size:.75rem;cursor:help;margin-left:.25rem;">💬</span>`
+          : '';
+
+        const userCell = showUserCol
+          ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
+          : '';
+
+        return `<tr style="font-size:.82rem;border-bottom:1px solid #f1f5f9;">
+          ${userCell}
+          <td style="padding:.5rem .6rem;white-space:nowrap;">${l.start_date}</td>
+          <td style="padding:.5rem .6rem;white-space:nowrap;">${l.end_date}</td>
+          <td style="padding:.5rem .6rem;">${l.leave_type}</td>
+          <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
+          <td style="padding:.5rem .6rem;">${badge}${reviewNote}</td>
+          <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
+        </tr>`;
+      }).join('');
+
+      const userHeader = showUserCol
+        ? `<th style="padding:.4rem .6rem;font-weight:600;">Empleado</th>`
+        : '';
+
+      container.innerHTML = `
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;border-bottom:2px solid #e2e8f0;">
+              ${userHeader}
+              <th style="padding:.4rem .6rem;font-weight:600;">Desde</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Hasta</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Tipo</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Motivo</th>
+              <th style="padding:.4rem .6rem;font-weight:600;">Estado</th>
+              <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Justificante</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } catch (e) {
+      container.innerHTML = '<small class="text-danger ps-2">Error al cargar.</small>';
+    }
+  }
+
 </script>
 {% endblock %}

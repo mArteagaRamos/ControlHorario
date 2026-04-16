@@ -20,6 +20,9 @@ import uuid
 from audit.models import AuditLog
 from audit.views import get_effective_context
 from uuid import uuid4
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
 
 # ── helpers ────────────────────────────────────────────────────────────────────
  
@@ -166,9 +169,9 @@ def api_calendar_events(request):
 
     events = []
     STATUS_COLOR = {
-        'pending':  '#f59e0b',
-        'approved': '#10b981',
-        'rejected': '#ef4444',
+        'pending':  '#d97706',
+        'approved': '#5a8f5a',
+        'rejected': '#b94040',
         'canceled': '#6b7280',
     }
 
@@ -566,7 +569,38 @@ def api_leave_request_create(request):
         'message': 'Solicitud enviada correctamente',
     }, status=201)
  
- 
+@login_required
+def api_leave_upload_attachment(request, leave_id):
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    archivo = request.FILES.get('attachment')
+
+    if archivo:
+        # Limpiamos nombre de usuario (ej: "Juan Perez" -> "JuanPerez")
+        nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
+        
+        # Creamos el timestamp y sacamos la extensión
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        _, extension = os.path.splitext(archivo.name)
+        
+        # Nombre final: JuanPerez_20240520_123000.pdf
+        nombre_final = f"{nombre_usuario}_{timestamp}{extension.lower()}"
+        
+        # Ruta relativa: justificantes/ID_SOLICITUD/archivo.pdf
+        ruta = f"justificantes/{leave_id}/{nombre_final}"
+        
+        # Borrar el anterior si existe para no llenar el servidor de basura
+        if leave.attachment_path:
+            default_storage.delete(leave.attachment_path)
+            
+        # Guardar físicamente (Django crea las carpetas solo)
+        default_storage.save(ruta, ContentFile(archivo.read()))
+        
+        # Guardar la ruta en la base de datos
+        leave.attachment_path = ruta
+        leave.save()
+        
+        return JsonResponse({'ok': True, 'message': 'Subido con éxito'})
+    
 # ── API: cancelar solicitud (empleado) ────────────────────────────────────────
  
 @login_required
@@ -622,6 +656,71 @@ def api_leave_pending(request):
         print(f"DEBUG ERROR: {str(e)}") 
         return JsonResponse({'error': str(e)}, status=500)
  
+# ── API: solicitudes resueltas ────────────────────────────────────────────────
+
+@login_required
+def api_leave_resolved(request):
+    """
+    Devuelve solicitudes resueltas (aprobadas, rechazadas, canceladas).
+    - Empleados: siempre sus propias solicitudes.
+    - Managers: pueden filtrar por ?user_id=<uuid> (empleado concreto)
+                o ?user_id=all (todos los empleados de la empresa).
+                Sin parámetro → sus propias solicitudes.
+    """
+    company = _get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    is_manager = _is_manager(request, company)
+    user_id    = request.GET.get('user_id', '')
+
+    resolved_statuses = [
+        LeaveRequest.LeaveStatus.APPROVED,
+        LeaveRequest.LeaveStatus.REJECTED,
+        LeaveRequest.LeaveStatus.CANCELED,
+    ]
+
+    base_qs = LeaveRequest.objects.filter(
+        company=company,
+        status__in=resolved_statuses,
+    ).select_related('user', 'reviewed_by').order_by('-updated_at')
+
+    if is_manager and user_id == 'all':
+        leaves = base_qs[:50]
+    elif is_manager and user_id:
+        try:
+            target = get_object_or_404(Users, id=user_id)
+        except Exception:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
+        leaves = base_qs.filter(user=target)[:30]
+    else:
+        leaves = base_qs.filter(user=request.user)[:30]
+
+    show_user_col = is_manager and user_id in ('all', '') is False or (is_manager and user_id == 'all')
+
+    data = []
+    for l in leaves:
+        data.append({
+            'id':               str(l.id),
+            'user_name':        f"{l.user.username} {l.user.surname}".strip(),
+            'leave_type':       l.get_leave_type_display(),
+            'leave_reason':     l.get_leave_reason_display(),
+            'start_date':       l.start_date.strftime('%d/%m/%Y'),
+            'end_date':         l.end_date.strftime('%d/%m/%Y'),
+            'status':           l.status,
+            'status_display':   l.get_status_display(),
+            'reason_note':      l.reason_note or '',
+            'review_note':      l.review_note or '',
+            'reviewed_by':      f"{l.reviewed_by.username} {l.reviewed_by.surname}".strip() if l.reviewed_by else '',
+            'attachment_path':  l.attachment_path or '',
+        })
+
+    return JsonResponse({
+        'requests':      data,
+        'show_user_col': is_manager and user_id == 'all',
+    })
+
+
 # ── API: aprobar / rechazar (manager) ────────────────────────────────────────
  
 @login_required
