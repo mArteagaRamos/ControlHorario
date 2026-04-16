@@ -145,6 +145,26 @@ button.std-btn-secondary:focus,
   outline: none !important;
 }
 
+
+.breadcrumb-item a {
+    color: #555555 !important; 
+    text-decoration: none !important;
+}
+
+.breadcrumb-item a:hover {
+    color: #1a1f2e !important; 
+    text-decoration: underline;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: #94a3b8;
+}
+
+.breadcrumb-item.active {
+    color: #1a1f2e !important; 
+    font-weight: 700 !important;   
+}
+
 @media (max-width: 768px) {
 
 .sidebar {

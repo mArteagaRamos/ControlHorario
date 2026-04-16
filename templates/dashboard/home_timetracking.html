@@ -71,20 +71,20 @@
     <div class="timer" id="timerDisplay">00:00:00</div>
     <div id="buttonGroup" class="d-flex justify-content-center gap-3 mt-4">
         {% if not active_entry %}
-            <button class="btn-timer btn-clock-in px-5" onclick="postAction('clock_in')">
+            <button class="std-btn px-5" onclick="postAction('clock_in')">
                 <i class="bi bi-play-fill"></i> Clock In
             </button>
         {% else %}
-            <button class="btn-timer btn-clock-out" onclick="postAction('clock_out')">
+            <button class="std-btn px-5" onclick="postAction('clock_out')">
                 <i class="bi bi-stop-fill"></i> Clock Out
             </button>
             
             {% if is_paused %}
-                <button class="btn-timer btn-resume" onclick="postAction('pause_end')">
+                <button class="std-btn-secondary" onclick="postAction('pause_end')">
                     <i class="bi bi-play-circle"></i> Resume
                 </button>
             {% else %}
-                <button class="btn-timer btn-pause" onclick="postAction('pause_start')">
+                <button class="std-btn-secondary" onclick="postAction('pause_start')">
                     <i class="bi bi-pause-fill"></i> Pause
                 </button>
             {% endif %}
