@@ -330,15 +330,24 @@ def entity_info(request):
         company_id = request.GET.get('company_id') or request.session.get('company_id')
 
         if company_id:
-            # Admin is inspecting a specific company
+            # Admin is inspecting a specific company OR manager checking their own
             company = Companies.objects.filter(id=company_id).first()
             if not company:
                 messages.error(request, 'Empresa no encontrada.')
                 return redirect('home_timetracking')
 
-            # Validate permissions: must be admin
+            # Validate permissions:
+            # - Admins can inspect any company
+            # - Managers can only access their own company
             if not request.user.is_admin:
-                return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+                # Manager: verify it's their own company
+                user_membership = UserCompany.objects.filter(
+                    user=request.user,
+                    company=company,
+                    deleted_at__isnull=True
+                ).first()
+                if not user_membership:
+                    return HttpResponseForbidden("No tienes acceso a esta empresa.")
 
             request.session['company_id'] = company_id
         else:

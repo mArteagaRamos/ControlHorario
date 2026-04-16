@@ -569,6 +569,7 @@ def editar_registro(request):
 
 @login_required
 @never_cache
+@manager_or_admin_required
 def manager_employee(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
@@ -586,14 +587,23 @@ def manager_employee(request):
         company_id = request.GET.get('company_id') or request.session.get('company_id')
 
         if company_id:
-            # Admin is inspecting a specific company
+            # Admin is inspecting a specific company OR manager checking their own
             company = Companies.objects.filter(id=company_id).first()
             if not company:
                 return HttpResponseForbidden("Empresa no encontrada.")
 
-            # Validate permissions: must be admin
+            # Validate permissions:
+            # - Admins can inspect any company
+            # - Managers can only access their own company
             if not request.user.is_admin:
-                return HttpResponseForbidden("Solo administradores pueden inspeccionar otras empresas.")
+                # Manager: verify it's their own company
+                user_membership = UserCompany.objects.filter(
+                    user=request.user,
+                    company=company,
+                    deleted_at__isnull=True
+                ).first()
+                if not user_membership:
+                    return HttpResponseForbidden("No tienes acceso a esta empresa.")
 
             request.session['company_id'] = company_id
             delegation_context['is_inspecting'] = True
