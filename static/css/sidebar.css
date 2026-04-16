@@ -131,11 +131,35 @@ nav.navbar {
     width: 100%;
 }
 
+/* ── NUEVO HEADER DEL MENÚ ─────────────────────────────── */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
 .sidebar .menu-title {
     font-size: 1.25rem;
-    margin-bottom: 1.5rem;
     font-weight: 500;
+    margin-bottom: 0; /* Lo quitamos de aquí y lo pasamos al contenedor de arriba */
 }
+
+.btn-close-sidebar {
+    background: transparent;
+    border: none;
+    color: #b0b0b0;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.btn-close-sidebar:hover {
+    color: #ffffff;
+}
+/* ──────────────────────────────────────────────────────── */
 
 /* Menú items */
 .sidebar .nav {
@@ -275,9 +299,36 @@ main.main-content {
     }
 }
 
-/* Tablets (768px a 1024px) */
-@media (min-width: 768px) and (max-width: 1024px) {
+/* Responsive - Mobile (de 0 a 767px) */
+@media (max-width: 767px) {
     .main-container {
-        grid-template-columns: 25% 1fr;
+        grid-template-columns: 1fr;
+        position: relative;
+    }
+
+    .sidebar {
+        position: fixed;
+        left: -110%; /* Lo escondemos un poco más para que la animación sea más limpia */
+        top: 0; /* Que empiece desde arriba del todo, cubriendo el navbar */
+        bottom: 0; /* Forzamos a que llegue hasta abajo del todo */
+        height: 100dvh; /* Ocupa el 100% real de la pantalla del móvil */
+        width: 80%; /* Le damos un poco más de anchura */
+        max-width: 320px;
+        z-index: 1050; /* Lo ponemos por encima de todo */
+        transition: left 0.3s ease;
+        border-right: none;
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5); /* Le damos una sombra chula para que parezca que flota */
+    }
+
+    .sidebar.active {
+        left: 0;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    main.main-content {
+        padding: 1.5rem;
     }
 }

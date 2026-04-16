@@ -9,11 +9,9 @@
 
     {% bootstrap_css %}
 
-    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
 
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
@@ -22,24 +20,19 @@
 </head>
 <body>
 
-<!-- NAVBAR -->
 <nav class="navbar-custom">
 
-    <!-- Zona aside: logo reloj fijo en la esquina -->
     <div class="navbar-aside-zone">
         <a href="{% url 'home_timetracking' %}" class="navbar-logo">
             <img src="{% static 'img/icon_clock.png' %}" height="36">
         </a>
-        <!-- Botón menú solo en mobile -->
         <button class="btn-menu-toggle d-md-none" id="menu-toggle">
             <i class="bi bi-list"></i>
         </button>
     </div>
 
-    <!-- Zona main: company + user -->
     <div class="navbar-main-zone">
 
-        <!-- Company -->
         {% if company_count > 1 %}
         <div class="dropdown">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
@@ -66,7 +59,6 @@
         </a>
         {% endif %}
 
-        <!-- User -->
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
                 <span class="d-none d-md-inline-block">
@@ -84,12 +76,16 @@
     </div>
 </nav>
 
-<!-- SIDEBAR -->
 <div class="main-container">
 
 <aside id="sidebar" class="sidebar">
 
-    <span class="menu-title">Menú</span>
+    <div class="sidebar-header">
+        <span class="menu-title">Menú</span>
+        <button id="close-sidebar-btn" class="btn-close-sidebar d-md-none">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
 
     <ul class="nav">
 
@@ -102,7 +98,6 @@
             </a>
         </li>
         
-        <!-- MY AREA -->
         <li class="nav-item">
             <a class="nav-link collapse-toggle">
                 <span>
@@ -119,7 +114,6 @@
             </ul>
         </li>
 
-        <!-- TEAM -->
         <li class="nav-item">
             <a class="nav-link collapse-toggle">
                 <span>
@@ -182,9 +176,7 @@
 
 </aside>
 
-<!-- CONTENT -->
 <main class="main-content">
-    <!-- MESSAGES -->
     {% if messages %}
     <div class="container mt-3">
         {% for message in messages %}
@@ -198,7 +190,6 @@
     </div>
     {% endif %}
 
-    <!-- BREADCRUMBS -->
     <nav aria-label="breadcrumb" class="mb-4">
         <ol class="breadcrumb bg-body-secondary p-2 rounded">
             {% if breadcrumbs %}
@@ -222,7 +213,6 @@
 
 </div>
 
-<!-- TOAST -->
 <div id="toast" class="toast-custom hidden"></div>
 
 {% bootstrap_javascript %}
@@ -231,9 +221,16 @@
 // Toggle principal para mobile
 const toggleBtn = document.getElementById('menu-toggle');
 const sidebar = document.getElementById('sidebar');
+const closeBtn = document.getElementById('close-sidebar-btn'); // Nueva referencia
 
+// Abrir menú
 toggleBtn?.addEventListener('click', () => {
     sidebar.classList.toggle('active');
+});
+
+// Cerrar menú con la X
+closeBtn?.addEventListener('click', () => {
+    sidebar.classList.remove('active');
 });
 
 // Cerrar sidebar cuando se hace click en un link en mobile
@@ -244,6 +241,15 @@ navLinks.forEach(link => {
             sidebar.classList.remove('active');
         }
     });
+});
+
+// Cerrar sidebar al hacer clic fuera
+document.addEventListener('click', (e) => {
+    if (window.innerWidth < 768 && sidebar.classList.contains('active')) {
+        if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
+            sidebar.classList.remove('active');
+        }
+    }
 });
 
 // Menús colapsables
