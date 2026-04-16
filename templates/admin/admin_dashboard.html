@@ -68,10 +68,10 @@
 
     <!-- TOGGLE BUTTONS -->
     <div class="btn-group mb-4 w-100" role="group">
-        <button type="button" id="btn-tipo-empresa" class="btn btn-primary">
+        <button type="button" id="btn-tipo-empresa" class="btn std-btn-toggle active">
             <i class="bi bi-building"></i> Seleccionar Empresa
         </button>
-        <button type="button" id="btn-tipo-trabajador" class="btn btn-outline-primary">
+        <button type="button" id="btn-tipo-trabajador" class="btn std-btn-toggle">
             <i class="bi bi-people"></i> Seleccionar Trabajador
         </button>
     </div>
@@ -80,7 +80,7 @@
     <div id="section-empresa" class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2">1</span>Buscar Empresa
+                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">1</span>Buscar Empresa
             </h5>
 
             <!-- Filter mode buttons -->
@@ -130,7 +130,7 @@
     <div id="section-trabajador" class="card shadow-sm border-0 mb-4 d-none">
         <div class="card-body">
             <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2">1</span>Buscar Trabajador
+                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">1</span>Buscar Trabajador
             </h5>
 
             <!-- Filter mode buttons -->
@@ -199,14 +199,14 @@
             </h5>
 
             <div class="table-responsive table-scroll-container">
-                <table class="table table-hover align-middle text-nowrap" id="resultadoTabla">
+                <table class="table table-hover align-middle table-equal-columns" id="resultadoTabla">
                     <thead class="table-light">
                         <tr id="tabla-encabezado-empresa" class="d-none">
                             <th>Empresa</th>
                             <th>CIF / NIF</th>
                             <th>Razón Social</th>
                             <th>Creada</th>
-                            <th class="text-end">Acciones</th>
+                            <th>Acciones</th>
                         </tr>
                         <tr id="tabla-encabezado-trabajador" class="d-none">
                             <th>Nombre</th>
@@ -214,7 +214,7 @@
                             <th>DNI</th>
                             <th>Estado</th>
                             <th>Empresas</th>
-                            <th class="text-end">Acciones</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-cuerpo">
@@ -427,6 +427,14 @@ btnTipoTrabajador.addEventListener('click', () => {
     sectionEmpresa.classList.add('d-none');
     sectionTrabajador.classList.remove('d-none');
     clearResults();
+});
+
+// ── Initialize on page load ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    btnTipoEmpresa.classList.add('btn-primary');
+    btnTipoEmpresa.classList.remove('btn-outline-primary');
+    btnTipoTrabajador.classList.add('btn-outline-primary');
+    btnTipoTrabajador.classList.remove('btn-primary');
 });
 
 // ── Empresa Search Mode Tabs ───────────────────────────────────────────────
@@ -689,12 +697,12 @@ function displayCompanyResults(companies) {
             <td data-label="CIF / NIF">${company.tax_id || '--'}</td>
             <td data-label="Razón Social">${company.legal_name || '--'}</td>
             <td data-label="Creada">${company.created_at || '--'}</td>
-            <td data-label="Acciones" class="text-end">
-                <div class="d-flex gap-2 acciones-movil justify-content-end">
-                    <a href="/entity_info/?company_id=${company.id}" class="btn btn-sm btn-outline-info">
+            <td data-label="Acciones" >
+                <div class="d-flex gap-2 acciones-movil">
+                    <a href="/entity_info/?company_id=${company.id}" class="btn btn-sm btn-outline-dark-custom">
                         Información
                     </a>
-                    <a href="/manager_employees/?company_id=${company.id}" class="btn btn-sm btn-outline-info">
+                    <a href="/manager_employees/?company_id=${company.id}" class="btn btn-sm btn-outline-dark-custom">
                         Personal
                     </a>
                     <button type="button" class="btn btn-sm btn-outline-danger"
@@ -759,9 +767,9 @@ function displayWorkerResults(workers) {
             <td data-label="DNI">${worker.dni || '--'}</td>
             <td data-label="Estado">${statusBadge}</td>
             <td data-label="Empresas">${companiesBadges}</td>
-            <td data-label="Acciones" class="text-end">
-                <div class="d-flex gap-2 acciones-movil justify-content-end">
-                    <button type="button" class="btn btn-sm btn-outline-primary"
+            <td data-label="Acciones">
+                <div class="d-flex gap-2 acciones-movil">
+                    <button type="button" class="btn btn-sm btn-outline-dark-custom"
                             data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
                             data-id="${worker.id}"
                             data-nombre="${worker.username}"
