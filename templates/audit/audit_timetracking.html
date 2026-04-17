@@ -130,8 +130,28 @@
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.before.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold">{{ key }}</span>
-                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% if key|lower == 'actor' %}
+                                    <span class="text-muted fw-bold">Usuario</span>
+                                    <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                
+                                {% elif key|lower == 'event_type' or key|lower == 'event type' %}
+                                    <span class="text-muted fw-bold">Evento</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'pause_start' %}Inicio de pausa
+                                        {% elif value == 'pause_end' %}Fin de pausa
+                                        {% elif value == 'clock_in' %}Fichaje de entrada
+                                        {% elif value == 'clock_out' %}Fichaje de salida
+                                        {% else %}{{ value }}{% endif %}
+                                    </strong>
+
+                                {% elif key|lower == 'time_tracking' or key|lower == 'time entry' %}
+                                    <span class="text-muted fw-bold">ID Jornada</span>
+                                    <strong class="text-end text-break ms-3 text-muted font-monospace small">{{ value|default:"-" }}</strong>
+                                
+                                {% else %}
+                                    <span class="text-muted fw-bold">{{ key|title }}</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>
@@ -150,8 +170,28 @@
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold">{{ key }}</span>
-                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% if key|lower == 'actor' %}
+                                    <span class="text-muted fw-bold">Usuario</span>
+                                    <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                
+                                {% elif key|lower == 'event_type' or key|lower == 'event type' %}
+                                    <span class="text-muted fw-bold">Evento</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'pause_start' %}Inicio de pausa
+                                        {% elif value == 'pause_end' %}Fin de pausa
+                                        {% elif value == 'clock_in' %}Fichaje de entrada
+                                        {% elif value == 'clock_out' %}Fichaje de salida
+                                        {% else %}{{ value }}{% endif %}
+                                    </strong>
+
+                                {% elif key|lower == 'time_tracking' or key|lower == 'time entry' %}
+                                    <span class="text-muted fw-bold">ID Jornada</span>
+                                    <strong class="text-end text-break ms-3 text-muted font-monospace small">{{ value|default:"-" }}</strong>
+                                
+                                {% else %}
+                                    <span class="text-muted fw-bold">{{ key|title }}</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>
