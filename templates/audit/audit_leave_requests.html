@@ -2,224 +2,101 @@
 
 {% block title %}Auditoría de Vacaciones y Ausencias{% endblock %}
 
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-
-<style>
-    /* --- VARIABLES Y UTILIDADES --- */
-    :root {
-        --transition-speed: 0.2s;
-    }
-
-    /* --- ESTILOS DE BOTONES --- */
-    .std-btn {
-        border-radius: 8px;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        transition: all var(--transition-speed) ease-in-out;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        padding: 0.5rem 1rem;
-    }
-    
-    .std-btn:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-    
-    .std-btn:active:not(:disabled) {
-        transform: translateY(0);
-    }
-    
-    .std-btn-secondary {
-        border-radius: 6px;
-        transition: transform var(--transition-speed) ease;
-    }
-    
-    .std-btn-secondary:hover {
-        transform: scale(1.05);
-    }
-
-    /* --- ESTILOS DE LA TABLA Y SCROLL --- */
-    .table-scroll-container {
-        max-height: 500px; 
-        overflow-y: auto;
-        border-radius: 0.5rem;
-        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
-    }
-    
-    .table-scroll-container thead th {
-        position: sticky;
-        top: 0;
-        z-index: 10;
-        background-color: #212529 !important; /* Cabecera oscura */
-        color: white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-    }
-    
-    .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
-    .table-scroll-container::-webkit-scrollbar-thumb { background: #adb5bd; border-radius: 4px; }
-    .table-scroll-container::-webkit-scrollbar-track { background: #f8f9fa; }
-
-    /* --- RESPONSIVE MOBILE MAGIC (Card-View) --- */
-    @media (max-width: 767px) {
-        .text-nowrap { white-space: normal !important; }
-        
-        /* Ocultar visualmente el thead pero mantener para accesibilidad */
-        #tablaVacaciones thead { 
-            position: absolute !important;
-            width: 1px !important;
-            height: 1px !important;
-            padding: 0 !important;
-            margin: -1px !important;
-            overflow: hidden !important;
-            clip: rect(0, 0, 0, 0) !important;
-            border: 0 !important;
-        }
-        
-        #tablaVacaciones tbody tr.vacaciones-row {
-            display: block;
-            margin-bottom: 1rem;
-            border: 1px solid #dee2e6;
-            border-radius: 0.75rem;
-            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.05);
-            padding: 0.5rem;
-            background-color: #fff;
-        }
-
-        #tablaVacaciones tbody tr.vacaciones-row td {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #f8f9fa;
-            padding: 0.75rem 0.5rem;
-            text-align: right;
-        }
-        
-        #tablaVacaciones tbody tr.vacaciones-row td:last-child {
-            border-bottom: none;
-        }
-
-        #tablaVacaciones tbody tr.vacaciones-row td::before {
-            content: attr(data-label);
-            font-weight: 600;
-            color: #495057;
-            text-align: left;
-            margin-right: 1rem;
-        }
-    }
-</style>
-
-<div class="container-fluid py-4">
-    <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
-        <h2 class="h4 fw-bold mb-0" style="color: #1a1f2e;">
-            <i class="fas fa-calendar-alt text-warning text-dark-emphasis me-2"></i> Auditoría de Vacaciones y Ausencias
-        </h2>
-        <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary std-btn-secondary d-flex align-items-center gap-2">
-            &larr; Volver al Panel
-        </a>
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 style="color: #1a1f2e;"><i class="fas fa-calendar-alt pe-2"></i> Auditoría de Vacaciones y Ausencias</h2>
+        <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
-
-    <div class="card bg-light shadow-sm border-0 mb-4 rounded-3">
-        <div class="card-body">
-            <form method="GET" class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                    <label class="form-label text-muted small fw-bold mb-1">Buscar</label>
-                    <input type="text" name="search" class="form-control form-control-sm py-2" placeholder="Nombre, email o motivo..." value="{{ search_query|default:'' }}">
+    <hr>
+    
+    <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="search" class="form-label text-muted small fw-bold">Buscar en esta página</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" id="search" placeholder="Empleado, estado, fechas...">
                 </div>
-                <div class="col-12 col-md-3">
-                    <label class="form-label text-muted small fw-bold mb-1">Desde</label>
-                    <input type="date" name="desde" class="form-control form-control-sm py-2" value="{{ desde|default:'' }}">
-                </div>
-                <div class="col-12 col-md-3">
-                    <label class="form-label text-muted small fw-bold mb-1">Hasta</label>
-                    <input type="date" name="hasta" class="form-control form-control-sm py-2" value="{{ hasta|default:'' }}">
-                </div>
-                <div class="col-12 col-md-2 d-flex gap-2">
-                    <button type="submit" class="btn btn-warning std-btn text-dark w-100"><i class="fas fa-search me-1"></i> Filtrar</button>
-                    <a href="{% url 'audit_vacaciones' %}" class="btn btn-outline-secondary std-btn-secondary d-flex justify-content-center align-items-center px-3" title="Limpiar filtros"><i class="fas fa-times"></i></a>
-                </div>
-            </form>
+            </div>
+            <div class="col-md-3">
+                <label for="desde" class="form-label text-muted small fw-bold">Desde</label>
+                <input type="date" class="form-control" id="desde">
+            </div>
+            <div class="col-md-3">
+                <label for="hasta" class="form-label text-muted small fw-bold">Hasta</label>
+                <input type="date" class="form-control" id="hasta">
+            </div>
+            <div class="col-md-1 d-flex">
+                <button type="button" id="btn-limpiar" class="btn btn-outline-secondary w-100" title="Limpiar filtros" style="height: 38px;">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
     </div>
-
-    <div class="card bg-light shadow-sm border-0 mb-5 rounded-3">
-        <div class="table-responsive table-scroll-container">
-            <table class="table table-hover align-middle text-nowrap mb-0" id="tablaVacaciones">
-                <thead class="table-dark">
-                    <tr>
-                        <th class="py-3">Fecha y Hora</th>
-                        <th class="py-3">Actor</th>
-                        <th class="py-3">Estado / Acción</th>
-                        <th class="py-3">Empleado afectado</th>
-                        <th class="py-3">Periodo</th>
-                        <th class="py-3 text-center">Detalles</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr class="vacaciones-row">
-                        <td data-label="Fecha y Hora">
-                            <strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> 
-                            <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small>
-                        </td>
-                        <td data-label="Actor">{{ log.user.username|default:"Sistema" }}</td>
-                        <td data-label="Estado / Acción">
-                            {% if log.action_type == 'create' %}
-                                <span class="badge bg-success px-2 py-1 rounded-pill">SOLICITADA</span>
-                            {% elif log.action_type == 'update' %}
-                                <span class="badge bg-warning text-dark px-2 py-1 rounded-pill">MODIFICADA</span>
-                            {% elif log.action_type == 'voided' %}
-                                <span class="badge bg-dark px-2 py-1 rounded-pill">ANULADA</span>
-                            {% else %}
-                                <span class="badge bg-secondary px-2 py-1 rounded-pill">{{ log.get_action_type_display|upper }}</span>
-                            {% endif %}
-                        </td>
-                        <td data-label="Empleado afectado">
-                            <strong>{% if log.after %}{{ log.after.user_full_name }}{% else %}{{ log.before.user_full_name }}{% endif %}</strong>
-                            <br><small class="text-muted">{% if log.after %}{{ log.after.leave_type|title }}{% else %}{{ log.before.leave_type|title }}{% endif %}</small>
-                        </td>
-                        <td data-label="Periodo">
-                            <span class="small">
-                            {% if log.after %}
-                                {{ log.after.start_date }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ log.after.end_date }}
-                            {% else %}
-                                {{ log.before.start_date }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ log.before.end_date }}
-                            {% endif %}
-                            </span>
-                        </td>
-                        <td data-label="Detalles" class="text-md-center">
-                            <button type="button" class="btn btn-sm btn-outline-warning text-dark std-btn-secondary" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
-                                <i class="fas fa-eye me-1"></i> Ver Detalles
-                            </button>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">No hay registros de vacaciones con estos filtros.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        {% if logs.has_other_pages %}
-        <div class="card-footer bg-transparent border-top-0 pt-4 pb-3">
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center mb-0">
-                    {% if logs.has_previous %}
-                        <li class="page-item"><a class="page-link shadow-sm" href="?page={{ logs.previous_page_number }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">&laquo;</a></li>
-                    {% endif %}
-                    {% for num in logs.paginator.page_range %}
-                        <li class="page-item {% if logs.number == num %}active{% endif %}">
-                            <a class="page-link shadow-sm {% if logs.number == num %}bg-warning text-dark border-warning{% endif %}" href="?page={{ num }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">{{ num }}</a>
-                        </li>
-                    {% endfor %}
-                    {% if logs.has_next %}
-                        <li class="page-item"><a class="page-link shadow-sm" href="?page={{ logs.next_page_number }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}">&raquo;</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
-        </div>
-        {% endif %}
+    
+    <div class="table-responsive shadow-sm bg-white p-3 rounded">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Actor</th>
+                    <th>Estado / Acción</th>
+                    <th>Empleado afectado</th>
+                    <th>Periodo</th>
+                    <th class="text-center">Detalles</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>
+                        <strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> 
+                        <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small>
+                    </td>
+                    <td>{{ log.user.username|default:"Sistema" }}</td>
+                    <td>
+                        {% if log.action_type == 'create' %}
+                            <span class="badge bg-success rounded-pill px-2 py-1">SOLICITADA</span>
+                        {% elif log.action_type == 'update' %}
+                            <span class="badge bg-warning text-dark rounded-pill px-2 py-1">MODIFICADA</span>
+                        {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
+                            <span class="badge bg-dark rounded-pill px-2 py-1">ANULADA</span>
+                        {% else %}
+                            <span class="badge bg-secondary rounded-pill px-2 py-1">{{ log.get_action_type_display|upper }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <strong>{% if log.after %}{{ log.after.user_full_name }}{% else %}{{ log.before.user_full_name }}{% endif %}</strong>
+                        <br><small class="text-muted">{% if log.after %}{{ log.after.leave_type|title }}{% else %}{{ log.before.leave_type|title }}{% endif %}</small>
+                    </td>
+                    <td>
+                        <span class="small">
+                        {% if log.after %}
+                            {{ log.after.start_date }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ log.after.end_date }}
+                        {% else %}
+                            {{ log.before.start_date }} <i class="fas fa-arrow-right text-muted small mx-1"></i> {{ log.before.end_date }}
+                        {% endif %}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
+                            <i class="fas fa-eye me-1"></i> Ver Detalles
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-muted">No hay registros de vacaciones.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -227,18 +104,26 @@
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header bg-light border-bottom-0">
-        <h5 class="modal-title fw-bold" style="color: #1a1f2e;"><i class="fas fa-search-plus text-warning text-dark-emphasis me-2"></i> Detalles del Movimiento</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-header text-white" style="background-color: #1a1f2e;">
+        <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Movimiento</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
         
-        <div class="card bg-light shadow-sm border-0 mb-4 rounded-3">
+        <div class="card bg-light border-0 mb-4">
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill">{{ log.get_action_type_display|upper }}</span>
+                        {% if log.action_type == 'create' %}
+                            <span class="badge bg-success px-3 py-2">SOLICITADA</span>
+                        {% elif log.action_type == 'update' %}
+                            <span class="badge bg-warning text-dark px-3 py-2">MODIFICADA</span>
+                        {% elif log.action_type == 'delete' or log.action_type == 'voided' %}
+                            <span class="badge bg-dark px-3 py-2">ANULADA</span>
+                        {% else %}
+                            <span class="badge bg-secondary px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% endif %}
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Actor</small>
@@ -254,58 +139,180 @@
 
         <div class="row g-4">
             <div class="col-md-6">
-                <h6 class="text-secondary border-bottom border-secondary pb-2 mb-3 fw-bold"><i class="fas fa-history me-1"></i> Estado Anterior</h6>
-                <div class="card border-0 shadow-sm rounded-3 h-100">
-                    <div class="card-body p-0">
-                        {% if log.before %}
-                            <ul class="list-group list-group-flush rounded-3">
-                                {% for key, value in log.before.items %}
-                                    <li class="list-group-item bg-transparent px-3 py-2 d-flex justify-content-between align-items-center border-bottom-0 border-top">
-                                        <span class="text-muted text-capitalize">{{ key|title }}</span>
-                                        <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="p-4 text-center text-muted h-100 d-flex flex-column justify-content-center">
-                                <i class="fas fa-minus-circle mb-2 d-block fs-4 text-secondary opacity-50"></i>
-                                No existía registro previo.
-                            </div>
-                        {% endif %}
+                <h6 class="text-danger border-bottom border-danger pb-2 mb-3">
+                    <i class="fas fa-history me-1"></i> Estado Anterior
+                </h6>
+                {% if log.before %}
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in log.before.items %}
+                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                <span class="text-muted fw-bold text-capitalize">{{ key }}</span>
+                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-secondary text-center" role="alert">
+                        No existía registro previo (Nueva Solicitud).
                     </div>
-                </div>
+                {% endif %}
             </div>
-            
+
             <div class="col-md-6">
-                <h6 class="text-warning text-dark-emphasis border-bottom border-warning pb-2 mb-3 fw-bold"><i class="fas fa-check-circle me-1"></i> Estado Nuevo</h6>
-                <div class="card border-0 shadow-sm rounded-3 h-100">
-                    <div class="card-body p-0">
-                        {% if log.after %}
-                            <ul class="list-group list-group-flush rounded-3">
-                                {% for key, value in log.after.items %}
-                                    <li class="list-group-item bg-transparent px-3 py-2 d-flex justify-content-between align-items-center border-bottom-0 border-top">
-                                        <span class="text-muted text-capitalize">{{ key|title }}</span>
-                                        <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="p-4 text-center text-muted h-100 d-flex flex-column justify-content-center">
-                                <i class="fas fa-trash-alt mb-2 d-block fs-4 text-secondary opacity-50"></i>
-                                El registro fue eliminado.
-                            </div>
-                        {% endif %}
+                <h6 class="border-bottom pb-2 mb-3" style="color: #1a1f2e; border-color: #1a1f2e !important;">
+                    <i class="fas fa-check-circle me-1"></i> Estado Nuevo
+                </h6>
+                {% if log.after %}
+                    <ul class="list-group list-group-flush">
+                        {% for key, value in log.after.items %}
+                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                <span class="text-muted fw-bold text-capitalize">{{ key }}</span>
+                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <div class="alert alert-secondary text-center" role="alert">
+                        El registro fue eliminado o anulado.
                     </div>
-                </div>
+                {% endif %}
             </div>
         </div>
+        
       </div>
-      <div class="modal-footer bg-light border-top-0">
-        <button type="button" class="btn btn-outline-secondary std-btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
   </div>
 </div>
 {% endfor %}
 
+<div id="toast" class="toast-custom hidden"></div> 
+
+{% if messages %}
+    <div id="django-messages-container" style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+        width: 90%;
+        max-width: 400px;
+    ">
+        {% for message in messages %}
+        <div class="alert shadow-lg" style="
+            background-color: white;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        ">
+            <div style="font-size: 40px; margin-bottom: 10px;">
+                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
+            </div>
+            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
+                {{ message }}
+            </p>
+            <button onclick="document.getElementById('django-messages-container').remove()" style="
+                margin-top: 20px;
+                padding: 8px 20px;
+                border: none;
+                background: #f1f1f1;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: bold;
+            ">Entendido</button>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        setTimeout(function() {
+            var msg = document.getElementById('django-messages-container');
+            if (msg) msg.remove();
+        }, 5000);
+    </script>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    if(!toast) return;
+    toast.innerText = message;
+    toast.classList.remove("hidden");
+    toast.classList.add("show");
+
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.classList.add("hidden"), 300);
+    }, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search');
+    const desdeInput = document.getElementById('desde');
+    const hastaInput = document.getElementById('hasta');
+    const btnLimpiar = document.getElementById('btn-limpiar');
+    const tableRows = document.querySelectorAll('tbody tr');
+
+    function filterTable() {
+        if(!searchInput || !desdeInput || !hastaInput) return;
+        
+        const searchTerm = searchInput.value.toLowerCase();
+        const desdeVal = desdeInput.value; 
+        const hastaVal = hastaInput.value; 
+
+        let desdeDate = desdeVal ? new Date(desdeVal + 'T00:00:00') : null;
+        let hastaDate = hastaVal ? new Date(hastaVal + 'T23:59:59') : null;
+
+        tableRows.forEach(row => {
+            if (row.cells.length === 1) return; // Salta la fila de "No hay registros"
+
+            const rowText = row.textContent.toLowerCase();
+            const matchesSearch = rowText.includes(searchTerm);
+            
+            let matchesDate = true;
+            // El script busca el 'strong' dentro del td, que contiene la fecha (ej: 14/04/2026)
+            const dateElement = row.querySelector('td strong'); 
+            
+            if (dateElement && (desdeDate || hastaDate)) {
+                const dateStr = dateElement.textContent.trim(); 
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const rowDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
+                    
+                    if (desdeDate && rowDate < desdeDate) matchesDate = false;
+                    if (hastaDate && rowDate > hastaDate) matchesDate = false;
+                }
+            }
+
+            if (matchesSearch && matchesDate) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Se dispara mientras el usuario escribe o cambia fechas
+    if(searchInput) searchInput.addEventListener('input', filterTable);
+    if(desdeInput) desdeInput.addEventListener('change', filterTable);
+    if(hastaInput) hastaInput.addEventListener('change', filterTable);
+    
+    // Funcionalidad del botón de Limpiar ("X")
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', function() {
+            if(searchInput) searchInput.value = '';
+            if(desdeInput) desdeInput.value = '';
+            if(hastaInput) hastaInput.value = '';
+            filterTable(); // Refresca la tabla
+        });
+    }
+});
+</script>
 {% endblock %}
