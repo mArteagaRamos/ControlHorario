@@ -8,6 +8,11 @@
 
 {% block title %}Registro{% endblock %}
 
+{% load static %} {% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/login/register_unified.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin/admin_dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-5">
   <div class="row justify-content-center">

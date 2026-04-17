@@ -1,0 +1,49 @@
+.table-scroll-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+.table-scroll-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+}
+.table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
+.table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+/* Responsive mobile cards */
+@media (max-width: 767px) {
+    .text-nowrap { white-space: normal !important; }
+    #resultadoTabla thead { display: none; }
+    #resultadoTabla tbody tr.data-row {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        padding: 0.5rem;
+        background-color: #fff;
+    }
+    #resultadoTabla tbody tr.data-row td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #f8f9fa;
+        padding: 0.75rem 0.5rem;
+        text-align: right;
+    }
+    #resultadoTabla tbody tr.data-row td:last-child {
+        border-bottom: none;
+    }
+    #resultadoTabla tbody tr.data-row td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #6c757d;
+        text-align: left;
+        margin-right: 1rem;
+    }
+    .acciones-movil {
+        justify-content: flex-end !important;
+        width: 100%;
+    }
+}

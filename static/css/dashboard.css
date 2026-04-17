@@ -1,19 +1,9 @@
-/* Sidebar */
-.sidebar {
-    width: 250px;
-    background-color: #343a40;
-    transition: transform 0.3s ease;
-}
-
-
 /* Main content */
 .main-content {
     margin-left: 250px;
     padding: 20px;
     width: 100%;
 }
-
-
 
 /* Hover links */
 .nav-link:hover {
@@ -163,6 +153,62 @@ button.std-btn-secondary:focus,
 .breadcrumb-item.active {
     color: #1a1f2e !important; 
     font-weight: 700 !important;   
+} 
+
+/* ── Botón Outline Personalizado (oscuro) ────────────────────────────────── */
+.btn-outline-dark-custom {
+  color: #1a1f2e !important;
+  border-color: #1a1f2e !important;
+}
+
+.btn-outline-dark-custom:hover {
+  color: #fff !important;
+  background-color: #1a1f2e !important;
+  border-color: #1a1f2e !important;
+}
+
+.btn-outline-dark-custom:focus {
+  color: #1a1f2e !important;
+  border-color: #1a1f2e !important;
+  box-shadow: 0 0 0 0.25rem rgba(26, 31, 46, 0.25) !important;
+}
+
+/* ── Tabla con columnas equitativas ─────────────────────────────────────── */
+.table-equal-columns {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.table-equal-columns th,
+.table-equal-columns td {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+
+.sidebar {
+        position: fixed;
+        top: 0;
+        padding-top: 56px;
+        height: 100vh;
+        left: 0;
+        transform: translateX(-100%);
+        z-index: 1000;
+        transition: transform 0.3s ease;
+    }
+
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+
+}
 
 /* ── Botón Toggle (Selector) ────────────────────────────────────────────────── */
 button.std-btn-toggle,
@@ -225,58 +271,3 @@ button.btn.std-btn-toggle.btn-outline-primary:focus {
   color: #6c757d !important;
   box-shadow: none !important;
 }
-
-/* ── Botón Outline Personalizado (oscuro) ────────────────────────────────── */
-.btn-outline-dark-custom {
-  color: #1a1f2e !important;
-  border-color: #1a1f2e !important;
-}
-
-.btn-outline-dark-custom:hover {
-  color: #fff !important;
-  background-color: #1a1f2e !important;
-  border-color: #1a1f2e !important;
-}
-
-.btn-outline-dark-custom:focus {
-  color: #1a1f2e !important;
-  border-color: #1a1f2e !important;
-  box-shadow: 0 0 0 0.25rem rgba(26, 31, 46, 0.25) !important;
-}
-
-/* ── Tabla con columnas equitativas ─────────────────────────────────────── */
-.table-equal-columns {
-  table-layout: fixed;
-  width: 100%;
-}
-
-.table-equal-columns th,
-.table-equal-columns td {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-@media (max-width: 768px) {
-
-.sidebar {
-        position: fixed;
-        top: 0;
-        padding-top: 56px;
-        height: 100vh;
-        left: 0;
-        transform: translateX(-100%);
-        z-index: 1000;
-        transition: transform 0.3s ease;
-    }
-
-
-    .sidebar.active {
-        transform: translateX(0);
-    }
-
-    .main-content {
-        margin-left: 0;
-    }
-
-
-}}

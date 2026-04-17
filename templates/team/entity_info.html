@@ -17,7 +17,7 @@
 <div class="container py-4">
 
   {% if user_role == 'manager' or user_role == 'admin' %}
-  <form method="post" action="{% url 'entity_info' %}">
+  <form method="post" action="{% url 'manager_entity_info' %}">
   {% csrf_token %}
   {% endif %}
 
