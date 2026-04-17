@@ -47,9 +47,6 @@ urlpatterns = [
 
     # Personal Leave & Calendar
     path('calendar/', dashboard_views.calendar, name='calendar'),
-    path('calendar/events/', dashboard_views.api_calendar_events, name='calendar_events'),
-    path('leave/create/', dashboard_views.api_leave_request_create, name='leave_create'),
-    path('leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='leave_cancel'),
 
     # Team Views (static info)
     path('team/', management_views.staff, name='team_staff'),
@@ -87,8 +84,11 @@ urlpatterns = [
     # Leave Requests (manager review)
     path('leave/pending/', corrections_views.api_leave_pending, name='leave_pending'),
     path('leave/<uuid:leave_id>/review/', corrections_views.api_leave_review, name='leave_review'),
-    path('api/leave/resolved/', dashboard_views.api_leave_resolved, name='api_leave_resolved'),
-    path('api/leave/<uuid:leave_id>/upload/', dashboard_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
+    path('leave/resolved/', corrections_views.api_leave_resolved, name='api_leave_resolved'),
+    path('leave/<uuid:leave_id>/upload/', corrections_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
+    path('calendar/events/', corrections_views.api_calendar_events, name='calendar_events'),
+    path('leave/create/', corrections_views.api_leave_request_create, name='leave_create'),
+    path('leave/<uuid:leave_id>/cancel/', corrections_views.api_leave_request_cancel, name='api_leave_cancel'),
 
     # ════════════════════════════════════════════════════════════════════════
     # ADMIN - GLOBAL ADMINISTRATION (admin/)
