@@ -20,24 +20,31 @@
 </head>
 <body>
 
-<nav class="navbar-custom">
+<nav class="navbar-custom d-flex align-items-center">
 
     <div class="navbar-aside-zone">
-        <a href="{% url 'home_timetracking' %}" class="navbar-logo">
-            <img src="{% static 'img/icon_clock.png' %}" height="36">
-        </a>
         <button class="btn-menu-toggle d-md-none" id="menu-toggle">
             <i class="bi bi-list"></i>
         </button>
+        <a href="{% url 'home_timetracking' %}" class="navbar-logo d-none d-md-block">
+            <img src="{% static 'img/icon_clock.png' %}" height="36">
+        </a>
     </div>
 
-    <div class="navbar-main-zone">
+    <div class="d-md-none position-absolute start-50 translate-middle-x">
+        <a href="{% url 'home_timetracking' %}">
+            <img src="{% static 'img/icon_clock.png' %}" height="36">
+        </a>
+    </div>
 
+    <div class="navbar-main-zone d-flex align-items-center justify-content-end flex-grow-1">
+        
         {% if company_count > 1 %}
-        <div class="dropdown">
+        <div class="dropdown me-2">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
-                    <span>{{ current_company.name }}</span>
+                    <span class="d-none d-sm-inline">{{ current_company.name }}</span>
+                    <i class="bi bi-building d-sm-none"></i>
                 {% endif %}
             </a>
             <ul class="dropdown-menu dropdown-menu-dark">
@@ -50,22 +57,12 @@
                 {% endfor %}
             </ul>
         </div>
-        {% else %}
-        <a class="navbar-brand" href="{% url 'home_timetracking' %}">
-            <img src="{% static 'img/icon_clock.png' %}" height="40">
-            {% if current_company %}
-                <span>{{ current_company.name }}</span>
-            {% endif %}
-        </a>
         {% endif %}
 
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
                 <span class="d-none d-md-inline-block">
-                    {{ request.user.username }} {{ request.user.surname }}
-                    {% if current_role %}
-                        <small>({{ current_role }})</small>
-                    {% endif %}
+                    {{ request.user.username }}
                 </span>
             {% endif %}
 
@@ -135,7 +132,7 @@
             <a href="{% url 'manager_logs' %}" class="nav-link">
                 <span>
                     <i class="bi bi-speedometer2"></i>
-                    Corrección de fichajes
+                    Corrección de jornadas
                 </span>
             </a>
         </li>
