@@ -25,8 +25,8 @@ nav.navbar {
     justify-content: space-between;
     flex-shrink: 0;
     height: 56px;
-    background-color: #2b2b2b;
-    border-bottom: 1px solid #1a1a1a;
+    background-color: #1a1f2e;
+    border-bottom: 1px solid #1a1f2e;
 }
 
 /* Zona izquierda: se corresponde con el ancho del aside (15%) */
@@ -36,7 +36,7 @@ nav.navbar {
     display: flex;
     align-items: center;
     padding: 0 1rem;
-    border-right: 1px solid #1a1a1a;
+    border-right: 1px solid #1a1f2e;
 }
 
 /* Zona derecha: ocupa el resto, igual que el main-content */
@@ -123,7 +123,7 @@ nav.navbar {
 
 /* Sidebar */
 .sidebar {
-    background-color: #2b2b2b;
+    background-color: #1a1f2e;
     color: white;
     padding: 1.5rem;
     overflow-y: auto;

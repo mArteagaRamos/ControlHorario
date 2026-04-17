@@ -16,26 +16,65 @@
 {% endif %}
 
 <style>
+    /* --- VARIABLES Y UTILIDADES --- */
+    :root {
+        --transition-speed: 0.2s;
+    }
+
+    .alert-delegation {
+        position: relative;
+        max-width: 24rem;
+    }
+
+    /* --- NUEVOS ESTILOS DE BOTONES --- */
+    .std-btn {
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        transition: all var(--transition-speed) ease-in-out;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 0.5rem 1rem;
+    }
+    
+    .std-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .std-btn:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .std-btn-secondary {
+        border-radius: 6px;
+        transition: transform var(--transition-speed) ease;
+    }
+    
+    .std-btn-secondary:hover {
+        transform: scale(1.05);
+    }
+
+    /* --- ESTILOS DE LA TABLA Y SCROLL --- */
     .table-scroll-container {
-        max-height: 300px;
+        max-height: 500px; 
         overflow-y: auto;
+        border-radius: 0.5rem;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
     }
-
-    .table-row-hidden {
-        display: none;
+    
+    .table-scroll-container thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background-color: #212529 !important; /* Asegurar fondo oscuro en scroll */
+        color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
-
-    .buttonContainer {
-        display: flex;
-        justify-content: center;
-        margin-top: 20px;
-    }
-
-    #entryShowMore,
-    #requestShowMore {
-        display: block;
-        margin: 0 auto;
-    }
+    
+    .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
+    .table-scroll-container::-webkit-scrollbar-thumb { background: #adb5bd; border-radius: 4px; }
+    .table-scroll-container::-webkit-scrollbar-track { background: #f8f9fa; }
+    
 </style>
 
 <div class="container-fluid">
@@ -47,15 +86,15 @@
         </button>
     </div>
 
-    <div class="card mb-4 shadow-sm border-0">
+    <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
         <div class="card-body">
             <div class="d-flex flex-wrap align-items-end gap-3">
                 <div>
-                    <label class="form-label small text-muted">Desde:</label>
+                    <label class="form-label text-muted small fw-bold">Desde:</label>
                     <input type="date" class="form-control" id="filterFromDate">
                 </div>
                 <div>
-                    <label class="form-label small text-muted">Hasta:</label>
+                    <label class="form-label text-muted small fw-bold">Hasta:</label>
                     <input type="date" class="form-control" id="filterToDate">
                 </div>
                 <div>
@@ -65,12 +104,9 @@
         </div>
     </div>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body">
-
-            <h6 class="mb-3 fw-semibold">
+            <h5 style="color: #1a1f2e;">
                 Jornadas <span class="text-muted">Acciones</span>
-            </h6>
+            </h5>
 
             <div class="table-responsive table-scroll-container" id="entryTableContainer">
                 <form id="exportFormEntries" action="{% url 'exportar_workday_entries' %}" method="POST">
@@ -126,18 +162,18 @@
                 </form>
             </div>
 
-            <div class="text-center mt-3 buttonContainer">
-                <button class="btn std-btn" id="entryShowMore">Ver Más</button>
+            <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
+                <button class="std-btn-secondary" id="entryShowMore">Ver Más</button>
             </div>
 
-            <h6 class="mb-3 mt-4 fw-semibold d-flex justify-content-between align-items-center">
+            <h5 style="color: #1a1f2e;" class="mb-3 mt-4 fw-semibold d-flex justify-content-between align-items-center">
                 <span>Solicitudes <span class="text-muted">Correcciones</span></span>
                 <button type="submit" form="exportFormRequests" id="btnExportarRequests" class="btn btn-success d-flex align-items-center gap-2" disabled style="font-size: 0.875rem;">
                     <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
                 </button>
-            </h6>
+            </h5>
 
-            <div class="table-responsive table-scroll-container mt-3" id="requestTableContainer">
+            <div class="table-responsive table-scroll-container" id="entryTableContainer">
                 <form id="exportFormRequests" action="{% url 'exportar_workday_requests' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="requestTable">
@@ -205,12 +241,9 @@
                 </form>
             </div>
 
-            <div class="text-center mt-3 buttonContainer">
-                <button class="btn std-btn" id="requestShowMore">Ver Más</button>
+            <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
+                <button class="std-btn-secondary" id="requestShowMore">Ver Más</button>
             </div>
-
-        </div>
-    </div>
 
     <div class="modal fade" id="modalCorreccion" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">

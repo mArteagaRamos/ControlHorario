@@ -172,7 +172,6 @@ def api_calendar_events(request):
         'pending':  '#d97706',
         'approved': '#5a8f5a',
         'rejected': '#b94040',
-        'canceled': '#6b7280',
     }
 
     # ── Todos los empleados ───────────────────────────────────────────────
