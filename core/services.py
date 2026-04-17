@@ -111,7 +111,7 @@ def compute_worked_seconds(entry):
 
 def auto_close_entry_if_expired(entry, company):
     """Auto-close a time entry if it exceeds company's max duration setting."""
-    from users.models import CompanySettings
+    from admin.models import CompanySettings
 
     settings = CompanySettings.objects.filter(company=company).first()
     max_hours = settings.auto_close_hours if settings and settings.auto_close_hours else 12

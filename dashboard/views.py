@@ -11,8 +11,10 @@ from django.contrib.auth import update_session_auth_hash
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
-from users.models import Companies, Users, UserCompany, CompanySettings
-from dashboard.models import LeaveRequest, Note
+from users.models import Companies, Users, UserCompany
+from admin.models import CompanySettings
+from dashboard.models import Note
+from corrections.models import LeaveRequest
 from django.views.decorators.http import require_POST
 from django.db.utils import IntegrityError as DBIntegrityError
 import uuid
@@ -20,7 +22,7 @@ from audit.models import AuditLog
 from uuid import uuid4
 
 # Import centralized decorators and services
-from core.decorators import manager_or_admin_required, auditor_cannot_access
+from core.decorators import manager_or_admin_required, auditor_cannot_access, manager_or_admin_with_delegation_check
 from core.services import get_effective_context, get_company, is_manager as check_is_manager, serialize_leave, log_leave
 
 WEEKDAY = [
@@ -266,7 +268,7 @@ def security(request):
 # Team management views
 
 @login_required
-@manager_or_admin_required
+@manager_or_admin_with_delegation_check
 def entity_info(request):
     from core.services import get_effective_context
 
@@ -543,104 +545,8 @@ def api_leave_request_cancel(request, leave_id):
 
     return JsonResponse({'ok': True})
  
-# ── API: solicitudes pendientes (manager) ─────────────────────────────────────
- 
-@login_required
-@manager_or_admin_required
-def api_leave_pending(request):
-    try:
-        company = get_company(request)
-        leaves = LeaveRequest.objects.filter(
-            company=company, 
-            status=LeaveRequest.LeaveStatus.PENDING
-        ).select_related('user')
-
-        data = []
-        for l in leaves:
-            # Según tu users/models.py, los campos son 'username' y 'surname'
-            full_name = f"{l.user.username} {l.user.surname}".strip()
-            
-            data.append({
-                'id':           str(l.id),
-                'user':         full_name or l.user.email,
-                'leave_type':   l.get_leave_type_display(),
-                # USAMOS 'reason' directamente si get_reason_display falla
-                'leave_reason': l.get_leave_reason_display(),
-                'start_date':   l.start_date.strftime('%d/%m/%Y'),
-                'end_date':     l.end_date.strftime('%d/%m/%Y'),
-                'reason_note':  l.reason_note or ""
-            })
-        
-        # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
-        return JsonResponse({'requests': data})
-
-    except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}") 
-        return JsonResponse({'error': str(e)}, status=500)
- 
-# ── API: aprobar / rechazar (manager) ────────────────────────────────────────
- 
-@login_required
-@manager_or_admin_required
-@require_POST
-def api_leave_review(request, leave_id):
-    """Manager aprueba o rechaza una solicitud."""
-    company = get_company(request)
-    leave   = get_object_or_404(LeaveRequest, id=leave_id, company=company)
- 
-    if leave.status != LeaveRequest.LeaveStatus.PENDING:
-        return JsonResponse({'error': 'Esta solicitud ya fue revisada'}, status=400)
- 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
- 
-    action = data.get('action')  # 'approve' | 'reject'
-    note   = data.get('note', '')
-    note   = note.strip() if note else None
- 
-    if action == 'approve':
-
-        new_status  = LeaveRequest.LeaveStatus.APPROVED
-        action_type = AuditLog.AuditAction.UPDATE
-        
-        # Cambiar status del usuario a 'inactive' cuando se aprueba
-        Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
-    elif action == 'reject':
-        new_status  = LeaveRequest.LeaveStatus.REJECTED
-        action_type = AuditLog.AuditAction.VOIDED
-    else:
-        return JsonResponse({'error': 'Acción no válida. Usa "approve" o "reject"'}, status=400)
-
-    before = serialize_leave(leave)
-    leave.reviewed_by = request.user
-    leave.reviewed_at = timezone.now()
-    leave.review_note = note
-    updated = LeaveRequest.objects.filter(pk=leave.pk).update(
-        status      = new_status,
-        reviewed_by = leave.reviewed_by,
-        reviewed_at = leave.reviewed_at,
-        review_note = leave.review_note,
-        force_proof = True,
-    )
-
-    if not updated:
-        return JsonResponse({'error': 'No se pudo actualizar la solicitud.'}, status=500)
-
-    leave.refresh_from_db()
-    log_leave(leave, request.user, action_type, before=before,
-               reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'))
-
-    return JsonResponse({'ok': True, 'new_status': new_status})
- 
 # ── Vistas de equipo ───────────────────────────────────────────────────────────
- 
-@login_required
-def staff(request):
-    return render(request, 'team/staff.html')
- 
- 
+
 @login_required
 def notes(request):
     company_id = request.session.get('company_id')

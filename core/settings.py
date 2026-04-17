@@ -63,11 +63,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.postgres',
+
+    # Local apps
     'timetracking',
     'users',
     'audit',
     'django_bootstrap5',
     'dashboard',
+    'admin',
+    'management',
+    'corrections',
 ]
 
 MIDDLEWARE = [

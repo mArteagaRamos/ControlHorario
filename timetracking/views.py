@@ -10,7 +10,8 @@ from django.forms.models import model_to_dict
 from django.views.decorators.cache import never_cache
 
 from .models import TimeEntries, TimeEntryEvent
-from users.models import Users, Companies, UserCompany, CompanySettings
+from users.models import Users, Companies, UserCompany
+from admin.models import CompanySettings
 from audit.models import AuditLog
 from core.decorators import auditor_cannot_access
 from core.services import safe_dict, compute_worked_seconds, auto_close_entry_if_expired, get_effective_context

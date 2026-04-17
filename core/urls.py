@@ -1,4 +1,5 @@
-# ---------- Backend URL Routing: core/urls.py ----------
+# core/urls.py
+# ═══════════════════════════════════════════════════════════════════════════
 
 from django.contrib import admin
 from django.urls import path
@@ -6,72 +7,110 @@ from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
 from audit import views as audit_views
+from admin import views as admin_views   
+from management import views as management_views
+from corrections import views as corrections_views
 
-# Project URL patterns
 urlpatterns = [
-    # Dashboard Home
+    # ════════════════════════════════════════════════════════════════════════
+    # HOME & TIME TRACKING
+    # ════════════════════════════════════════════════════════════════════════
     path('home/', timetracking_views.time_entries, name='home_timetracking'),
 
-    # Auth
+    # ════════════════════════════════════════════════════════════════════════
+    # AUTH & CORE (users/)
+    # ════════════════════════════════════════════════════════════════════════
     path('', user_views.login_view, name='login'),
-    path('register/', user_views.register_unified, name='register_unified'),
-    path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
-    path('api/lookup-user/',    user_views.lookup_user,    name='lookup_user'),
-    path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
-    path('api/select-delegated-worker/', user_views.select_delegated_worker, name='select_delegated_worker'),
-    path('api/clear-delegated-worker/', user_views.clear_delegated_worker, name='clear_delegated_worker'),
-    path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
     path('logout/', user_views.logout_view, name='logout'),
+    path('register/', user_views.register_unified, name='register_unified'),
+    path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
 
-    # Dashboard - Worker
+    # API Lookups
+    path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
+    path('api/lookup-user/', user_views.lookup_user, name='lookup_user'),
+    path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
+
+    # ════════════════════════════════════════════════════════════════════════
+    # DASHBOARD - PERSONAL (dashboard/)
+    # ════════════════════════════════════════════════════════════════════════
+
+    # Personal Time Tracking
     path('workday/', user_views.workday, name='workday'),
     path('workday/exportar_entries/', user_views.exportar_workday_entries, name='exportar_workday_entries'),
     path('workday/exportar_requests/', user_views.exportar_workday_requests, name='exportar_workday_requests'),
-    path('calendar/', dashboard_views.calendar, name='calendar'),
+
+    # Personal Info
     path('profile/', dashboard_views.profile, name='profile'),
     path('security/', dashboard_views.security, name='security'),
 
-    # Dashboard - Team Management
-    path('entity_info/', dashboard_views.entity_info, name='entity_info'),
-    path('staff/', dashboard_views.staff, name='staff'),
+    # Personal Leave & Calendar
+    path('calendar/', dashboard_views.calendar, name='calendar'),
+    path('calendar/events/', dashboard_views.api_calendar_events, name='calendar_events'),
+    path('leave/create/', dashboard_views.api_leave_request_create, name='leave_create'),
+    path('leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='leave_cancel'),
 
-    # Manager Panel URLs 
-    # Manager Logs
-    path('manager_logs/', audit_views.manager_logs, name='manager_logs'),
-    path('manager_logs/exportar_logs/', audit_views.exportar_logs, name='exportar_logs'),
-    path('manager_logs/exportar_logs_rechazadas/', audit_views.exportar_logs_rechazadas, name='exportar_logs_rechazadas'),
-    path('manager_logs/resolver/', audit_views.resolver_incidencia, name='resolver_incidencia'),
-    path('editar-registro/', audit_views.editar_registro, name='editar_registro'),
-    path('anular-registro/', audit_views.anular_registro, name='anular_registro'),
-    path('editar-incidencia-rechazada/', audit_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
-    path('eliminar-incidencia-rechazada/', audit_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
-    # Manager Staff
-    path('staff/', audit_views.staff, name='staff'),
-    path('staff/edit/', audit_views.edit_employee, name='edit_employee'),
-    path('staff/delete/', audit_views.delete_employee, name='delete_employee'),
-    path('staff/exportar/', audit_views.exportar_staff, name='exportar_staff'),
+    # Team Views (static info)
+    path('team/', management_views.staff, name='team_staff'),
+    path('notes/', dashboard_views.notes, name='team_notes'),
 
-    path('api/leave/create/',        dashboard_views.api_leave_request_create, name='api_leave_create'),
-    path('api/leave/<uuid:leave_id>/cancel/', dashboard_views.api_leave_request_cancel, name='api_leave_cancel'),
-path('api/leave/<uuid:leave_id>/review/', dashboard_views.api_leave_review, name='api_leave_review'),    path('api/leave/pending/',       dashboard_views.api_leave_pending,         name='api_leave_pending'),
-    path('api/calendar/events/',     dashboard_views.api_calendar_events,       name='api_calendar_events'),
-    # Admin Dashboard
-    path('admin/', user_views.admin_dashboard, name='admin_dashboard'),
+    # ════════════════════════════════════════════════════════════════════════
+    # MANAGEMENT - MANAGER FUNCTIONS (management/)
+    # ════════════════════════════════════════════════════════════════════════
 
-    # Soft Delete Management (Admin only)
-    path('admin/deleted-records/', user_views.deleted_records, name='deleted_records'),
-    path('admin/deleted-records/exportar/', user_views.exportar_deleted_records, name='exportar_deleted_records'),
-    path('admin/restore-record/', user_views.restore_record, name='restore_record'),
-    path('admin/permanently-delete-record/', user_views.permanently_delete_record, name='permanently_delete_record'),
-    path('admin/delete-company/', user_views.delete_company, name='delete_company'),
+    # Time Logs
+    path('logs/', management_views.manager_logs, name='manager_logs'),
+    path('logs/export/', management_views.exportar_logs, name='exportar_logs'),
+    path('logs/edit/', management_views.editar_registro, name='editar_registro'),
+    path('logs/void/', management_views.anular_registro, name='anular_registro'),
 
-    # ==========================================
-    # AUDIT URLs 
+    # Staff Management
+    path('staff/', management_views.staff, name='staff'),
+    path('staff/edit/', management_views.edit_employee, name='edit_employee'),
+    path('staff/delete/', management_views.delete_employee, name='delete_employee'),
+    path('staff/export/', management_views.exportar_staff, name='exportar_staff'),
+
+    # Company Configuration
+    path('company-info/', management_views.entity_info, name='manager_entity_info'),
+
+    # ════════════════════════════════════════════════════════════════════════
+    # CORRECTIONS - CORRECTIONS & LEAVE (corrections/)
+    # ════════════════════════════════════════════════════════════════════════
+
+    # Correction Requests
+    path('logs/resolve/', corrections_views.resolver_incidencia, name='resolver_incidencia'),
+    path('corrections/edit/', corrections_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
+    path('corrections/delete/', corrections_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
+    path('corrections/export/', corrections_views.exportar_logs_rechazadas, name='exportar_logs_rechazadas'),
+
+    # Leave Requests (manager review)
+    path('leave/pending/', corrections_views.api_leave_pending, name='leave_pending'),
+    path('leave/<uuid:leave_id>/review/', corrections_views.api_leave_review, name='leave_review'),
+
+    # ════════════════════════════════════════════════════════════════════════
+    # ADMIN - GLOBAL ADMINISTRATION (admin/)
+    # ════════════════════════════════════════════════════════════════════════
+
+    path('admin/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('admin/company-info/', management_views.entity_info, name='manager_entity_info'),
+
+    # Soft Delete Management
+    path('admin/deleted-records/', admin_views.deleted_records, name='deleted_records'),
+    path('admin/deleted-records/export/', admin_views.exportar_deleted_records, name='exportar_deleted_records'),
+    path('admin/restore/', admin_views.restore_record, name='restore_record'),
+    path('admin/delete-permanent/', admin_views.permanently_delete_record, name='permanently_delete_record'),
+    path('admin/delete-company/', admin_views.delete_company, name='delete_company'),
+
+    # API - Admin Delegation
+    path('api/admin/delegate/', admin_views.select_delegated_worker, name='select_delegated_worker'),
+    path('api/admin/clear-delegate/', admin_views.clear_delegated_worker, name='clear_delegated_worker'),
+
+    # ════════════════════════════════════════════════════════════════════════
+    # AUDIT - READ-ONLY LOGS (audit/)
+    # ════════════════════════════════════════════════════════════════════════
     path('audit/', audit_views.audit_dashboard, name='audit_dashboard'),
-    path('audit/fichajes/', audit_views.audit_fichajes, name='audit_fichajes'),
-    path('audit/vacaciones/', audit_views.audit_vacaciones, name='audit_vacaciones'),
-    path('audit/usuarios/', audit_views.audit_usuarios, name='audit_usuarios'),
-    path('audit/incidencias/', audit_views.audit_incidencias, name='audit_incidencias'),
+    path('audit/logs/', audit_views.audit_fichajes, name='audit_fichajes'),
+    path('audit/leave/', audit_views.audit_vacaciones, name='audit_vacaciones'),
+    path('audit/users/', audit_views.audit_usuarios, name='audit_usuarios'),
+    path('audit/corrections/', audit_views.audit_incidencias, name='audit_incidencias'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
-
