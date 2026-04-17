@@ -62,7 +62,10 @@
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
                 <span class="d-none d-md-inline-block">
-                    {{ request.user.username }}
+                    {{ request.user.username }} {{ request.user.surname }}
+                    {% if current_role %}
+                        <small>({{ current_role }})</small>
+                    {% endif %}
                 </span>
             {% endif %}
 
