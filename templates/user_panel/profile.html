@@ -37,10 +37,10 @@
 							{% bootstrap_form personal_form %}
 
 							<div class="d-grid d-sm-flex gap-2 mt-4">
-								<button type="submit" class="std-btn" style="width: 30%">
+								<button type="submit" class="std-btn" style="width: 50%">
 									Guardar cambios
 								</button>
-								<a href="{% url 'profile' %}" class="std-btn-secondary">
+								<a href="{% url 'profile' %}" class="std-btn-secondary" style="width: 50%">
 									Cancelar
 								</a>
 							</div>
@@ -108,7 +108,7 @@
 		<!-- Botón de seguridad en fila completa -->
 		<div class="row">
 			<div class="col-12">
-				<a href="{% url 'security' %}" class="btn btn-outline-warning w-100">
+				<a href="{% url 'security' %}" class="btn btn-warning w-100">
 					<i class="bi bi-shield-lock"></i> Ir a configuración de seguridad
 				</a>
 			</div>
