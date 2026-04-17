@@ -198,21 +198,21 @@
                                             {% endif %}
                                         {% endfor %}
                                     {% else %}
-                                        <div class="btn-group" role="group">
+                                        <div class="d-flex acciones-movil gap-2">
                                             <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalEditar"
                                                 data-entry-id="{{ registro.id }}"
                                                 data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
                                                 data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
-                                                <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
+                                                <i class="bi bi-pencil"></i>
                                             </button>
 
                                             <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#modalAnular"
                                                 data-entry-id="{{ registro.id }}">
-                                                <i class="bi bi-trash" style="pointer-events: none;"></i> Anular
+                                                <i class="bi bi-trash"></i>
                                             </button>
                                         </div>
                                     {% endif %}
