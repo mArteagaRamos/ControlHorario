@@ -584,6 +584,7 @@
       const rows = list.map(l => {
         const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
         const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
+        const rowId = `resolved-row-${l.id}`;
 
         let attachCell = '<span style="color:#94a3b8;font-size:.78rem;">—</span>';
         if (l.attachment_path) {
@@ -593,7 +594,11 @@
         }
 
         const reviewNote = l.review_note
-          ? `<span title="${l.review_note}" style="color:#6b7280;font-size:.75rem;cursor:help;margin-left:.25rem;">💬</span>`
+          ? `<span onclick="toggleReviewNote('${rowId}', '${l.review_note.replace(/'/g, "\\'")}')" 
+                  style="cursor:pointer; margin-left:0.5rem; font-size:0.7rem;" 
+                  class="badge bg-secondary" title="Ver motivo">
+                <i class="bi bi-chat-dots"></i> Motivo
+            </span>`
           : '';
 
         const userCell = showUserCol
@@ -635,5 +640,41 @@
     }
   }
 
+function toggleReviewNote(element, note) {
+    // Encontramos la fila (tr) donde se hizo clic
+    const mainRow = element.closest('tr');
+    
+    // Verificamos si la nota ya está abierta (mirando si la siguiente fila es una de nota)
+    const nextRow = mainRow.nextElementSibling;
+    if (nextRow && nextRow.classList.contains('review-note-row')) {
+        nextRow.remove();
+        return;
+    }
+
+    // Contamos las columnas para que el mensaje ocupe todo el ancho
+    const colCount = mainRow.cells.length;
+
+    // Creamos la fila de la nota
+    const noteRow = document.createElement('tr');
+    noteRow.classList.add('review-note-row'); // Clase para identificarla
+    noteRow.style.background = '#fffbeb'; 
+    
+    noteRow.innerHTML = `
+        <td colspan="${colCount}" style="padding: 0.8rem; border-bottom: 1px solid #fef3c7;">
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                <i class="bi bi-info-circle-fill" style="color: #d97706;"></i>
+                <div>
+                    <strong style="font-size: 0.75rem; color: #92400e; text-transform: uppercase;">Motivo de la resolución:</strong>
+                    <p style="margin: 3px 0 0 0; color: #451a03; font-style: italic;">${note}</p>
+                </div>
+                <button onclick="this.closest('tr').remove()" class="btn-close" style="font-size: 0.6rem; margin-left: auto;"></button>
+            </div>
+        </td>
+    `;
+    
+    // Insertamos la fila justo debajo de la actual
+    mainRow.parentNode.insertBefore(noteRow, mainRow.nextSibling);
+}
+  
 </script>
 {% endblock %}

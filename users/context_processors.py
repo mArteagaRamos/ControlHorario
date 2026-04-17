@@ -11,7 +11,7 @@ BREADCRUMB_LABELS = {
     'manager_employee': 'Gestión de Empleados',
     'entity_info': 'Información de la Empresa',
     'notes': 'Notas',
-    'manager_logs': 'Correción de fichajes',
+    'manager_logs': 'Correción de jornadas',
     'control': 'Panel de Control',
     'register_unified': 'Registro',
     'staff': 'Personal',

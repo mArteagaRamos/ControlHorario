@@ -41,7 +41,7 @@
 <div class="container-fluid">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="fw-semibold">Mi Historial de Fichajes</h4>
+        <h4 class="fw-semibold">Mi Historial de Jornadas</h4>
         <button type="submit" form="exportFormEntries" id="btnExportarEntries" class="btn btn-success d-flex align-items-center gap-2" disabled>
             <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
         </button>
@@ -68,8 +68,8 @@
     <div class="card shadow-sm border-0">
         <div class="card-body">
 
-            <h6 class="mb-3 text-primary fw-semibold">
-                Fichaje <span class="text-muted">Acciones</span>
+            <h6 class="mb-3 fw-semibold">
+                Jornadas <span class="text-muted">Acciones</span>
             </h6>
 
             <div class="table-responsive table-scroll-container" id="entryTableContainer">
@@ -118,7 +118,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center">No hay fichajes registrados.</td>
+                            <td colspan="5" class="text-center">No hay jornadas registradas.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -127,10 +127,10 @@
             </div>
 
             <div class="text-center mt-3 buttonContainer">
-                <button class="btn btn-sm btn-outline-primary" id="entryShowMore">Ver Más</button>
+                <button class="btn std-btn" id="entryShowMore">Ver Más</button>
             </div>
 
-            <h6 class="mb-3 mt-4 text-primary fw-semibold d-flex justify-content-between align-items-center">
+            <h6 class="mb-3 mt-4 fw-semibold d-flex justify-content-between align-items-center">
                 <span>Solicitudes <span class="text-muted">Correcciones</span></span>
                 <button type="submit" form="exportFormRequests" id="btnExportarRequests" class="btn btn-success d-flex align-items-center gap-2" disabled style="font-size: 0.875rem;">
                     <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
@@ -145,7 +145,7 @@
                             <tr>
                                 <th>
                                     <input type="checkbox" id="selectAllRequests" class="form-check-input me-2">
-                                    Fecha Fichaje
+                                    Fecha Jornada
                                 </th>
                             <th>Fecha Solicitud</th>
                             <th>Nueva Entrada</th>
@@ -206,7 +206,7 @@
             </div>
 
             <div class="text-center mt-3 buttonContainer">
-                <button class="btn btn-sm btn-outline-primary" id="requestShowMore">Ver Más</button>
+                <button class="btn std-btn" id="requestShowMore">Ver Más</button>
             </div>
 
         </div>
