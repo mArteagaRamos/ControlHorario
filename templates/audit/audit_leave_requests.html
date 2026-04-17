@@ -73,7 +73,18 @@
                     </td>
                     <td>
                         <strong>{% if log.after %}{{ log.after.user_full_name }}{% else %}{{ log.before.user_full_name }}{% endif %}</strong>
-                        <br><small class="text-muted">{% if log.after %}{{ log.after.leave_type|title }}{% else %}{{ log.before.leave_type|title }}{% endif %}</small>
+                        <br>
+                        <small class="text-muted">
+                            {% if log.after %}
+                                {% if log.after.leave_type == 'vacation' %}Vacaciones
+                                {% elif log.after.leave_type == 'sick' or log.after.leave_type == 'sick_leave' %}Baja Médica
+                                {% else %}{{ log.after.leave_type|title }}{% endif %}
+                            {% else %}
+                                {% if log.before.leave_type == 'vacation' %}Vacaciones
+                                {% elif log.before.leave_type == 'sick' or log.before.leave_type == 'sick_leave' %}Baja Médica
+                                {% else %}{{ log.before.leave_type|title }}{% endif %}
+                            {% endif %}
+                        </small>
                     </td>
                     <td>
                         <span class="small">
@@ -110,11 +121,11 @@
       </div>
       <div class="modal-body p-4">
         
-        <div class="card bg-light border-0 mb-4">
+        <div class="card border mb-4">
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-4">
-                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
+                        <small class="d-block text-uppercase fw-bold mb-1">Acción</small>
                         {% if log.action_type == 'create' %}
                             <span class="badge bg-success px-3 py-2">SOLICITADA</span>
                         {% elif log.action_type == 'update' %}
@@ -126,11 +137,11 @@
                         {% endif %}
                     </div>
                     <div class="col-4 border-start border-end">
-                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Actor</small>
+                        <small class="d-block text-uppercase fw-bold mb-1">Actor</small>
                         <span class="fw-bold">{{ log.user.username|default:"Sistema" }}</span>
                     </div>
                     <div class="col-4">
-                        <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
+                        <small class="d-block text-uppercase fw-bold mb-1">Fecha</small>
                         <span class="fw-bold">{{ log.timestamp|date:"d/m/Y - H:i:s" }}</span>
                     </div>
                 </div>
@@ -145,9 +156,57 @@
                 {% if log.before %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.before.items %}
-                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold text-capitalize">{{ key }}</span>
-                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                                {% if key|lower == 'status' %}
+                                    <span class="fw-bold">Estado</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'pending' %}Pendiente
+                                        {% elif value == 'approved' %}Aprobada
+                                        {% elif value == 'rejected' %}Rechazada
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'leave_type' or key|lower == 'leave type' %}
+                                    <span class="fw-bold">Tipo de Ausencia</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'vacation' %}Vacaciones
+                                        {% elif value == 'sick' or value == 'sick_leave' %}Baja Médica
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'start_date' or key|lower == 'start date' %}
+                                    <span class="fw-bold">Fecha de Inicio</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'end_date' or key|lower == 'end date' %}
+                                    <span class="fw-bold">Fecha de Fin</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'reason_note' or key|lower == 'reason note' %}
+                                    <span class="fw-bold">Nota de Solicitud</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'review_note' or key|lower == 'review note' %}
+                                    <span class="fw-bold">Nota de Revisión</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'leave_reason' or key|lower == 'leave reason' %}
+                                    <span class="fw-bold">Motivo</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'personal' %}Asuntos Propios
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'user_full_name' %}
+                                    <span class="fw-bold">Empleado</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'reviewed_at' %}
+                                    <span class="fw-bold">Revisado el</span>
+                                    <strong class="text-end text-break ms-3 small format-iso-date" data-iso="{{ value|default:'' }}">
+                                        {{ value|default:"-" }}
+                                    </strong>
+                                {% elif key|lower == 'user_id' or key|lower == 'reviewed_by_id' %}
+                                    <span class="fw-bold">
+                                        {% if key|lower == 'user_id' %}ID Empleado{% else %}ID Revisor{% endif %}
+                                    </span>
+                                    <strong class="text-end text-break ms-3 font-monospace small">{{ value|default:"-" }}</strong>
+                                {% else %}
+                                    <span class="fw-bold">{{ key|title }}</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>
@@ -165,9 +224,57 @@
                 {% if log.after %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
-                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                <span class="text-muted fw-bold text-capitalize">{{ key }}</span>
-                                <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                            <li class="list-group-item px-0 py-2 d-flex justify-content-between align-items-center">
+                                {% if key|lower == 'status' %}
+                                    <span class="fw-bold">Estado</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'pending' %}Pendiente
+                                        {% elif value == 'approved' %}Aprobada
+                                        {% elif value == 'rejected' %}Rechazada
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'leave_type' or key|lower == 'leave type' %}
+                                    <span class="fw-bold">Tipo de Ausencia</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'vacation' %}Vacaciones
+                                        {% elif value == 'sick' or value == 'sick_leave' %}Baja Médica
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'start_date' or key|lower == 'start date' %}
+                                    <span class="fw-bold">Fecha de Inicio</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'end_date' or key|lower == 'end date' %}
+                                    <span class="fw-bold">Fecha de Fin</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'reason_note' or key|lower == 'reason note' %}
+                                    <span class="fw-bold">Nota de Solicitud</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'review_note' or key|lower == 'review note' %}
+                                    <span class="fw-bold">Nota de Revisión</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'leave_reason' or key|lower == 'leave reason' %}
+                                    <span class="fw-bold">Motivo</span>
+                                    <strong class="text-end text-break ms-3">
+                                        {% if value == 'personal' %}Asuntos Propios
+                                        {% else %}{{ value|title }}{% endif %}
+                                    </strong>
+                                {% elif key|lower == 'user_full_name' %}
+                                    <span class="fw-bold">Empleado</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% elif key|lower == 'reviewed_at' %}
+                                    <span class="fw-bold">Revisado el</span>
+                                    <strong class="text-end text-break ms-3 small format-iso-date" data-iso="{{ value|default:'' }}">
+                                        {{ value|default:"-" }}
+                                    </strong>
+                                {% elif key|lower == 'user_id' or key|lower == 'reviewed_by_id' %}
+                                    <span class="fw-bold">
+                                        {% if key|lower == 'user_id' %}ID Empleado{% else %}ID Revisor{% endif %}
+                                    </span>
+                                    <strong class="text-end text-break ms-3 font-monospace small">{{ value|default:"-" }}</strong>
+                                {% else %}
+                                    <span class="fw-bold">{{ key|title }}</span>
+                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ul>
@@ -180,7 +287,7 @@
         </div>
         
       </div>
-      <div class="modal-footer bg-light">
+      <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
       </div>
     </div>
@@ -254,6 +361,32 @@ function showToast(message) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // --- LÓGICA DE FORMATEO DE FECHAS "REVISADO EL" ---
+    const formatISODates = () => {
+        const dateElements = document.querySelectorAll('.format-iso-date');
+        dateElements.forEach(function(el) {
+            const isoString = el.getAttribute('data-iso');
+            // Si el valor es una fecha ISO válida
+            if (isoString && isoString !== 'None' && isoString !== '-' && isoString !== '') {
+                const dateObj = new Date(isoString);
+                if (!isNaN(dateObj)) {
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    const hours = String(dateObj.getHours()).padStart(2, '0');
+                    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+                    const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+                    
+                    el.textContent = `${day}/${month}/${year} - ${hours}:${minutes}:${seconds}`;
+                }
+            }
+        });
+    };
+
+    // Ejecutar formateo al cargar
+    formatISODates();
+
+    // --- LÓGICA EXISTENTE DE FILTROS ---
     const searchInput = document.getElementById('search');
     const desdeInput = document.getElementById('desde');
     const hastaInput = document.getElementById('hasta');
@@ -271,13 +404,12 @@ document.addEventListener('DOMContentLoaded', function() {
         let hastaDate = hastaVal ? new Date(hastaVal + 'T23:59:59') : null;
 
         tableRows.forEach(row => {
-            if (row.cells.length === 1) return; // Salta la fila de "No hay registros"
+            if (row.cells.length === 1) return; 
 
             const rowText = row.textContent.toLowerCase();
             const matchesSearch = rowText.includes(searchTerm);
             
             let matchesDate = true;
-            // El script busca el 'strong' dentro del td, que contiene la fecha (ej: 14/04/2026)
             const dateElement = row.querySelector('td strong'); 
             
             if (dateElement && (desdeDate || hastaDate)) {
@@ -285,32 +417,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 const parts = dateStr.split('/');
                 if (parts.length === 3) {
                     const rowDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
-                    
                     if (desdeDate && rowDate < desdeDate) matchesDate = false;
                     if (hastaDate && rowDate > hastaDate) matchesDate = false;
                 }
             }
 
-            if (matchesSearch && matchesDate) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = (matchesSearch && matchesDate) ? '' : 'none';
         });
     }
 
-    // Se dispara mientras el usuario escribe o cambia fechas
     if(searchInput) searchInput.addEventListener('input', filterTable);
     if(desdeInput) desdeInput.addEventListener('change', filterTable);
     if(hastaInput) hastaInput.addEventListener('change', filterTable);
     
-    // Funcionalidad del botón de Limpiar ("X")
     if (btnLimpiar) {
         btnLimpiar.addEventListener('click', function() {
             if(searchInput) searchInput.value = '';
             if(desdeInput) desdeInput.value = '';
             if(hastaInput) hastaInput.value = '';
-            filterTable(); // Refresca la tabla
+            filterTable();
         });
     }
 });
