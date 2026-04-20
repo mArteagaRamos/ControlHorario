@@ -3,6 +3,7 @@
 import csv
 import json
 from datetime import date, timedelta
+from tracemalloc import start
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -284,7 +285,7 @@ def api_leave_pending(request):
     try:
         company = get_company(request)
         leaves = LeaveRequest.objects.filter(
-            company=company,
+            company=company, 
             status=LeaveRequest.LeaveStatus.PENDING
         ).select_related('user')
 
@@ -292,7 +293,7 @@ def api_leave_pending(request):
         for l in leaves:
             # Según tu users/models.py, los campos son 'username' y 'surname'
             full_name = f"{l.user.username} {l.user.surname}".strip()
-
+            
             data.append({
                 'id':           str(l.id),
                 'user':         full_name or l.user.email,
@@ -303,13 +304,14 @@ def api_leave_pending(request):
                 'end_date':     l.end_date.strftime('%d/%m/%Y'),
                 'reason_note':  l.reason_note or ""
             })
-
+        
         # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
         return JsonResponse({'requests': data})
 
     except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}")
+        print(f"DEBUG ERROR: {str(e)}") 
         return JsonResponse({'error': str(e)}, status=500)
+
 
 
 @login_required
@@ -319,24 +321,24 @@ def api_leave_review(request, leave_id):
     """Manager aprueba o rechaza una solicitud."""
     company = get_company(request)
     leave   = get_object_or_404(LeaveRequest, id=leave_id, company=company)
-
+ 
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
         return JsonResponse({'error': 'Esta solicitud ya fue revisada'}, status=400)
-
+ 
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
-
+ 
     action = data.get('action')  # 'approve' | 'reject'
     note   = data.get('note', '')
     note   = note.strip() if note else None
-
+ 
     if action == 'approve':
 
         new_status  = LeaveRequest.LeaveStatus.APPROVED
         action_type = AuditLog.AuditAction.UPDATE
-
+        
         # Cambiar status del usuario a 'inactive' cuando se aprueba
         Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
     elif action == 'reject':
@@ -365,24 +367,19 @@ def api_leave_review(request, leave_id):
                reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'))
 
     return JsonResponse({'ok': True, 'new_status': new_status})
+ 
+
 
 # ── API: solicitudes resueltas ────────────────────────────────────────────────
 
 @login_required
 def api_leave_resolved(request):
-    """
-    Devuelve solicitudes resueltas (aprobadas, rechazadas, canceladas).
-    - Empleados: siempre sus propias solicitudes.
-    - Managers: pueden filtrar por ?user_id=<uuid> (empleado concreto)
-                o ?user_id=all (todos los empleados de la empresa).
-                Sin parámetro → sus propias solicitudes.
-    """
     company = get_company(request)
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    is_manager = is_manager(request, company)
-    user_id    = request.GET.get('user_id', '')
+    user_is_manager = is_manager(request, company)  # ← Bug 1 corregido
+    user_id         = request.GET.get('user_id', '')
 
     resolved_statuses = [
         LeaveRequest.LeaveStatus.APPROVED,
@@ -395,9 +392,9 @@ def api_leave_resolved(request):
         status__in=resolved_statuses,
     ).select_related('user', 'reviewed_by').order_by('-updated_at')
 
-    if is_manager and user_id == 'all':
+    if user_is_manager and user_id == 'all':      # ← renombrado
         leaves = base_qs[:50]
-    elif is_manager and user_id:
+    elif user_is_manager and user_id:             # ← renombrado
         try:
             target = get_object_or_404(Users, id=user_id)
         except Exception:
@@ -406,7 +403,7 @@ def api_leave_resolved(request):
     else:
         leaves = base_qs.filter(user=request.user)[:30]
 
-    show_user_col = is_manager and user_id in ('all', '') is False or (is_manager and user_id == 'all')
+    show_user_col = user_is_manager and bool(user_id)
 
     data = []
     for l in leaves:
@@ -528,6 +525,8 @@ def api_leave_request_create(request):
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
  
+    
+    
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
  
@@ -540,6 +539,9 @@ def api_leave_request_create(request):
     if end < start:
         return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
  
+    if start < date.today():
+        return JsonResponse({'error': 'No puedes solicitar días anteriores a hoy'}, status=400)
+    
     if leave_type not in LeaveRequest.LeaveType.values:
         return JsonResponse({'error': 'Tipo de solicitud no válido'}, status=400)
  
@@ -565,6 +567,7 @@ def api_leave_request_create(request):
         'id':      str(leave.id),
         'message': 'Solicitud enviada correctamente',
     }, status=201)
+
  
 @login_required
 def api_leave_upload_attachment(request, leave_id):
@@ -576,7 +579,7 @@ def api_leave_upload_attachment(request, leave_id):
         nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
         
         # Creamos el timestamp y sacamos la extensión
-        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = timezone.localtime(timezone.now()).strftime('Fecha-%Y/%m/%d_Hora-%H.%M.%S')
         _, extension = os.path.splitext(archivo.name)
         
         # Nombre final: JuanPerez_20240520_123000.pdf
@@ -597,6 +600,7 @@ def api_leave_upload_attachment(request, leave_id):
         leave.save()
         
         return JsonResponse({'ok': True, 'message': 'Subido con éxito'})
+
     
 # ── API: cancelar solicitud (empleado) ────────────────────────────────────────
  
@@ -617,3 +621,4 @@ def api_leave_request_cancel(request, leave_id):
                before=before, reason='Cancelación por el empleado')
 
     return JsonResponse({'ok': True})
+
