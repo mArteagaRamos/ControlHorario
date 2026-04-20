@@ -157,7 +157,8 @@ def auto_close_entry_if_expired(entry, company):
             before=estado_anterior,
             after=safe_dict(entry),
             reason=f'Auto-closed by system ({max_hours}h limit)',
-            timestamp=timezone.now()
+            timestamp=timezone.now(),
+            source='system' # Añadido
         )
 
         return True
@@ -337,7 +338,7 @@ def serialize_leave(leave):
     }
 
 
-def log_leave(leave, actor, action_type, before=None, reason=None):
+def log_leave(leave, actor, action_type, before=None, reason=None, source='web'):
     """Create an audit log entry for a leave request change."""
     AuditLog.objects.create(
         id          = uuid.uuid4(),
@@ -348,4 +349,5 @@ def log_leave(leave, actor, action_type, before=None, reason=None):
         before      = before,
         after       = serialize_leave(leave),
         reason      = reason,
+        source      = source, # Añadido
     )
