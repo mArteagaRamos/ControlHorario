@@ -257,7 +257,7 @@ def entity_info(request):
     if request.method == 'POST' and can_edit:
 
         # Update company info
-        company.name = request.POST.get('name', company.name).strip()
+        company.name.title = request.POST.get('name', company.name.title).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
         posted_tax_id = request.POST.get('tax_id', '').strip() or None
 
@@ -358,7 +358,7 @@ def entity_info(request):
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_jornada,
                     after=after_jornada,
-                    reason=f'Modificación de jornada laboral en empresa {company.name}',
+                    reason=f'Modificación de jornada laboral en empresa {company.name.title}',
                 )
 
             # 🔐 Auditoría: Cierre automático
@@ -371,7 +371,7 @@ def entity_info(request):
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_cierre,
                     after=after_cierre,
-                    reason=f'Modificación de cierre automático en empresa {company.name}',
+                    reason=f'Modificación de cierre automático en empresa {company.name.title}',
                 )
 
         return redirect('entity_info')

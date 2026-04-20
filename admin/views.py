@@ -104,8 +104,8 @@ def exportar_deleted_records(request):
             'filename': 'reporte_membresias_eliminadas',
             'headers': ['Usuario', 'Empresa', 'Rol', 'Ingreso', 'Eliminada'],
             'row_func': lambda uc: [
-                f"{uc.user.username} {uc.user.surname}" if uc.user else '--',
-                uc.company.name if uc.company else '--',
+                f"{uc.user.username.title} {uc.user.surname.title}" if uc.user else '--',
+                uc.company.name.title if uc.company else '--',
                 uc.get_role_display() if hasattr(uc, 'get_role_display') else uc.role,
                 uc.joined_at.strftime('%d/%m/%Y') if uc.joined_at else '--/--/----',
                 uc.deleted_at.strftime('%d/%m/%Y %H:%M') if uc.deleted_at else '--'
@@ -130,7 +130,7 @@ def exportar_deleted_records(request):
             'filename': 'reporte_fichajes_eliminados',
             'headers': ['Empleado', 'Fecha', 'Entrada', 'Salida', 'Estado', 'Eliminado'],
             'row_func': lambda te: [
-                f"{te.user.username} {te.user.surname}" if te.user else '--',
+                f"{te.user.username.title} {te.user.surname.title}" if te.user else '--',
                 te.date.strftime('%d/%m/%Y') if te.date else '--/--/----',
                 te.clock_in.strftime('%H:%M:%S') if te.clock_in else '--:--:--',
                 te.clock_out.strftime('%H:%M:%S') if te.clock_out else '--:--:--',
@@ -237,7 +237,7 @@ def select_delegated_worker(request):
 
     # Guardar en sesión
     request.session['delegated_user_id'] = str(worker_id)
-    request.session['delegated_user_name'] = delegated_user.username
+    request.session['delegated_user_name'] = delegated_user.username.title
     request.session['delegated_company_id'] = str(company_id)
     request.session['delegated_user_role'] = membership.role
 
@@ -359,7 +359,7 @@ def restore_record(request):
             if record.company.deleted_at is not None:
                 messages.error(
                     request,
-                    f"No se puede restaurar esta membresía: la empresa '{record.company.name}' está eliminada. "
+                    f"No se puede restaurar esta membresía: la empresa '{record.company.name.title}' está eliminada. "
                     f"Restaura primero la empresa desde la lista de registros eliminados."
                 )
                 return redirect('deleted_records')
@@ -508,7 +508,7 @@ def delete_company(request):
         suspended_msg = f" {suspended_users_count} usuario(s) fue(ron) suspendido(s)." if suspended_users_count > 0 else ""
         messages.success(
             request,
-            f"Empresa '{company.name}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
+            f"Empresa '{company.name.title}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
         )
 
     except Exception as e:

@@ -8,7 +8,7 @@
 {% if is_inspecting %}
 <div class="alert alert-info alert-dismissible fade show mb-4 shadow-sm" role="alert">
     <i class="bi bi-info-circle-fill me-2"></i>
-    <strong>Viendo personal de:</strong> {{ company.name }}
+    <strong>Viendo personal de:</strong> {{ company.name.title }}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar alerta"></button>
 </div>
 {% endif %}
@@ -97,7 +97,7 @@
                             <td data-label="Empleado">
                                 <div class="fw-bold nombre-empleado text-start d-flex align-items-center">
                                     <input class="form-check-input select-row-empleados me-2" type="checkbox" name="employee_id" value="{{ membership.id }}">
-                                    <span>{{ membership.user.username }} {{ membership.user.surname }}</span>
+                                    <span>{{ membership.user.username.title }} {{ membership.user.surname.title }}</span>
                                 </div>
                             </td>
                             <td data-label="Email" class="email-empleado text-muted">{{ membership.user.email }}</td>
@@ -141,8 +141,8 @@
                                     <button type="button" class="btn btn-sm btn-outline-primary std-btn-secondary js-edit-btn"
                                         data-bs-toggle="modal" data-bs-target="#modalEditar"
                                         data-id="{{ membership.user.id }}"
-                                        data-nombre="{{ membership.user.username }}"
-                                        data-apellidos="{{ membership.user.surname }}"
+                                        data-nombre="{{ membership.user.username.title }}"
+                                        data-apellidos="{{ membership.user.surname.title }}"
                                         data-email="{{ membership.user.email }}"
                                         data-rol="{{ membership.role }}"
                                         data-estado="{{ membership.user.status }}"
@@ -153,7 +153,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-danger std-btn-secondary js-delete-btn"
                                         data-bs-toggle="modal" data-bs-target="#modalEliminar"
                                         data-id="{{ membership.user.id }}"
-                                        data-nombrecompleto="{{ membership.user.username }} {{ membership.user.surname }}"
+                                        data-nombrecompleto="{{ membership.user.username.title }} {{ membership.user.surname.title }}"
                                         title="Eliminar Empleado">
                                         <i class="bi bi-trash"></i>
                                     </button>

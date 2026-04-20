@@ -43,7 +43,7 @@
         <div class="dropdown me-2">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
-                    <span class="d-none d-sm-inline">{{ current_company.name }}</span>
+                    <span class="d-none d-sm-inline">{{ current_company.name.title }}</span>
                     <i class="bi bi-building d-sm-none"></i>
                 {% endif %}
             </a>
@@ -51,7 +51,7 @@
                 {% for membership in memberships %}
                     <li>
                         <a class="dropdown-item" href="{% url 'switch_company' membership.company.id %}">
-                            {{ membership.company.name }}
+                            {{ membership.company.name.title }}
                         </a>
                     </li>
                 {% endfor %}
@@ -62,7 +62,7 @@
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
                 <span class="d-none d-md-inline-block">
-                    {{ request.user.username }} {{ request.user.surname }}
+                    {{ request.user.username.title }} {{ request.user.surname.title }}
                     {% if current_role %}
                         <small>({{ current_role }})</small>
                     {% endif %}

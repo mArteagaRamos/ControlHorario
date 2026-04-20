@@ -486,13 +486,13 @@ empresaNombreInput?.addEventListener('input', () => {
                 li.style.cursor = 'pointer';
                 li.innerHTML = `
                     <span>
-                        <strong>${company.name}</strong>
+                        <strong>${company.name.title}</strong>
                         <small class="text-muted ms-2">${company.legal_name}</small>
                     </span>
                 `;
                 li.addEventListener('click', () => {
                     displayCompanyResults([company]);
-                    empresaNombreInput.value = company.name;
+                    empresaNombreInput.value = company.name.title;
                     empresaNombreSuggestions.classList.add('d-none');
                     document.getElementById('empresa-feedback').textContent = 'Empresa seleccionada.';
                     document.getElementById('empresa-feedback').className = 'form-text text-success';
@@ -606,10 +606,10 @@ trabajadorNombreInput?.addEventListener('input', () => {
                 const li = document.createElement('li');
                 li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
                 li.style.cursor = 'pointer';
-                li.innerHTML = `<strong>${user.username} ${user.surname}</strong>`;
+                li.innerHTML = `<strong>${user.username.title} ${user.surname.title}</strong>`;
                 li.addEventListener('click', () => {
                     displayWorkerResults([user]);
-                    trabajadorNombreInput.value = `${user.username} ${user.surname}`;
+                    trabajadorNombreInput.value = `${user.username.title} ${user.surname.title}`;
                     trabajadorNombreSuggestions.classList.add('d-none');
                     document.getElementById('trabajador-feedback').textContent = 'Trabajador seleccionado.';
                     document.getElementById('trabajador-feedback').className = 'form-text text-success';
@@ -649,7 +649,7 @@ function displayCompanyResults(companies) {
         const tr = document.createElement('tr');
         tr.className = 'data-row';
         tr.innerHTML = `
-            <td data-label="Empresa">${company.name}</td>
+            <td data-label="Empresa">${company.name.title}</td>
             <td data-label="CIF / NIF">${company.tax_id || '--'}</td>
             <td data-label="Razón Social">${company.legal_name || '--'}</td>
             <td data-label="Creada">${company.created_at || '--'}</td>
@@ -663,7 +663,7 @@ function displayCompanyResults(companies) {
                     </a>
                     <button type="button" class="btn btn-sm btn-outline-danger"
                             data-company-id="${company.id}"
-                            data-company-name="${company.name}"
+                            data-company-name="${company.name.title}"
                             data-company-legal-name="${company.legal_name}"
                             data-bs-toggle="modal"
                             data-bs-target="#modalEliminarEmpresa">
@@ -817,9 +817,9 @@ if (eliminarModal) {
                 checkboxDiv.innerHTML = `
                     <input class="form-check-input company-checkbox" type="checkbox"
                            id="company_${company.id}" value="${company.id}"
-                           data-company-name="${company.name}">
+                           data-company-name="${company.name.title}">
                     <label class="form-check-label" for="company_${company.id}">
-                        ${company.name}
+                        ${company.name.title}
                     </label>
                 `;
                 companiesCheckboxes.appendChild(checkboxDiv);
@@ -912,7 +912,7 @@ async function handleSelectWorker(workerId, companies) {
             button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
             button.innerHTML = `
                 <div>
-                    <strong>${company.name}</strong>
+                    <strong>${company.name.title}</strong>
                     <small class="text-muted d-block">${company.tax_id}</small>
                 </div>
                 <i class="bi bi-chevron-right text-secondary"></i>

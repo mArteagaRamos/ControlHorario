@@ -81,7 +81,7 @@ def resolver_incidencia(request):
                 clock_in=incidencia.new_clock_in,
                 clock_out=incidencia.new_clock_out,
                 status=TimeEntries.EntryStatus.CONFIRMED,
-                notes=f"Aceptado por {approver_user.username}. Motivo: {incidencia.reason}",
+                notes=f"Aceptado por {approver_user.username.title}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
@@ -292,7 +292,7 @@ def api_leave_pending(request):
         data = []
         for l in leaves:
             # Según tu users/models.py, los campos son 'username' y 'surname'
-            full_name = f"{l.user.username} {l.user.surname}".strip()
+            full_name = f"{l.user.username.title} {l.user.surname.title}".strip()
             
             data.append({
                 'id':           str(l.id),
@@ -409,7 +409,7 @@ def api_leave_resolved(request):
     for l in leaves:
         data.append({
             'id':               str(l.id),
-            'user_name':        f"{l.user.username} {l.user.surname}".strip(),
+            'user_name':        f"{l.user.username.title} {l.user.surname.title}".strip(),
             'leave_type':       l.get_leave_type_display(),
             'leave_reason':     l.get_leave_reason_display(),
             'start_date':       l.start_date.strftime('%d/%m/%Y'),
@@ -462,7 +462,7 @@ def api_calendar_events(request):
         for leave in leaves:
             events.append({
                 'id': f'leave-{leave.id}',
-                'title': f'{leave.user.username} · {leave.get_leave_type_display()}',
+                'title': f'{leave.user.username.title} · {leave.get_leave_type_display()}',
                 'start': leave.start_date.isoformat(),
                 'end': (leave.end_date + timedelta(days=1)).isoformat(),
                 'color': STATUS_COLOR.get(leave.status, '#6b7280'),
@@ -576,7 +576,7 @@ def api_leave_upload_attachment(request, leave_id):
 
     if archivo:
         # Limpiamos nombre de usuario (ej: "Juan Perez" -> "JuanPerez")
-        nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
+        nombre_usuario = f"{request.user.username.title}{request.user.surname.title}".replace(" ", "")
         
         # Creamos el timestamp y sacamos la extensión
         timestamp = timezone.localtime(timezone.now()).strftime('Fecha-%Y/%m/%d_Hora-%H.%M.%S')

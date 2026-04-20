@@ -24,7 +24,7 @@
   {# ── Header ── #}
   <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
     <div>
-      <h4 class="mb-0 fw-semibold">{{ company.name }}</h4>
+      <h4 class="mb-0 fw-semibold">{{ company.name.title }}</h4>
       <small class="text-muted">Información de la empresa</small>
     </div>
     <div class="d-flex align-items-center gap-2">
@@ -46,9 +46,9 @@
 
           <div class="col-md-6">
             <label class="form-label text-muted small mb-1">Nombre comercial</label>
-            <div class="view-mode">{{ company.name }}</div>
+            <div class="view-mode">{{ company.name.title }}</div>
             <div class="edit-mode d-none">
-              <input class="form-control form-control-sm" type="text" name="name" value="{{ company.name }}" required>
+              <input class="form-control form-control-sm" type="text" name="name" value="{{ company.name.title }}" required>
             </div>
           </div>
 

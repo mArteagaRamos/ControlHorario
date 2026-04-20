@@ -203,7 +203,7 @@ def exportar_logs(request):
         tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
 
         writer.writerow([
-            f"{r.user.username} {r.user.surname}",
+            f"{r.user.username.title} {r.user.surname.title}",
             r.date.strftime('%d/%m/%Y'),
             r.clock_in.strftime('%H:%M:%S') if r.clock_in else '--:--:--',
             r.clock_out.strftime('%H:%M:%S') if r.clock_out else '--:--:--',
@@ -267,12 +267,12 @@ def exportar_staff(request):
     for membership in memberships:
         user = membership.user
         writer.writerow([
-            user.username,
+            user.username.title,
             user.email,
-            f"{user.username} {user.surname}",
+            f"{user.username.title} {user.surname.title}",
             membership.get_role_display() if hasattr(membership, 'get_role_display') else membership.role,
             user.status if hasattr(user, 'status') else '--',
-            membership.company.name,
+            membership.company.name.title,
             membership.joined_at.strftime('%d/%m/%Y') if membership.joined_at else '--/--/----'
         ])
 
@@ -326,7 +326,7 @@ def editar_registro(request):
             editor_name = delegation_context['delegated_user_name']
         else:
             editor_user = registro_original.user
-            editor_name = request.user.username
+            editor_name = request.user.username.title
 
         nuevo_registro = TimeEntries.objects.create(
             id=uuid.uuid4(),
@@ -482,8 +482,8 @@ def edit_employee(request):
     user = membership.user
 
     # 4. Update user data
-    user.username = username
-    user.surname = surname
+    user.username.title = username
+    user.surname.title = surname
     user.status = status
     user.save()
 
@@ -553,7 +553,7 @@ def delete_employee(request):
                     deleted_at__isnull=True
                 ).first()
                 if not membership_manager:
-                    return HttpResponseForbidden(f"No tienes permiso para eliminar usuarios de {company.name}.")
+                    return HttpResponseForbidden(f"No tienes permiso para eliminar usuarios de {company.name.title}.")
             companies_to_delete.append(company)
         except Companies.DoesNotExist:
             return HttpResponseForbidden(f"Empresa {cid} no encontrada.")
@@ -617,7 +617,7 @@ def anular_registro(request):
     if delegation_context['is_delegating']:
         voiding_username = delegation_context['delegated_user_name']
     else:
-        voiding_username = request.user.username
+        voiding_username = request.user.username.title
 
     registro.status = 'voided'
     registro.total_seconds = 0
@@ -713,7 +713,7 @@ def entity_info(request):
     if request.method == 'POST' and can_edit:
 
         # Update company info
-        company.name = request.POST.get('name', company.name).strip()
+        company.name.title = request.POST.get('name', company.name.title).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
         posted_tax_id = request.POST.get('tax_id', '').strip() or None
 
@@ -814,7 +814,7 @@ def entity_info(request):
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_jornada,
                     after=after_jornada,
-                    reason=f'Modificación de jornada laboral en empresa {company.name}',
+                    reason=f'Modificación de jornada laboral en empresa {company.name.title}',
                 )
 
             # 🔐 Auditoría: Cierre automático
@@ -827,7 +827,7 @@ def entity_info(request):
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_cierre,
                     after=after_cierre,
-                    reason=f'Modificación de cierre automático en empresa {company.name}',
+                    reason=f'Modificación de cierre automático en empresa {company.name.title}',
                 )
 
         return redirect('manager_entity_info')

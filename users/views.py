@@ -298,7 +298,7 @@ def logout_view(request):
 def _company_to_dict(company, include_created=False):
     result = {
         'id':         str(company.id),
-        'name':       company.name,
+        'name':       company.name.title,
         'legal_name': company.legal_name,
         'tax_id':     company.tax_id,
     }
@@ -356,8 +356,8 @@ def _user_to_dict(user, include_companies=False):
     """Serializes a Users instance to a dict for JSON responses."""
     result = {
         'id': str(user.id),
-        'username': user.username,
-        'surname':  user.surname,
+        'username': user.username.title,
+        'surname':  user.surname.title,
         'dni':      user.dni,
         'email':    user.email,
         'status':   user.status,
@@ -365,7 +365,7 @@ def _user_to_dict(user, include_companies=False):
     if include_companies:
         companies = UserCompany.objects.filter(user=user).select_related('company')
         result['companies'] = [
-            {'id': str(c.company.id), 'name': c.company.name, 'tax_id': c.company.tax_id or '--'}
+            {'id': str(c.company.id), 'name': c.company.name.title, 'tax_id': c.company.tax_id or '--'}
             for c in companies
         ]
     return result

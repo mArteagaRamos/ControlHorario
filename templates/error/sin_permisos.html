@@ -9,7 +9,7 @@
 <body>
     <div class="error-card">
         <h1>Área Protegida</h1>
-        <p>Lo sentimos, <strong>{{ request.user.username }}</strong>. Tu cuenta actual no tiene los permisos de Administrador o Manager necesarios para ver esta página.</p>
+        <p>Lo sentimos, <strong>{{ request.user.username.title }}</strong>. Tu cuenta actual no tiene los permisos de Administrador o Manager necesarios para ver esta página.</p>
         <a href="/" class="btn">Volver al Inicio</a>
     </div>
 </body>

@@ -526,13 +526,13 @@ companyNameInput?.addEventListener('input', () => {
         li.style.cursor = 'pointer';
         li.innerHTML = `
           <span>
-            <strong>${company.name}</strong>
+            <strong>${company.name.title}</strong>
             <small class="text-muted ms-2">${company.legal_name}</small>
           </span>
         `;
         li.addEventListener('click', () => {
           fillCompanyForm(company);
-          companyNameInput.value = company.name;
+          companyNameInput.value = company.name.title;
           hideCompanySuggestions();
           setCompanyFeedback('Empresa seleccionada. Puedes editar sus datos.', 'success');
         });
@@ -696,18 +696,18 @@ nameInput?.addEventListener('input', () => {
         li.style.cursor = 'pointer';
         li.innerHTML = `
           <span>
-            <strong>${user.username} ${user.surname}</strong>
+            <strong>${user.username.title} ${user.surname.title}</strong>
           </span>
         <span>
         `;
-//            <strong>${user.username} ${user.surname}</strong>
+//            <strong>${user.username.title} ${user.surname.title}</strong>
 //            <small class="text-muted ms-2">${user.email}</small>
 //          </span>
 //          <span class="badge bg-secondary">${user.dni || ''}</span>
         ;
         li.addEventListener('click', () => {
           fillWorkerForm(user);
-          nameInput.value = `${user.username} ${user.surname}`;
+          nameInput.value = `${user.username.title} ${user.surname.title}`;
           hideSuggestions();
           setFeedback('Trabajador seleccionado.', 'success');
         });

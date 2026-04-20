@@ -56,7 +56,7 @@
                 {% for log in logs %}
                 <tr>
                     <td><strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small></td>
-                    <td>{{ log.user.username|default:"Sistema" }}</td>
+                    <td>{{ log.user.username.title|default:"Sistema" }}</td>
                     <td>
                         {% if log.action_type == 'create' %}
                             <span class="badge bg-success">CREADO</span>
@@ -111,7 +111,7 @@
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
-                        <span class="fw-bold">{{ log.user.username|default:"Sistema" }}</span>
+                        <span class="fw-bold">{{ log.user.username.title|default:"Sistema" }}</span>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
@@ -132,7 +132,7 @@
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
                                 {% if key|lower == 'actor' %}
                                     <span class="text-muted fw-bold">Usuario</span>
-                                    <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                    <strong class="text-end text-break ms-3">{{ log.user.username.title|default:value }}</strong>
                                 
                                 {% elif key|lower == 'event_type' or key|lower == 'event type' %}
                                     <span class="text-muted fw-bold">Evento</span>
@@ -172,7 +172,7 @@
                             <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
                                 {% if key|lower == 'actor' %}
                                     <span class="text-muted fw-bold">Usuario</span>
-                                    <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                    <strong class="text-end text-break ms-3">{{ log.user.username.title|default:value }}</strong>
                                 
                                 {% elif key|lower == 'event_type' or key|lower == 'event type' %}
                                     <span class="text-muted fw-bold">Evento</span>
