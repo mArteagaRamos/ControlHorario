@@ -100,7 +100,7 @@
                                     <span>{{ membership.user.username.title }} {{ membership.user.surname.title }}</span>
                                 </div>
                             </td>
-                            <td data-label="Email" class="email-empleado text-muted">{{ membership.user.email }}</td>
+                            <td data-label="Email" class="email-empleado text-muted">{{ membership.user.email|lower }}</td>
                             <td data-label="Rol">
                                 {% if membership.role == 'manager' %}
                                     <span class="badge bg-primary px-2 py-1 rounded-pill">Manager</span>
