@@ -172,7 +172,6 @@ def api_calendar_events(request):
         'pending':  '#d97706',
         'approved': '#5a8f5a',
         'rejected': '#b94040',
-        'canceled': '#6b7280',
     }
 
     # ── Todos los empleados ───────────────────────────────────────────────
@@ -579,7 +578,7 @@ def api_leave_upload_attachment(request, leave_id):
         nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
         
         # Creamos el timestamp y sacamos la extensión
-        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = timezone.localtime(timezone.now()).strftime('Fecha-%Y/%m/%d_Hora-%H.%M.%S')
         _, extension = os.path.splitext(archivo.name)
         
         # Nombre final: JuanPerez_20240520_123000.pdf

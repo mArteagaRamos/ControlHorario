@@ -7,19 +7,65 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 <style>
+    /* --- VARIABLES Y UTILIDADES --- */
+    :root {
+        --transition-speed: 0.2s;
+    }
+
+    .alert-delegation {
+        position: relative;
+        max-width: 24rem;
+    }
+
+    /* --- NUEVOS ESTILOS DE BOTONES --- */
+    .std-btn {
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        transition: all var(--transition-speed) ease-in-out;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 0.5rem 1rem;
+    }
+    
+    .std-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .std-btn:active:not(:disabled) {
+        transform: translateY(0);
+    }
+    
+    .std-btn-secondary {
+        border-radius: 6px;
+        transition: transform var(--transition-speed) ease;
+    }
+    
+    .std-btn-secondary:hover {
+        transform: scale(1.05);
+    }
+
+    /* --- ESTILOS DE LA TABLA Y SCROLL --- */
     .table-scroll-container {
         max-height: 500px; 
         overflow-y: auto;
+        border-radius: 0.5rem;
+        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
     }
+    
     .table-scroll-container thead th {
         position: sticky;
         top: 0;
         z-index: 10;
-        background-color: #212529; /* Ajustado al color de table-dark */
+        background-color: #212529 !important; /* Asegurar fondo oscuro en scroll */
         color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
-    .table-scroll-container::-webkit-scrollbar { width: 8px; }
-    .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    
+    .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
+    .table-scroll-container::-webkit-scrollbar-thumb { background: #adb5bd; border-radius: 4px; }
+    .table-scroll-container::-webkit-scrollbar-track { background: #f8f9fa; }
+
 </style>
 
 {% if is_delegating %}
@@ -91,96 +137,99 @@
         <h5 style="color: #1a1f2e;"><i class="bi bi-list-check me-2"></i> Historial General de Jornadas</h5>
     </div>
     
-    <div id="resultados-actualizables" class="table-responsive shadow-sm bg-white p-3 rounded table-scroll-container mb-5" style="transition: opacity 0.2s ease;">
-        <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
-            {% csrf_token %}
-            <table class="table table-striped table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>
-                            <input type="checkbox" id="selectAll" class="form-check-input me-2">
-                            Empleado
-                        </th>
-                        <th>Fecha</th>
-                        <th>Entrada / Salida</th>
-                        <th>Total Horas</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody id="tablaRegistros">
-                    {% for registro in registros_list %}
-                    <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
-                        <td>
-                            <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
-                            {{ registro.user.username }} {{ registro.user.surname }}
-                        </td>
-                        <td><strong>{{ registro.date|date:"d/m/Y" }}</strong></td>
-                        <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
-                        <td class="fw-bold text-primary">
-                            {{ registro.horas_formateadas }}
-                        </td>
-                        <td>
-                            {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
-                                <span class="badge bg-danger">Incidencia</span>
-                            {% elif registro.status == 'corrected' %}
-                                <span class="badge bg-info text-dark">Corregido</span>
-                            {% elif registro.status == 'voided' %}
-                                <span class="badge bg-secondary">Anulado</span>
-                            {% else %}
-                                <span class="badge bg-success">Confirmado</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <div class="d-flex gap-2">
+    <div id="resultados-actualizables" class="card bg-light shadow-sm border-0 mb-5 rounded-3" style="transition: opacity 0.2s ease;">
+        <div class="table-responsive table-scroll-container">
+            <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
+                {% csrf_token %}
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" class="form-check-input me-2">
+                                Trabajador
+                            </th>
+                            <th>Fecha</th>
+                            <th>Entrada / Salida</th>
+                            <th>Total Horas</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaRegistros">
+                        {% for registro in registros_list %}
+                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                            <td>
+                                <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
+                                {{ registro.user.username }} {{ registro.user.surname }}
+                            </td>
+                            <td><strong>{{ registro.date|date:"d/m/Y" }}</strong></td>
+                            <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
+                            <td class="fw-bold">
+                                {{ registro.horas_formateadas }}
+                            </td>
+                            <td>
                                 {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
-                                    {% for incidencia in incidencias %}
-                                        {% if incidencia.time_entry.id == registro.id %}
-                                            <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalResolver"
-                                                data-id="{{ incidencia.id }}"
-                                                data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
-                                                data-motivo="{{ incidencia.reason }}"
-                                                data-old-in="{{ registro.clock_in|date:'d/m/Y H:i' }}"
-                                                data-old-out="{% if registro.clock_out %}{{ registro.clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
-                                                data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
-                                                data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}">
-                                                <i class="bi bi-wrench"></i> Resolver
-                                            </button>
-                                        {% endif %}
-                                    {% endfor %}
+                                    <span class="badge bg-danger">Incidencia</span>
+                                {% elif registro.status == 'corrected' %}
+                                    <span class="badge bg-info text-dark">Corregido</span>
+                                {% elif registro.status == 'voided' %}
+                                    <span class="badge bg-secondary">Anulado</span>
                                 {% else %}
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalEditar"
-                                            data-entry-id="{{ registro.id }}"
-                                            data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
-                                            data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
-                                            <i class="bi bi-pencil" style="pointer-events: none;"></i> Editar
-                                        </button>
-
-                                        <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#modalAnular"
-                                            data-entry-id="{{ registro.id }}">
-                                            <i class="bi bi-trash" style="pointer-events: none;"></i> Anular
-                                        </button>
-                                    </div>
+                                    <span class="badge bg-success">Confirmado</span>
                                 {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </form>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    {% if registro.id|stringformat:"s" in fichajes_con_incidencia %}
+                                        {% for incidencia in incidencias %}
+                                            {% if incidencia.time_entry.id == registro.id %}
+                                                <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalResolver"
+                                                    data-id="{{ incidencia.id }}"
+                                                    data-empleado="{{ incidencia.requester.username }} {{ incidencia.requester.surname }}"
+                                                    data-motivo="{{ incidencia.reason }}"
+                                                    data-old-in="{{ registro.clock_in|date:'d/m/Y H:i' }}"
+                                                    data-old-out="{% if registro.clock_out %}{{ registro.clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                    data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}"
+                                                    data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'d/m/Y H:i' }}{% else %}--/--/---- --:--{% endif %}">
+                                                    <i class="bi bi-wrench"></i> Resolver
+                                                </button>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="d-flex acciones-movil gap-2">
+                                            <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalEditar"
+                                                data-entry-id="{{ registro.id }}"
+                                                data-in="{{ registro.clock_in|date:'Y-m-d\TH:i' }}"
+                                                data-out="{% if registro.clock_out %}{{ registro.clock_out|date:'Y-m-d\TH:i' }}{% endif %}">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+
+                                            <button type="button" class="std-btn-secondary text-center {% if registro.status == 'corrected' or registro.status == 'voided' %}disabled{% endif %}" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#modalAnular"
+                                                data-entry-id="{{ registro.id }}">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No se encontraron registros con estos filtros.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
     </div>
+
 
     <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
         <button class="std-btn-secondary" id="registrosShowMore" style="{% if registros_list|length <= 5 %}display: none;{% endif %}">Ver Más</button>
@@ -193,96 +242,98 @@
         </button>
     </div>
 
-    <div class="table-responsive shadow-sm bg-white p-3 rounded table-scroll-container mb-5">
-        <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
-            {% csrf_token %}
-            <table class="table table-striped table-hover align-middle mb-0">
-                <thead class="table-dark">
-                    <tr>
-                        <th>
-                            <input type="checkbox" id="selectAllRechazadas" class="form-check-input me-2">
-                            Empleado
-                        </th>
-                        <th>Fecha Solicitud</th>
-                        <th>Entrada Original</th>
-                        <th>Entrada Solicitada</th>
-                        <th>Motivo</th>
-                        <th>Nota de Rechazo</th>
-                        <th>Acciones</th>
+    <div class="card bg-light shadow-sm border-0 mb-5 rounded-3">
+        <div class="table-responsive table-scroll-container">
+            <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
+                {% csrf_token %}
+                <table class="table table-striped table-hover align-middle mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAllRechazadas" class="form-check-input me-2">
+                                Empleado
+                            </th>
+                            <th>Fecha Solicitud</th>
+                            <th>Entrada Original</th>
+                            <th>Entrada Solicitada</th>
+                            <th>Motivo</th>
+                            <th>Nota de Rechazo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaRechazadas">
+                    {% for incidencia in incidencias_rechazadas %}
+                    <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                        <td>
+                            <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
+                            {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
+                        </td>
+                        <td><strong>{{ incidencia.request_date|date:"d/m/Y H:i" }}</strong></td>
+                        <td>
+                            <small class="text-muted fw-bold">
+                                {{ incidencia.time_entry.clock_in|date:"d/m/Y H:i" }} -
+                                {% if incidencia.time_entry.clock_out %}
+                                    {{ incidencia.time_entry.clock_out|date:"H:i" }}
+                                {% else %}
+                                    --:--
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <small class="fw-bold">
+                                {% if incidencia.new_clock_in %}
+                                    {{ incidencia.new_clock_in|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    --/--/---- --:--
+                                {% endif %}
+                                -
+                                {% if incidencia.new_clock_out %}
+                                    {{ incidencia.new_clock_out|date:"H:i" }}
+                                {% else %}
+                                    --:--
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>{{ incidencia.reason }}</td>
+                        <td>
+                            {% if incidencia.correction_note %}
+                                <span class="text-muted small">{{ incidencia.correction_note }}</span>
+                            {% else %}
+                                <span class="text-muted small">Sin nota</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalEditarRechazada"
+                                    data-incidencia-id="{{ incidencia.id }}"
+                                    data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'Y-m-d\TH:i' }}{% endif %}"
+                                    data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'Y-m-d\TH:i' }}{% endif %}"
+                                    data-reason="{{ incidencia.reason }}">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </button>
+                                <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#modalEliminarRechazada"
+                                    data-incidencia-id="{{ incidencia.id }}">
+                                    <i class="bi bi-trash"></i> Eliminar
+                                </button>
+                            </div>
+                        </td>
                     </tr>
-                </thead>
-                <tbody id="tablaRechazadas">
-                {% for incidencia in incidencias_rechazadas %}
-                <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
-                    <td>
-                        <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
-                        {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
-                    </td>
-                    <td><strong>{{ incidencia.request_date|date:"d/m/Y H:i" }}</strong></td>
-                    <td>
-                        <small class="text-muted fw-bold">
-                            {{ incidencia.time_entry.clock_in|date:"d/m/Y H:i" }} -
-                            {% if incidencia.time_entry.clock_out %}
-                                {{ incidencia.time_entry.clock_out|date:"H:i" }}
-                            {% else %}
-                                --:--
-                            {% endif %}
-                        </small>
-                    </td>
-                    <td>
-                        <small class="fw-bold">
-                            {% if incidencia.new_clock_in %}
-                                {{ incidencia.new_clock_in|date:"d/m/Y H:i" }}
-                            {% else %}
-                                --/--/---- --:--
-                            {% endif %}
-                            -
-                            {% if incidencia.new_clock_out %}
-                                {{ incidencia.new_clock_out|date:"H:i" }}
-                            {% else %}
-                                --:--
-                            {% endif %}
-                        </small>
-                    </td>
-                    <td>{{ incidencia.reason }}</td>
-                    <td>
-                        {% if incidencia.correction_note %}
-                            <span class="text-muted small">{{ incidencia.correction_note }}</span>
-                        {% else %}
-                            <span class="text-muted small">Sin nota</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
-                                data-bs-toggle="modal"
-                                data-bs-target="#modalEditarRechazada"
-                                data-incidencia-id="{{ incidencia.id }}"
-                                data-new-in="{% if incidencia.new_clock_in %}{{ incidencia.new_clock_in|date:'Y-m-d\TH:i' }}{% endif %}"
-                                data-new-out="{% if incidencia.new_clock_out %}{{ incidencia.new_clock_out|date:'Y-m-d\TH:i' }}{% endif %}"
-                                data-reason="{{ incidencia.reason }}">
-                                <i class="bi bi-pencil"></i> Editar
-                            </button>
-                            <button type="button" class="std-btn-secondary text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;"
-                                data-bs-toggle="modal"
-                                data-bs-target="#modalEliminarRechazada"
-                                data-incidencia-id="{{ incidencia.id }}">
-                                <i class="bi bi-trash"></i> Eliminar
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-muted">No hay incidencias rechazadas.</td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </form>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay incidencias rechazadas.</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </form>
+        </div>
     </div>
     
-    <div class="text-center mt-3 buttonContainer mb-3" id="rechazadasContainer">
+    <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3" id="rechazadasContainer">
         <button class="std-btn-secondary" id="rechazadasShowMore" style="{% if incidencias_rechazadas|length <= 5 %}display: none;{% endif %}">Ver Más</button>
     </div>
 </div>

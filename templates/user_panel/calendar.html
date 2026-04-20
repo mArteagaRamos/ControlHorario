@@ -594,10 +594,10 @@
         }
 
         const reviewNote = l.review_note
-          ? `<span onclick="toggleReviewNote('${rowId}', '${l.review_note.replace(/'/g, "\\'")}')" 
+          ? `<span onclick="toggleReviewNote(this, '${l.review_note.replace(/'/g, "\\'")}')" 
                   style="cursor:pointer; margin-left:0.5rem; font-size:0.7rem;" 
-                  class="badge bg-secondary" title="Ver motivo">
-                <i class="bi bi-chat-dots"></i> Motivo
+                  class=" " title="Ver motivo">
+                <i class="bi-chat-dots"></i>
             </span>`
           : '';
 
@@ -641,22 +641,18 @@
   }
 
 function toggleReviewNote(element, note) {
-    // Encontramos la fila (tr) donde se hizo clic
     const mainRow = element.closest('tr');
     
-    // Verificamos si la nota ya está abierta (mirando si la siguiente fila es una de nota)
     const nextRow = mainRow.nextElementSibling;
     if (nextRow && nextRow.classList.contains('review-note-row')) {
         nextRow.remove();
         return;
     }
 
-    // Contamos las columnas para que el mensaje ocupe todo el ancho
     const colCount = mainRow.cells.length;
 
-    // Creamos la fila de la nota
     const noteRow = document.createElement('tr');
-    noteRow.classList.add('review-note-row'); // Clase para identificarla
+    noteRow.classList.add('review-note-row'); 
     noteRow.style.background = '#fffbeb'; 
     
     noteRow.innerHTML = `
