@@ -237,11 +237,12 @@
 
 {% block extra_scripts %}
 <script>
-  const EVENTS_URL         = '{% url "api_calendar_events" %}';
-  const LEAVE_CREATE_URL   = '{% url "api_leave_create" %}';
-  const LEAVE_PENDING_URL  = '{% url "api_leave_pending" %}';
+  const EVENTS_URL        = '{% url "calendar_events" %}';
+  const LEAVE_CREATE_URL  = '{% url "leave_create" %}';
+  const LEAVE_PENDING_URL = '{% url "leave_pending" %}';
   const LEAVE_RESOLVED_URL = '{% url "api_leave_resolved" %}';
-  const CSRF_TOKEN         = '{{ csrf_token }}';
+  const LEAVE_BASE_URL    = '/leave/';  // Para construir leave_id/review/
+  const CSRF_TOKEN        = '{{ csrf_token }}';
 
   let currentUserId    = null;
   let calendarObj      = null;
@@ -514,7 +515,7 @@
   // ── Llamada a la API ────────────────────────────────────────────────────
   async function submitReview(leaveId, action, note) {
     try {
-      const res = await fetch('/api/leave/' + leaveId + '/review/', {
+      const res = await fetch(LEAVE_BASE_URL + leaveId + '/review/', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
         body:    JSON.stringify({ action, note }),

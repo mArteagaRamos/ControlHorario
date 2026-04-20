@@ -125,7 +125,7 @@ class InactiveUserVerificationMiddleware:
 
                 if user and user.status == Users.StatusChoices.INACTIVE:
                     # Verificar si hay leaves aprobadas activas (end_date >= hoy)
-                    from dashboard.models import LeaveRequest
+                    from corrections.models import LeaveRequest
                     today = date.today()
 
                     # Buscar si tiene alguna leave aprobada vigente
