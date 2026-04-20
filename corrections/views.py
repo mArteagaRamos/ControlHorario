@@ -3,6 +3,7 @@
 import csv
 import json
 from datetime import date, timedelta
+from tracemalloc import start
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -524,6 +525,8 @@ def api_leave_request_create(request):
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
  
+    
+    
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
  
@@ -536,6 +539,9 @@ def api_leave_request_create(request):
     if end < start:
         return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
  
+    if start < date.today():
+        return JsonResponse({'error': 'No puedes solicitar días anteriores a hoy'}, status=400)
+    
     if leave_type not in LeaveRequest.LeaveType.values:
         return JsonResponse({'error': 'Tipo de solicitud no válido'}, status=400)
  
