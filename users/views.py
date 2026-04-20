@@ -73,9 +73,11 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Intento de login: cuenta suspendida',
+                            source='web', # Añadido
                         )
                         messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
+                    
                     # ── Check if user is deleted ────────────────────────────────
                     elif user.deleted_at is not None:
                         # 🔐 AUDITORÍA: Intento de login con cuenta eliminada
@@ -86,6 +88,7 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Intento de login: cuenta eliminada',
+                            source='web', # Añadido
                         )
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
@@ -100,6 +103,7 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Login exitoso (Auditor)',
+                            source='web', # Añadido
                         )
 
                         auth_login(request, user)
@@ -124,6 +128,7 @@ def login_view(request):
                         user=user,
                         action_type=AuditLog.AuditAction.CREATE,
                         reason='Login exitoso',
+                        source='web', # Añadido
                     )
 
                     if user.must_change_password:
@@ -167,6 +172,7 @@ def login_view(request):
                         user=None,
                         action_type=AuditLog.AuditAction.CREATE,
                         reason=f'Intento de login fallido: {email}',
+                        source='web', # Añadido
                     )
                     messages.error(request, 'Email o contraseña incorrectos.')
             else:
@@ -183,7 +189,8 @@ def login_view(request):
                     after={
                         'tipo': 'Login Fallido - Validación',
                         'errores': error_messages,
-                    }
+                    },
+                    source='web', # Añadido
                 )
 
         # ── Step 2: set password ───────────────────────────────────────────────
@@ -287,6 +294,7 @@ def logout_view(request):
         user=user,
         action_type=AuditLog.AuditAction.CREATE,
         reason='Logout',
+        source='web', 
     )
 
     auth_logout(request)
@@ -527,7 +535,6 @@ def check_last_manager(request):
             'error': f'Error al verificar estado de manager: {str(e)}'
         }, status=500)
 
-
 # ── Register unified ─────────────────────────────────────────────────────────
 
 @login_required
@@ -606,7 +613,8 @@ def register_unified(request):
                             action_type='update',
                             before=estado_anterior,
                             after=safe_dict(company_obj),
-                            reason="Actualización de datos de empresa en registro unificado"
+                            reason="Actualización de datos de empresa en registro unificado",
+                            source='web' # Añadido para el hash
                         )
                     else:
                         errors.append('Corrige los datos de la empresa.')
@@ -762,7 +770,7 @@ def workday(request):
     from core.services import get_effective_context
     # IMPORTANTE: Asegúrate de tener estas importaciones al principio de tu views.py
     from audit.models import AuditLog
-    from audit.utils import safe_dict
+    from core.services import safe_dict # Ajustado la importación de safe_dict a donde parecía correcta originalmente
     from uuid import uuid4
 
     delegation_context = get_effective_context(request)
@@ -840,7 +848,8 @@ def workday(request):
                     action_type='create',
                     before=None,
                     after=safe_dict(nueva_solicitud),
-                    reason="Nueva incidencia reportada"
+                    reason="Nueva incidencia reportada",
+                    source='web' # Añadido para el hash
                 )
                 # --- FIN AUDITORÍA ---
 
@@ -885,7 +894,8 @@ def workday(request):
                     action_type='update',
                     before=estado_anterior,
                     after=safe_dict(correction),
-                    reason="Edición de datos de la incidencia por el usuario"
+                    reason="Edición de datos de la incidencia por el usuario",
+                    source='web' # Añadido para el hash
                 )
                 # -------------------------------------------
 
@@ -981,7 +991,8 @@ def exportar_workday_entries(request):
             'tabla': 'timetracking_registro',
             'cantidad': len(entry_ids),
             'ids': [str(id) for id in entry_ids],
-        }
+        },
+        source='web' # Añadido para el hash
     )
 
     response = HttpResponse(content_type='text/csv')
@@ -1043,7 +1054,8 @@ def exportar_workday_requests(request):
             'tabla': 'core_correction_requests',
             'cantidad': len(request_ids),
             'ids': [str(id) for id in request_ids],
-        }
+        },
+        source='web' # Añadido para el hash
     )
 
     response = HttpResponse(content_type='text/csv')
