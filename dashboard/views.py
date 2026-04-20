@@ -67,8 +67,10 @@ def calendar(request):
                     reason_note=reason_note,
                     status=LeaveRequest.LeaveStatus.PENDING
                 )
+                
                 log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
-                           reason=reason_note or 'Solicitud creada desde calendario')
+                           reason=reason_note or 'Solicitud creada desde calendario',
+                           source='web')
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
@@ -359,6 +361,7 @@ def entity_info(request):
                     before=before_jornada,
                     after=after_jornada,
                     reason=f'Modificación de jornada laboral en empresa {company.name}',
+                    source='web' # Añadido
                 )
 
             # 🔐 Auditoría: Cierre automático
@@ -372,6 +375,7 @@ def entity_info(request):
                     before=before_cierre,
                     after=after_cierre,
                     reason=f'Modificación de cierre automático en empresa {company.name}',
+                    source='web' # Añadido
                 )
 
         return redirect('entity_info')
