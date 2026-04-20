@@ -268,7 +268,7 @@ def exportar_staff(request):
         user = membership.user
         writer.writerow([
             user.username.title,
-            user.email,
+            user.email|lower,
             f"{user.username.title} {user.surname.title}",
             membership.get_role_display() if hasattr(membership, 'get_role_display') else membership.role,
             user.status if hasattr(user, 'status') else '--',

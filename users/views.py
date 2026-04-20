@@ -359,7 +359,7 @@ def _user_to_dict(user, include_companies=False):
         'username': user.username.title,
         'surname':  user.surname.title,
         'dni':      user.dni,
-        'email':    user.email,
+        'email':    user.email|lower,
         'status':   user.status,
     }
     if include_companies:
@@ -775,7 +775,7 @@ def workday(request):
             messages.error(request, 'Usuario o empresa delegada no encontrada.')
             return redirect('home_timetracking')
     else:
-        user = Users.objects.filter(email=request.user.email).first()
+        user = Users.objects.filter(email=request.user.email|lower).first()
         company = request.company
 
         if not user:

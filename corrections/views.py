@@ -296,7 +296,7 @@ def api_leave_pending(request):
             
             data.append({
                 'id':           str(l.id),
-                'user':         full_name or l.user.email,
+                'user':         full_name or l.user.email|lower,
                 'leave_type':   l.get_leave_type_display(),
                 # USAMOS 'reason' directamente si get_reason_display falla
                 'leave_reason': l.get_leave_reason_display(),

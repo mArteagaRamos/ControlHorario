@@ -114,7 +114,7 @@
                                     <tbody>
                                         {% for item in deleted_users %}
                                             <tr>
-                                                <td data-label="Email">{{ item.user.email }}</td>
+                                                <td data-label="Email">{{ item.user.email|lower }}</td>
                                                 <td data-label="Nombre de Usuario">{{ item.user.username.title }}</td>
                                                 <td data-label="Empresas">
                                                     {% if item.companies %}
@@ -259,7 +259,7 @@
                                     <tbody>
                                         {% for membership in deleted_user_companies %}
                                             <tr>
-                                                <td data-label="Usuario">{{ membership.user.email }}</td>
+                                                <td data-label="Usuario">{{ membership.user.email|lower }}</td>
                                                 <td data-label="Empresa">{{ membership.company.name.title }}</td>
                                                 <td data-label="Rol">
                                                     {% if membership.role == 'manager' %}
@@ -403,7 +403,7 @@
                                     <tbody>
                                         {% for entry in deleted_time_entries %}
                                             <tr>
-                                                <td data-label="Usuario">{{ entry.user.email }}</td>
+                                                <td data-label="Usuario">{{ entry.user.email|lower }}</td>
                                                 <td data-label="Empresa">
                                                     <span class="badge bg-secondary">{{ entry.company.name.title }}</span>
                                                 </td>

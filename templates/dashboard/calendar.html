@@ -32,7 +32,7 @@
             <option value="all">Todos los empleados</option>
             {% for uc in team %}
             <option value="{{ uc.user.id }}">
-              {{ uc.user.get_full_name|default:uc.user.email }}
+              {{ uc.user.get_full_name|default:uc.user.email|lower }}
             </option>
             {% endfor %}
           </select>
