@@ -1,0 +1,619 @@
+# corrections/views.py
+
+import csv
+import json
+from datetime import date, timedelta
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.views.decorators.http import require_POST
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+import uuid
+from uuid import uuid4
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import os
+from users.models import Users, Companies, UserCompany
+from timetracking.models import TimeEntries
+from corrections.models import LeaveRequest, CorrectionRequests
+from audit.models import AuditLog
+from audit.utils import safe_dict
+from core.decorators import manager_or_admin_required, manager_or_admin_with_delegation_check
+from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
+
+
+# =============================================================================
+# CORRECTION REQUESTS MANAGEMENT
+# =============================================================================
+
+@manager_or_admin_with_delegation_check
+def resolver_incidencia(request):
+    if request.method == 'POST':
+        # Get effective context (delegation info if any)
+        delegation_context = get_effective_context(request)
+
+        incidencia_id = request.POST.get('incidencia_id')
+        accion = request.POST.get('accion')
+        # Capture the note coming from the modal form
+        nota_resolucion = request.POST.get('nota_resolucion', '')
+
+        incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+
+        # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+        estado_anterior = safe_dict(incidencia)
+        # ----------------------------------------
+
+        ficha_original = incidencia.time_entry
+
+        # --- Determine who is approving ─────────────────────────────────────
+        # If delegating and delegated user is manager: use them
+        # Otherwise: use request.user
+        if delegation_context['is_delegating'] and delegation_context['delegated_user_role'] == UserCompany.RoleChoices.MANAGER:
+            approver_user = Users.objects.get(id=delegation_context['delegated_user_id'])
+        else:
+            approver_user = request.user
+
+        # --- AUDIT FIELDS ASSIGNMENT ---
+        incidencia.approver = approver_user
+        incidencia.approval_date = timezone.now()
+        incidencia.correction_note = nota_resolucion
+
+        if accion == 'aceptar':
+            # 1. Mark the original as 'corrected'
+            ficha_original.status = TimeEntries.EntryStatus.CORRECTED
+            ficha_original.save()
+
+            # --- CALCULATION OF SECONDS ---
+            segundos = 0
+            if incidencia.new_clock_in and incidencia.new_clock_out:
+                delta = incidencia.new_clock_out - incidencia.new_clock_in
+                segundos = int(delta.total_seconds())
+
+            # 2. Create the new definitive record
+            TimeEntries.objects.create(
+                id=uuid.uuid4(),
+                user=ficha_original.user,
+                company=ficha_original.company,
+                date=ficha_original.date,
+                clock_in=incidencia.new_clock_in,
+                clock_out=incidencia.new_clock_out,
+                status=TimeEntries.EntryStatus.CONFIRMED,
+                notes=f"Aceptado por {approver_user.username}. Motivo: {incidencia.reason}",
+                total_seconds=max(0, segundos)
+            )
+            incidencia.status = 'approved'
+
+        elif accion == 'denegar':
+            incidencia.status = 'rejected'
+
+        # Save all changes (including approver, date and note)
+        incidencia.save()
+
+        # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='timetracking_correctionrequest',
+            record_id=str(incidencia.id),
+            user=request.user,
+            action_type='update', # Update
+            before=estado_anterior,
+            after=safe_dict(incidencia),
+            reason=f"Incidencia {accion}da por manager"
+        )
+        # -------------------------------------------
+
+        return redirect('manager_logs')
+
+    return HttpResponse("Método no permitido.")
+
+
+@manager_or_admin_with_delegation_check
+@require_POST
+def exportar_logs_rechazadas(request):
+    """
+    Exporta las incidencias rechazadas a CSV.
+    POST params: incidencia_id (lista de IDs seleccionadas)
+    """
+    incidencia_ids = request.POST.getlist('incidencia_id')
+
+    if not incidencia_ids:
+        return HttpResponse("No seleccionaste ningún registro para exportar.")
+
+    incidencias = CorrectionRequests.objects.filter(
+        id__in=incidencia_ids,
+        status='rejected'
+    ).select_related('requester', 'time_entry').order_by('-request_date')
+
+    # 🔐 AUDITORÍA: Exportación de incidencias rechazadas
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {len(incidencia_ids)} incidencias rechazadas',
+        after={
+            'tipo': 'Incidencias Rechazadas',
+            'tabla': 'core_correction_requests',
+            'cantidad': len(incidencia_ids),
+            'ids': [str(id) for id in incidencia_ids],
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y')
+    response['Content-Disposition'] = f'attachment; filename="reporte_incidencias_rechazadas_{fecha_reporte}.csv"'
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Empleado',
+        'Fecha Solicitud',
+        'Entrada Original',
+        'Salida Original',
+        'Entrada Solicitada',
+        'Salida Solicitada',
+        'Motivo',
+        'Nota de Rechazo'
+    ])
+
+    for incidencia in incidencias:
+        writer.writerow([
+            f"{incidencia.requester.username} {incidencia.requester.surname}",
+            incidencia.request_date.strftime('%d/%m/%Y %H:%M') if incidencia.request_date else '--/--/---- --:--',
+            incidencia.time_entry.clock_in.strftime('%d/%m/%Y %H:%M') if incidencia.time_entry and incidencia.time_entry.clock_in else '--/--/---- --:--',
+            incidencia.time_entry.clock_out.strftime('%H:%M') if incidencia.time_entry and incidencia.time_entry.clock_out else '--:--',
+            incidencia.new_clock_in.strftime('%d/%m/%Y %H:%M') if incidencia.new_clock_in else '--/--/---- --:--',
+            incidencia.new_clock_out.strftime('%H:%M') if incidencia.new_clock_out else '--:--',
+            incidencia.reason or '',
+            incidencia.correction_note or ''
+        ])
+
+    return response
+
+
+@manager_or_admin_with_delegation_check
+@require_POST
+def editar_incidencia_rechazada(request):
+    """
+    Allow managers/admins to edit a rejected correction request (change times and reason)
+    """
+    from datetime import datetime
+
+    incidencia_id = request.POST.get('incidencia_id')
+    new_clock_in_str = request.POST.get('new_clock_in')
+    new_clock_out_str = request.POST.get('new_clock_out')
+    reason = request.POST.get('reason', '')
+
+    if not incidencia_id:
+        return HttpResponse("ID de incidencia no proporcionado.", status=400)
+
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+
+    # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+    estado_anterior = safe_dict(incidencia)
+    # ----------------------------------------
+
+    # Parse datetime inputs
+    try:
+        if new_clock_in_str:
+            new_in = datetime.fromisoformat(new_clock_in_str.replace('T', ' '))
+            new_in = timezone.make_aware(new_in, timezone.get_current_timezone())
+        else:
+            new_in = None
+
+        if new_clock_out_str:
+            new_out = datetime.fromisoformat(new_clock_out_str.replace('T', ' '))
+            new_out = timezone.make_aware(new_out, timezone.get_current_timezone())
+        else:
+            new_out = None
+    except ValueError:
+        return HttpResponse("Formato de fecha/hora inválido.", status=400)
+
+    # Update the correction request
+    incidencia.new_clock_in = new_in
+    incidencia.new_clock_out = new_out
+    incidencia.reason = reason
+    # Reset status to pending for re-review
+    incidencia.status = 'pending'
+    incidencia.save()
+
+    # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='timetracking_correctionrequest',
+        record_id=str(incidencia.id),
+        user=request.user,
+        action_type='update',
+        before=estado_anterior,
+        after=safe_dict(incidencia),
+        reason="Edición de incidencia rechazada para volver a revisión"
+    )
+    # -------------------------------------------
+
+    return redirect('manager_logs')
+
+
+@manager_or_admin_with_delegation_check
+@require_POST
+def eliminar_incidencia_rechazada(request):
+    """
+    Soft-delete a rejected correction request
+    """
+    incidencia_id = request.POST.get('incidencia_id')
+
+    if not incidencia_id:
+        return HttpResponse("ID de incidencia no proporcionado.", status=400)
+
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+
+    # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
+    estado_anterior = safe_dict(incidencia)
+    # ----------------------------------------
+
+    # Soft-delete
+    incidencia.deleted_at = timezone.now()
+    incidencia.save()
+
+    # --- INICIO AUDITORÍA: FOTO DEL DESPUÉS ---
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='timetracking_correctionrequest',
+        record_id=str(incidencia.id),
+        user=request.user,
+        action_type='voided', # Delete (Soft-delete)
+        before=estado_anterior,
+        after=safe_dict(incidencia),
+        reason="Eliminación (soft-delete) de incidencia rechazada"
+    )
+    # -------------------------------------------
+
+    return redirect('manager_logs')
+
+
+# =============================================================================
+# LEAVE REQUESTS MANAGEMENT
+# =============================================================================
+
+@manager_or_admin_with_delegation_check
+def api_leave_pending(request):
+    try:
+        company = get_company(request)
+        leaves = LeaveRequest.objects.filter(
+            company=company,
+            status=LeaveRequest.LeaveStatus.PENDING
+        ).select_related('user')
+
+        data = []
+        for l in leaves:
+            # Según tu users/models.py, los campos son 'username' y 'surname'
+            full_name = f"{l.user.username} {l.user.surname}".strip()
+
+            data.append({
+                'id':           str(l.id),
+                'user':         full_name or l.user.email,
+                'leave_type':   l.get_leave_type_display(),
+                # USAMOS 'reason' directamente si get_reason_display falla
+                'leave_reason': l.get_leave_reason_display(),
+                'start_date':   l.start_date.strftime('%d/%m/%Y'),
+                'end_date':     l.end_date.strftime('%d/%m/%Y'),
+                'reason_note':  l.reason_note or ""
+            })
+
+        # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
+        return JsonResponse({'requests': data})
+
+    except Exception as e:
+        print(f"DEBUG ERROR: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@manager_or_admin_with_delegation_check
+@require_POST
+def api_leave_review(request, leave_id):
+    """Manager aprueba o rechaza una solicitud."""
+    company = get_company(request)
+    leave   = get_object_or_404(LeaveRequest, id=leave_id, company=company)
+
+    if leave.status != LeaveRequest.LeaveStatus.PENDING:
+        return JsonResponse({'error': 'Esta solicitud ya fue revisada'}, status=400)
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    action = data.get('action')  # 'approve' | 'reject'
+    note   = data.get('note', '')
+    note   = note.strip() if note else None
+
+    if action == 'approve':
+
+        new_status  = LeaveRequest.LeaveStatus.APPROVED
+        action_type = AuditLog.AuditAction.UPDATE
+
+        # Cambiar status del usuario a 'inactive' cuando se aprueba
+        Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
+    elif action == 'reject':
+        new_status  = LeaveRequest.LeaveStatus.REJECTED
+        action_type = AuditLog.AuditAction.VOIDED
+    else:
+        return JsonResponse({'error': 'Acción no válida. Usa "approve" o "reject"'}, status=400)
+
+    before = serialize_leave(leave)
+    leave.reviewed_by = request.user
+    leave.reviewed_at = timezone.now()
+    leave.review_note = note
+    updated = LeaveRequest.objects.filter(pk=leave.pk).update(
+        status      = new_status,
+        reviewed_by = leave.reviewed_by,
+        reviewed_at = leave.reviewed_at,
+        review_note = leave.review_note,
+        force_proof = True,
+    )
+
+    if not updated:
+        return JsonResponse({'error': 'No se pudo actualizar la solicitud.'}, status=500)
+
+    leave.refresh_from_db()
+    log_leave(leave, request.user, action_type, before=before,
+               reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'))
+
+    return JsonResponse({'ok': True, 'new_status': new_status})
+
+# ── API: solicitudes resueltas ────────────────────────────────────────────────
+
+@login_required
+def api_leave_resolved(request):
+    """
+    Devuelve solicitudes resueltas (aprobadas, rechazadas, canceladas).
+    - Empleados: siempre sus propias solicitudes.
+    - Managers: pueden filtrar por ?user_id=<uuid> (empleado concreto)
+                o ?user_id=all (todos los empleados de la empresa).
+                Sin parámetro → sus propias solicitudes.
+    """
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    is_manager = is_manager(request, company)
+    user_id    = request.GET.get('user_id', '')
+
+    resolved_statuses = [
+        LeaveRequest.LeaveStatus.APPROVED,
+        LeaveRequest.LeaveStatus.REJECTED,
+        LeaveRequest.LeaveStatus.CANCELED,
+    ]
+
+    base_qs = LeaveRequest.objects.filter(
+        company=company,
+        status__in=resolved_statuses,
+    ).select_related('user', 'reviewed_by').order_by('-updated_at')
+
+    if is_manager and user_id == 'all':
+        leaves = base_qs[:50]
+    elif is_manager and user_id:
+        try:
+            target = get_object_or_404(Users, id=user_id)
+        except Exception:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
+        leaves = base_qs.filter(user=target)[:30]
+    else:
+        leaves = base_qs.filter(user=request.user)[:30]
+
+    show_user_col = is_manager and user_id in ('all', '') is False or (is_manager and user_id == 'all')
+
+    data = []
+    for l in leaves:
+        data.append({
+            'id':               str(l.id),
+            'user_name':        f"{l.user.username} {l.user.surname}".strip(),
+            'leave_type':       l.get_leave_type_display(),
+            'leave_reason':     l.get_leave_reason_display(),
+            'start_date':       l.start_date.strftime('%d/%m/%Y'),
+            'end_date':         l.end_date.strftime('%d/%m/%Y'),
+            'status':           l.status,
+            'status_display':   l.get_status_display(),
+            'reason_note':      l.reason_note or '',
+            'review_note':      l.review_note or '',
+            'reviewed_by':      f"{l.reviewed_by.username} {l.reviewed_by.surname}".strip() if l.reviewed_by else '',
+            'attachment_path':  l.attachment_path or '',
+        })
+
+    return JsonResponse({
+        'requests':      data,
+        'show_user_col': is_manager and user_id == 'all',
+    })
+
+@login_required
+def api_calendar_events(request):
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    user_id = request.GET.get('user_id')
+
+    start_str = request.GET.get('start', '')[:10]
+    end_str   = request.GET.get('end', '')[:10]
+
+    try:
+        start = date.fromisoformat(start_str)
+        end   = date.fromisoformat(end_str)
+    except (ValueError, TypeError):
+        return JsonResponse({'error': f'Invalid date format: {start_str}'}, status=400)
+
+    events = []
+    STATUS_COLOR = {
+        'pending':  '#d97706',
+        'approved': '#5a8f5a',
+        'rejected': '#b94040',
+    }
+
+    # ── Todos los empleados ───────────────────────────────────────────────
+    if user_id == 'all' and is_manager(request, company):
+        leaves = LeaveRequest.objects.filter(
+            company=company,
+            start_date__lte=end,
+            end_date__gte=start,
+        ).select_related('user')
+
+        for leave in leaves:
+            events.append({
+                'id': f'leave-{leave.id}',
+                'title': f'{leave.user.username} · {leave.get_leave_type_display()}',
+                'start': leave.start_date.isoformat(),
+                'end': (leave.end_date + timedelta(days=1)).isoformat(),
+                'color': STATUS_COLOR.get(leave.status, '#6b7280'),
+                'allDay': True,
+                'extendedProps': {
+                    'status': leave.get_status_display(),
+                    'reason': leave.reason_note or '',
+                },
+            })
+        return JsonResponse(events, safe=False)
+
+    # ── Empleado concreto (manager) o usuario propio ──────────────────────
+    target_user = request.user
+    if user_id and is_manager(request, company):
+        try:
+            target_user = get_object_or_404(Users, id=user_id)
+        except:
+            return JsonResponse({'error': 'Invalid User ID'}, status=400)
+
+    leaves = LeaveRequest.objects.filter(
+        user=target_user,
+        company=company,
+        start_date__lte=end,
+        end_date__gte=start,
+    )
+
+    for leave in leaves:
+        events.append({
+            'id': f'leave-{leave.id}',
+            'title': f'{leave.get_leave_type_display()}',
+            'start': leave.start_date.isoformat(),
+            'end': (leave.end_date + timedelta(days=1)).isoformat(),
+            'color': STATUS_COLOR.get(leave.status, '#6b7280'),
+            'allDay': True,
+            'extendedProps': {
+                'status': leave.get_status_display(),
+                'reason': leave.reason_note or '',
+            },
+        })
+
+    return JsonResponse(events, safe=False)
+
+# ── API: solicitar ausencia ────────────────────────────────────────────────────
+ 
+@login_required
+@require_POST
+def api_leave_request_create(request):
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+ 
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+ 
+    start_date = data.get('start_date')
+    end_date   = data.get('end_date')
+    leave_type = data.get('leave_type', 'other')
+    leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
+    reason_note  = data.get('reason_note', '')
+ 
+    if not start_date or not end_date:
+        return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
+ 
+    try:
+        start = date.fromisoformat(start_date)
+        end   = date.fromisoformat(end_date)
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+ 
+    if end < start:
+        return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
+ 
+    if leave_type not in LeaveRequest.LeaveType.values:
+        return JsonResponse({'error': 'Tipo de solicitud no válido'}, status=400)
+ 
+    if leave_reason not in LeaveRequest.LeaveReason.values:
+        return JsonResponse({'error': 'Motivo no válido'}, status=400)
+ 
+    leave = LeaveRequest.objects.create(
+        user         = request.user,
+        company      = company,
+        leave_type   = leave_type,
+        leave_reason = leave_reason,
+        reason_note  = reason_note,
+        start_date   = start,
+        end_date     = end,
+        status       = LeaveRequest.LeaveStatus.PENDING,
+    )
+ 
+    log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
+               reason=reason_note or 'Solicitud creada por el empleado')
+    
+    return JsonResponse({
+        'ok':      True,
+        'id':      str(leave.id),
+        'message': 'Solicitud enviada correctamente',
+    }, status=201)
+ 
+@login_required
+def api_leave_upload_attachment(request, leave_id):
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    archivo = request.FILES.get('attachment')
+
+    if archivo:
+        # Limpiamos nombre de usuario (ej: "Juan Perez" -> "JuanPerez")
+        nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
+        
+        # Creamos el timestamp y sacamos la extensión
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        _, extension = os.path.splitext(archivo.name)
+        
+        # Nombre final: JuanPerez_20240520_123000.pdf
+        nombre_final = f"{nombre_usuario}_{timestamp}{extension.lower()}"
+        
+        # Ruta relativa: justificantes/ID_SOLICITUD/archivo.pdf
+        ruta = f"justificantes/{leave_id}/{nombre_final}"
+        
+        # Borrar el anterior si existe para no llenar el servidor de basura
+        if leave.attachment_path:
+            default_storage.delete(leave.attachment_path)
+            
+        # Guardar físicamente (Django crea las carpetas solo)
+        default_storage.save(ruta, ContentFile(archivo.read()))
+        
+        # Guardar la ruta en la base de datos
+        leave.attachment_path = ruta
+        leave.save()
+        
+        return JsonResponse({'ok': True, 'message': 'Subido con éxito'})
+    
+# ── API: cancelar solicitud (empleado) ────────────────────────────────────────
+ 
+@login_required
+@require_POST
+def api_leave_request_cancel(request, leave_id):
+    """El empleado puede cancelar sus propias solicitudes pendientes."""
+    company = get_company(request)
+    leave = get_object_or_404(LeaveRequest, id=leave_id, user=request.user, company=company)
+ 
+    if leave.status != LeaveRequest.LeaveStatus.PENDING:
+        return JsonResponse({'error': 'Solo se pueden cancelar solicitudes pendientes'}, status=400)
+ 
+    before = serialize_leave(leave)
+    leave.status = LeaveRequest.LeaveStatus.CANCELED
+    leave.save(update_fields=['status', 'updated_at'])
+    log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
+               before=before, reason='Cancelación por el empleado')
+
+    return JsonResponse({'ok': True})

@@ -1,20 +1,10 @@
 {% extends 'audit/audit_base.html' %}
+{% load static %}
 
 {% block title %}Panel Central de Auditoría{% endblock %}
 
 {% block extra_head %}
-<style>
-    .card-audit {
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        border-bottom: 4px solid transparent !important;
-    }
-    
-    .card-audit:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(26, 31, 46, 0.15) !important;
-        border-bottom: 4px solid #1a1f2e !important;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'css/audit/audit_dashboard.css' %}">
 {% endblock %}
 
 {% block content %}
