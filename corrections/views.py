@@ -22,6 +22,7 @@ from audit.models import AuditLog
 from audit.utils import safe_dict
 from core.decorators import manager_or_admin_required, manager_or_admin_with_delegation_check
 from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
+from core.services import is_manager as check_is_manager
 
 
 # =============================================================================
@@ -100,7 +101,8 @@ def resolver_incidencia(request):
             action_type='update', # Update
             before=estado_anterior,
             after=safe_dict(incidencia),
-            reason=f"Incidencia {accion}da por manager"
+            reason=f"Incidencia {accion}da por manager",
+            source='web' # Añadido
         )
         # -------------------------------------------
 
@@ -139,7 +141,8 @@ def exportar_logs_rechazadas(request):
             'tabla': 'core_correction_requests',
             'cantidad': len(incidencia_ids),
             'ids': [str(id) for id in incidencia_ids],
-        }
+        },
+        source='web' # Añadido
     )
 
     response = HttpResponse(content_type='text/csv')
@@ -231,7 +234,8 @@ def editar_incidencia_rechazada(request):
         action_type='update',
         before=estado_anterior,
         after=safe_dict(incidencia),
-        reason="Edición de incidencia rechazada para volver a revisión"
+        reason="Edición de incidencia rechazada para volver a revisión",
+        source='web' # Añadido
     )
     # -------------------------------------------
 
@@ -268,7 +272,8 @@ def eliminar_incidencia_rechazada(request):
         action_type='voided', # Delete (Soft-delete)
         before=estado_anterior,
         after=safe_dict(incidencia),
-        reason="Eliminación (soft-delete) de incidencia rechazada"
+        reason="Eliminación (soft-delete) de incidencia rechazada",
+        source='web' # Añadido
     )
     # -------------------------------------------
 
@@ -362,7 +367,8 @@ def api_leave_review(request, leave_id):
 
     leave.refresh_from_db()
     log_leave(leave, request.user, action_type, before=before,
-               reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'))
+               reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'),
+               source='web') # Añadido
 
     return JsonResponse({'ok': True, 'new_status': new_status})
 
@@ -381,7 +387,7 @@ def api_leave_resolved(request):
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    is_manager = is_manager(request, company)
+    is_manager = check_is_manager(request, company) # Corregido para usar el import con alias
     user_id    = request.GET.get('user_id', '')
 
     resolved_statuses = [
@@ -455,7 +461,7 @@ def api_calendar_events(request):
     }
 
     # ── Todos los empleados ───────────────────────────────────────────────
-    if user_id == 'all' and is_manager(request, company):
+    if user_id == 'all' and check_is_manager(request, company):
         leaves = LeaveRequest.objects.filter(
             company=company,
             start_date__lte=end,
@@ -479,7 +485,7 @@ def api_calendar_events(request):
 
     # ── Empleado concreto (manager) o usuario propio ──────────────────────
     target_user = request.user
-    if user_id and is_manager(request, company):
+    if user_id and check_is_manager(request, company):
         try:
             target_user = get_object_or_404(Users, id=user_id)
         except:
@@ -557,8 +563,10 @@ def api_leave_request_create(request):
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
  
+    # 🔐 AUDITORÍA: Creación
     log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
-               reason=reason_note or 'Solicitud creada por el empleado')
+               reason=reason_note or 'Solicitud creada por el empleado',
+               source='web') # Añadido
     
     return JsonResponse({
         'ok':      True,
@@ -613,7 +621,10 @@ def api_leave_request_cancel(request, leave_id):
     before = serialize_leave(leave)
     leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save(update_fields=['status', 'updated_at'])
+    
+    # 🔐 AUDITORÍA: Cancelación
     log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
-               before=before, reason='Cancelación por el empleado')
+               before=before, reason='Cancelación por el empleado',
+               source='web') # Añadido
 
     return JsonResponse({'ok': True})
