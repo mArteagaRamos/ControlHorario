@@ -5,12 +5,37 @@
 {% block extra_head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* Estilos corporativos */
+        .bg-corporate { background-color: #1a1f2e !important; color: white !important; }
+        .text-corporate { color: #1a1f2e !important; }
+        .border-corporate { border-left: 4px solid #1a1f2e !important; }
+        
+        /* Botón estándar */
+        .std-btn {
+            background-color: #1a1f2e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: opacity 0.2s;
+        }
+        .std-btn:hover { opacity: 0.9; color: white; }
+
+        /* Badge de Categoría con tu color específico */
+        .badge-category {
+            background-color: #1a1f2e !important;
+            color: white !important;
+        }
+
+        /* Ajuste para el badge de modificación */
+        .badge.bg-warning { color: #212529 !important; font-weight: 600; }
+    </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 style="color: #1a1f2e;"><i class="fas fa-building pe-2" style="color: #1a1f2e;"></i> Auditoría de Empresas</h2>
+        <h2 class="text-corporate"><i class="fas fa-building pe-2"></i> Auditoría de Empresas</h2>
         <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
     <hr>
@@ -74,22 +99,22 @@
                             {% if log.action_type == 'create' %}
                                 <span class="badge bg-success px-2 py-1 rounded-pill">CREADA</span>
                             {% elif log.action_type == 'update' %}
-                                <span class="badge bg-warning text-dark px-2 py-1 rounded-pill">MODIFICADA</span>
+                                <span class="badge bg-warning px-2 py-1 rounded-pill">MODIFICADA</span>
                             {% elif log.action_type == 'voided' or log.action_type == 'delete' %}
-                                <span class="badge bg-dark px-2 py-1 rounded-pill">ELIMINADA</span>
+                                <span class="badge bg-danger px-2 py-1 rounded-pill">ELIMINADA</span>
                             {% else %}
                                 <span class="badge bg-secondary px-2 py-1 rounded-pill">{{ log.get_action_type_display|upper }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            <span class="badge {% if log.categoria == 'jornada' %}bg-primary{% elif log.categoria == 'cierre' %}bg-info{% elif log.categoria == 'pausas' %}bg-warning text-dark{% else %}bg-secondary{% endif %} px-2 py-1 rounded-pill">
+                            <span class="badge badge-category px-2 py-1 rounded-pill">
                                 {{ log.categoria|upper }}
                             </span>
                         </td>
                         <td>{{ log.reason|default:"-" }}</td>
                         <td class="text-center">
-                            <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
-                            <i class="fas fa-search me-1"></i> Ver Detalles
+                            <button type="button" class="std-btn" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
+                                <i class="fas fa-search me-1"></i> Ver Detalles
                             </button>
                         </td>
                     </tr>
@@ -109,7 +134,7 @@
                     {% endif %}
                     {% for num in logs.paginator.page_range %}
                         <li class="page-item {% if logs.number == num %}active{% endif %}">
-                            <a class="page-link shadow-sm ajax-page {% if logs.number == num %}bg-primary border-primary text-white{% endif %}" href="?page={{ num }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}&tipo_cambio={{ tipo_cambio|default:'' }}">{{ num }}</a>
+                            <a class="page-link shadow-sm ajax-page {% if logs.number == num %}bg-corporate border-corporate text-white{% endif %}" href="?page={{ num }}&search={{ search_query|default:'' }}&desde={{ desde|default:'' }}&hasta={{ hasta|default:'' }}&tipo_cambio={{ tipo_cambio|default:'' }}">{{ num }}</a>
                         </li>
                     {% endfor %}
                     {% if logs.has_next %}
@@ -126,7 +151,7 @@
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header text-white" style="background-color: #1a1f2e;">
+      <div class="modal-header text-white bg-corporate">
         <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Cambio</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
@@ -137,11 +162,19 @@
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
-                        <span class="badge bg-primary px-3 py-2 rounded-pill text-white">{{ log.get_action_type_display|upper }}</span>
+                        {% if log.action_type == 'create' %}
+                            <span class="badge rounded-pill bg-success px-3 py-2">CREADA</span>
+                        {% elif log.action_type == 'update' %}
+                            <span class="badge rounded-pill bg-warning px-3 py-2">MODIFICADA</span>
+                        {% elif log.action_type == 'voided' or log.action_type == 'delete' %}
+                            <span class="badge rounded-pill bg-danger px-3 py-2">ELIMINADA</span>
+                        {% else %}
+                            <span class="badge rounded-pill bg-secondary px-3 py-2">{{ log.get_action_type_display|upper }}</span>
+                        {% endif %}
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Categoría</small>
-                        <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">{{ log.categoria|upper }}</span>
+                        <span class="badge badge-category px-3 py-2 rounded-pill">{{ log.categoria|upper }}</span>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
@@ -162,12 +195,32 @@
                             <ul class="list-group list-group-flush rounded-bottom-3">
                                 {% for key, value in log.before.items %}
                                     <li class="list-group-item bg-transparent px-4 py-3 d-flex justify-content-between align-items-start border-bottom-0 border-top">
-                                        <span class="text-muted text-capitalize fw-bold">{{ key|title }}</span>
+                                        <span class="text-muted text-capitalize fw-bold">
+                                            {% if key|lower == 'work_start' %}Inicio Jornada
+                                            {% elif key|lower == 'work_end' %}Fin Jornada
+                                            {% elif key|lower == 'weekend_days' %}Fines de Semana
+                                            {% elif key|lower == 'holidays' %}Festivos
+                                            {% elif key|lower == 'max_tolerance' %}Tolerancia Max.
+                                            {% elif key|lower == 'status' %}Estado
+                                            {% elif key|lower == 'leave_type' %}Tipo Ausencia
+                                            {% elif key|lower == 'start_date' %}Fecha Inicio
+                                            {% elif key|lower == 'end_date' %}Fecha Fin
+                                            {% elif key|lower == 'reason_note' %}Nota Motivo
+                                            {% elif key|lower == 'company_name' %}Nombre Empresa
+                                            {% elif key|lower == 'cif' %}CIF/NIF
+                                            {% else %}{{ key|title }}{% endif %}
+                                        </span>
                                         <span class="text-end text-break ms-3" style="max-width: 60%;">
                                             {% if value is iterable and value is not string %}
-                                                <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} item(s)</div>
+                                                <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} elemento(s)</div>
                                             {% else %}
-                                                <strong>{{ value|default:"-" }}</strong>
+                                                <strong>
+                                                    {% if value == 'pending' %}Pendiente
+                                                    {% elif value == 'approved' %}Aprobada
+                                                    {% elif value == 'rejected' %}Rechazada
+                                                    {% elif value == 'vacation' %}Vacaciones
+                                                    {% else %}{{ value|default:"-" }}{% endif %}
+                                                </strong>
                                             {% endif %}
                                         </span>
                                     </li>
@@ -185,20 +238,40 @@
             
             <div class="col-md-6">
                 <div class="card border-0 shadow-sm rounded-3 h-100">
-                    <div class="card-header bg-info bg-opacity-10 border-bottom-0 rounded-top-3">
-                        <h6 class="mb-0 text-info fw-bold"><i class="fas fa-check-circle me-2"></i> Estado Nuevo</h6>
+                    <div class="card-header bg-success bg-opacity-10 border-bottom-0 rounded-top-3">
+                        <h6 class="mb-0 text-success fw-bold"><i class="fas fa-check-circle me-2"></i> Estado Nuevo</h6>
                     </div>
                     <div class="card-body p-0">
                         {% if log.after %}
                             <ul class="list-group list-group-flush rounded-bottom-3">
                                 {% for key, value in log.after.items %}
                                     <li class="list-group-item bg-transparent px-4 py-3 d-flex justify-content-between align-items-start border-bottom-0 border-top">
-                                        <span class="text-muted text-capitalize fw-bold">{{ key|title }}</span>
+                                        <span class="text-muted text-capitalize fw-bold">
+                                            {% if key|lower == 'work_start' %}Inicio Jornada
+                                            {% elif key|lower == 'work_end' %}Fin Jornada
+                                            {% elif key|lower == 'weekend_days' %}Fines de Semana
+                                            {% elif key|lower == 'holidays' %}Festivos
+                                            {% elif key|lower == 'max_tolerance' %}Tolerancia Max.
+                                            {% elif key|lower == 'status' %}Estado
+                                            {% elif key|lower == 'leave_type' %}Tipo Ausencia
+                                            {% elif key|lower == 'start_date' %}Fecha Inicio
+                                            {% elif key|lower == 'end_date' %}Fecha Fin
+                                            {% elif key|lower == 'reason_note' %}Nota Motivo
+                                            {% elif key|lower == 'company_name' %}Nombre Empresa
+                                            {% elif key|lower == 'cif' %}CIF/NIF
+                                            {% else %}{{ key|title }}{% endif %}
+                                        </span>
                                         <span class="text-end text-break ms-3" style="max-width: 60%;">
                                             {% if value is iterable and value is not string %}
-                                                <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} item(s)</div>
+                                                <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} elemento(s)</div>
                                             {% else %}
-                                                <strong>{{ value|default:"-" }}</strong>
+                                                <strong>
+                                                    {% if value == 'pending' %}Pendiente
+                                                    {% elif value == 'approved' %}Aprobada
+                                                    {% elif value == 'rejected' %}Rechazada
+                                                    {% elif value == 'vacation' %}Vacaciones
+                                                    {% else %}{{ value|default:"-" }}{% endif %}
+                                                </strong>
                                             {% endif %}
                                         </span>
                                     </li>
@@ -226,137 +299,73 @@
 <div id="toast" class="toast-custom hidden"></div> 
 
 {% if messages %}
-    <div id="django-messages-container" style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
-        width: 90%;
-        max-width: 400px;
-    ">
+    <div id="django-messages-container" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; width: 90%; max-width: 400px;">
         {% for message in messages %}
-        <div class="alert shadow-lg" style="
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        ">
-            <div style="font-size: 40px; margin-bottom: 10px;">
-                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
-            </div>
-            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
-                {{ message }}
-            </p>
-            <button onclick="document.getElementById('django-messages-container').remove()" style="
-                margin-top: 20px;
-                padding: 8px 20px;
-                border: none;
-                background: #f1f1f1;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-            ">Entendido</button>
+        <div class="alert shadow-lg" style="background-color: white; border-radius: 12px; padding: 25px; text-align: center; border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %}; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div style="font-size: 40px; margin-bottom: 10px;">{% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}</div>
+            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">{{ message }}</p>
+            <button onclick="document.getElementById('django-messages-container').remove()" style="margin-top: 20px; padding: 8px 20px; border: none; background: #f1f1f1; border-radius: 5px; cursor: pointer; font-weight: bold;">Entendido</button>
         </div>
         {% endfor %}
     </div>
-
-    <script>
-        setTimeout(function() {
-            var msg = document.getElementById('django-messages-container');
-            if (msg) msg.remove();
-        }, 5000);
-    </script>
+    <script>setTimeout(() => { const msg = document.getElementById('django-messages-container'); if (msg) msg.remove(); }, 5000);</script>
 {% endif %}
 
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-function showToast(message) {
-    const toast = document.getElementById("toast");
-    if(!toast) return;
-    toast.innerText = message;
-    toast.classList.remove("hidden");
-    toast.classList.add("show");
-
-    setTimeout(() => {
-        toast.classList.remove("show");
-        setTimeout(() => toast.classList.add("hidden"), 300);
-    }, 3000);
-}
-
-// SCRIPT PARA FILTRADO SIN RECARGAR LA PÁGINA (AJAX) Y SIN CAMBIAR LA URL
+// Mantengo tu script de AJAX para filtrado sin recargar
 document.addEventListener("DOMContentLoaded", function() {
     const filterForm = document.getElementById("filter-form");
-    const inputs = filterForm.querySelectorAll("input, select");
+    const inputs = filterForm?.querySelectorAll("input, select");
     const tableContainer = document.getElementById("table-container");
     let typingTimer;
-    const doneTypingInterval = 400; // milisegundos de espera para no saturar al escribir
+    const doneTypingInterval = 400;
 
     function fetchResults() {
         const formData = new FormData(filterForm);
         const searchParams = new URLSearchParams(formData);
         const targetUrl = `${window.location.pathname}?${searchParams.toString()}`;
 
-        // Hacemos la petición por detrás
-        fetch(targetUrl, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
+        fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
         .then(response => response.text())
         .then(html => {
-            // Extraemos solo la parte de la tabla del nuevo HTML y la reemplazamos
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, "text/html");
-            const newTableContent = doc.getElementById("table-container").innerHTML;
-            tableContainer.innerHTML = newTableContent;
-            
-            // Re-vincular los eventos de paginación después de actualizar el DOM
+            tableContainer.innerHTML = doc.getElementById("table-container").innerHTML;
             bindPaginationEvents();
         })
         .catch(err => console.error("Error al filtrar:", err));
     }
 
-    // Escuchar cambios en los inputs
-    inputs.forEach(input => {
+    inputs?.forEach(input => {
         if (input.type === 'text') {
-            // Para texto, esperamos a que termine de escribir
             input.addEventListener('keyup', () => {
                 clearTimeout(typingTimer);
                 typingTimer = setTimeout(fetchResults, doneTypingInterval);
             });
         } else {
-            // Para fechas y selects, disparamos al instante
             input.addEventListener('change', fetchResults);
         }
     });
 
-    // Interceptar también la paginación para que no recargue
     function bindPaginationEvents() {
         const pageLinks = document.querySelectorAll('.ajax-page');
         pageLinks.forEach(link => {
             link.addEventListener('click', function(e) {
                 e.preventDefault();
-                const targetUrl = this.getAttribute('href');
-                
-                fetch(targetUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                fetch(this.getAttribute('href'), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(response => response.text())
                 .then(html => {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, "text/html");
                     tableContainer.innerHTML = doc.getElementById("table-container").innerHTML;
-                    
                     bindPaginationEvents();
                 });
             });
         });
     }
-
-    // Inicializamos la paginación la primera vez
     bindPaginationEvents();
 });
 </script>
