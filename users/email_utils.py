@@ -27,7 +27,7 @@ def send_new_user_email(user, password, company):
     try:
         context = {
             'username': user.username.title,
-            'email': user.email|lower,
+            'email': user.email.lower(),
             'password': password,
             'company_name': company.name.title,
             'login_url': _get_login_url(),
@@ -43,14 +43,14 @@ def send_new_user_email(user, password, company):
             subject=subject,
             body=text_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email|lower],
+            to=[user.email.lower()],
         )
         email.attach_alternative(html_message, 'text/html')
         email.send(fail_silently=True)
-        logger.info(f'Nuevo usuario email enviado a {user.email|lower}')
+        logger.info(f'Nuevo usuario email enviado a {user.email.lower()}')
 
     except Exception as e:
-        logger.error(f'Error enviando email a {user.email|lower}: {str(e)}')
+        logger.error(f'Error enviando email a {user.email.lower()}: {str(e)}')
         return False
 
     return True
@@ -61,7 +61,7 @@ def send_new_auditor_email(user, password):
     try:
         context = {
             'username': user.username.title,
-            'email': user.email|lower,
+            'email': user.email.lower(),
             'password': password,
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,
@@ -76,14 +76,14 @@ def send_new_auditor_email(user, password):
             subject=subject,
             body=text_message,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            to=[user.email|lower],
+            to=[user.email.lower()],
         )
         email.attach_alternative(html_message, 'text/html')
         email.send(fail_silently=True)
-        logger.info(f'Email de nuevo auditor enviado a {user.email|lower}')
+        logger.info(f'Email de nuevo auditor enviado a {user.email.lower()}')
 
     except Exception as e:
-        logger.error(f'Error enviando email a auditor {user.email|lower}: {str(e)}')
+        logger.error(f'Error enviando email a auditor {user.email.lower()}: {str(e)}')
         return False
 
     return True
@@ -93,12 +93,12 @@ def send_existing_user_email(user, company, role):
     """Send notification email to existing user who was added to a new company."""
     try:
         role_display = _get_role_display(role)
-        user_email = user.email|lower.lower()
+        user_email = user.email.lower()
 
         context = {
-            'username': user.username.title,
+            'username': user.username,
             'email': user_email,
-            'company_name': company.name.title,
+            'company_name': company.name,
             'role_display': role_display,
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,

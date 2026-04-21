@@ -332,8 +332,7 @@ def serialize_leave(leave):
         'reviewed_by_id':  safe(leave.reviewed_by_id),
         'reviewed_at':     safe(leave.reviewed_at),
         'review_note':     leave.review_note,
-        'user_full_name':  f"{leave.user.username.title} {leave.user.surname.title}".strip(),
-        'user_id':         str(leave.user_id),
+        'user_full_name': f"{leave.user.username.title()} {leave.user.surname.title()}".strip(),        'user_id':         str(leave.user_id),
     }
 
 

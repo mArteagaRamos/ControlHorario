@@ -59,7 +59,7 @@
                         <strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> 
                         <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small>
                     </td>
-                    <td>{{ log.user.username.title|default:"Sistema" }}</td>
+                    <td>{{ log.user.username|title|default:"Sistema" }}</td>
                     <td>
                         <span class="badge bg-info text-white rounded-pill px-2 py-1">{{ log.get_action_type_display|upper }}</span>
                     </td>
@@ -100,7 +100,7 @@
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
-                        <span class="fw-bold">{{ log.user.username.title|default:"Sistema" }}</span>
+                        <span class="fw-bold">{{ log.user.username|title|default:"Sistema" }}</span>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>

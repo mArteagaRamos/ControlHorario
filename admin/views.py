@@ -104,8 +104,8 @@ def exportar_deleted_records(request):
             'filename': 'reporte_membresias_eliminadas',
             'headers': ['Usuario', 'Empresa', 'Rol', 'Ingreso', 'Eliminada'],
             'row_func': lambda uc: [
-                f"{uc.user.username.title} {uc.user.surname.title}" if uc.user else '--',
-                uc.company.name.title if uc.company else '--',
+                f"{uc.user.username} {uc.user.surname}" if uc.user else '--',
+                uc.company.name if uc.company else '--',
                 uc.get_role_display() if hasattr(uc, 'get_role_display') else uc.role,
                 uc.joined_at.strftime('%d/%m/%Y') if uc.joined_at else '--/--/----',
                 uc.deleted_at.strftime('%d/%m/%Y %H:%M') if uc.deleted_at else '--'
@@ -130,7 +130,7 @@ def exportar_deleted_records(request):
             'filename': 'reporte_fichajes_eliminados',
             'headers': ['Empleado', 'Fecha', 'Entrada', 'Salida', 'Estado', 'Eliminado'],
             'row_func': lambda te: [
-                f"{te.user.username.title} {te.user.surname.title}" if te.user else '--',
+                f"{te.user.username} {te.user.surname}" if te.user else '--',
                 te.date.strftime('%d/%m/%Y') if te.date else '--/--/----',
                 te.clock_in.strftime('%H:%M:%S') if te.clock_in else '--:--:--',
                 te.clock_out.strftime('%H:%M:%S') if te.clock_out else '--:--:--',

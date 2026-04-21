@@ -1,0 +1,177 @@
+/* ═════════════════════════════════════════════════════════════════
+   Unified Django Messages Styling
+   ═════════════════════════════════════════════════════════════════ */
+
+#django-messages-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    width: 90%;
+    max-width: 450px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+@keyframes slideOut {
+    from {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, -60%);
+    }
+}
+
+#django-messages-container.closing {
+    animation: slideOut 0.3s ease-in forwards;
+}
+
+.alert-message {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    border-left: 5px solid;
+    position: relative;
+    backdrop-filter: blur(2px);
+}
+
+/* Close button styling */
+.btn-close-message {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-close-message:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+/* Message text styling */
+.alert-message p {
+    margin: 0;
+    font-weight: 500;
+    color: #333;
+    font-size: 1rem;
+    word-break: break-word;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Message Types - Color Scheme
+   ═════════════════════════════════════════════════════════════════ */
+
+/* Error / Danger */
+.alert-message.alert-danger {
+    border-left-color: #dc3545;
+    background-color: rgba(255, 248, 248, 0.95);
+}
+
+.alert-message.alert-danger p {
+    color: #842029;
+}
+
+/* Success */
+.alert-message.alert-success {
+    border-left-color: #28a745;
+    background-color: rgba(248, 255, 248, 0.95);
+}
+
+.alert-message.alert-success p {
+    color: #155724;
+}
+
+/* Warning */
+.alert-message.alert-warning {
+    border-left-color: #ffc107;
+    background-color: rgba(255, 253, 248, 0.95);
+}
+
+.alert-message.alert-warning p {
+    color: #856404;
+}
+
+/* Info */
+.alert-message.alert-info {
+    border-left-color: #17a2b8;
+    background-color: rgba(248, 251, 255, 0.95);
+}
+
+.alert-message.alert-info p {
+    color: #0c5460;
+}
+
+/* Secondary / Debug */
+.alert-message.alert-secondary {
+    border-left-color: #6c757d;
+    background-color: rgba(248, 248, 250, 0.95);
+}
+
+.alert-message.alert-secondary p {
+    color: #383d41;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   Responsive Design
+   ═════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 576px) {
+    #django-messages-container {
+        width: 95%;
+        max-width: 100%;
+    }
+
+    .alert-message {
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .alert-message p {
+        font-size: 0.95rem;
+    }
+
+    .btn-close-message {
+        width: 28px;
+        height: 28px;
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 380px) {
+    .alert-message {
+        padding: 16px;
+    }
+
+    .alert-message p {
+        font-size: 0.9rem;
+    }
+}

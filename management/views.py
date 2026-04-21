@@ -713,7 +713,7 @@ def entity_info(request):
     if request.method == 'POST' and can_edit:
 
         # Update company info
-        company.name.title = request.POST.get('name', company.name.title).strip()
+        company.name = request.POST.get('name', company.name.title).strip()
         company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
         posted_tax_id = request.POST.get('tax_id', '').strip() or None
 

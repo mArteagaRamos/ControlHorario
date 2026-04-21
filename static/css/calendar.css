@@ -23,7 +23,6 @@
   --pending-color:   #f59e0b;
   --approved-color:  #10b981;
   --rejected-color:  #ef4444;
-  --canceled-color:  #6b7280;
 }
 
 /* ── Página ─────────────────────────────────────────────────────────────── */
@@ -171,6 +170,39 @@
 }
 .cal-textarea { resize: vertical; min-height: 3.5rem; }
 
+/* ── Filtros de estado ──────────────────────────────────────────────────── */
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 0;
+  font-size: .85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-checkbox input {
+  cursor: pointer;
+  accent-color: #1a1f2e;
+}
+
+.filter-checkbox label {
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex: 1;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* ── Botones de solicitud ────────────────────────────────────────────────── */
 .cal-btn {
   display: block;
@@ -295,49 +327,117 @@
 }
 
 .pending-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: .75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
   padding: 1rem;
 }
 
-/* ── Tarjeta de solicitud pendiente ─────────────────────────────────────── */
-.pending-card {
+/* ── Tarjeta de solicitud pendiente (nueva lista) ─────────────────────── */
+.pending-item {
   background: #fff;
   border: 1.5px solid var(--cal-border);
   border-left: 4px solid var(--pending-color);
   border-radius: .6rem;
-  padding: .75rem .9rem;
-  font-size: .82rem;
-  box-shadow: 0 1px 4px rgba(15,23,42,.05);
-  transition: box-shadow .15s;
+  padding: 1rem;
+  transition: all .15s;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
 }
-.pending-card:hover { box-shadow: 0 4px 14px rgba(15,23,42,.10); }
 
-.pending-card__name  { font-weight: 700; color: var(--cal-text); margin-bottom: .2rem; }
-.pending-card__meta  { color: var(--cal-text-muted); margin-bottom: .15rem; }
-.pending-card__dates { font-weight: 600; color: #374151; margin-bottom: .15rem; }
-.pending-card__note  { font-style: italic; color: var(--cal-text-muted); margin-top: .25rem; margin-bottom: .15rem; }
+.pending-item:hover {
+  box-shadow: 0 4px 14px rgba(15,23,42,.10);
+  border-color: var(--pending-color);
+}
 
-.pending-card__actions {
+.pending-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.pending-item__header-left {
+  flex: 1;
+  min-width: 150px;
+}
+
+.pending-item__name {
+  display: block;
+  font-weight: 700;
+  color: var(--cal-text);
+  font-size: .95rem;
+  margin-bottom: .25rem;
+}
+
+.pending-item__badge-group {
   display: flex;
   gap: .4rem;
-  margin-top: .55rem;
+  flex-wrap: wrap;
+}
+
+.pending-badge {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.badge-vacation { background: #dcfce7; color: #166534; }
+.badge-absence { background: #fed7aa; color: #9a3412; }
+
+.pending-item__dates {
+  font-size: 0.85rem;
+  color: var(--cal-text-muted);
+  white-space: nowrap;
+}
+
+.pending-item__reason {
+  font-size: 0.82rem;
+  color: var(--cal-text-muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.pending-item__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 .pcard-btn {
-  flex: 1;
-  padding: .32rem .5rem;
-  font-size: .75rem;
-  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   border: none;
-  border-radius: .4rem;
+  border-radius: 0.4rem;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: all 0.15s;
 }
+
 .pcard-btn:hover { opacity: .85; }
 .pcard-btn--approve { background: #dcfce7; color: #166534; }
 .pcard-btn--reject  { background: #fee2e2; color: #991b1b; }
+
+/* ── Indicador de conflicto ────────────────────────────────────────────── */
+.conflict-warning {
+  background: #fee2e2;
+  border-left: 4px solid #dc2626;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #991b1b;
+  line-height: 1.4;
+}
+
+.conflict-warning strong { display: block; margin-bottom: 0.25rem; }
+
+/* ── Antiguo pending-grid (mantener compatibilidad) ───────────────────── */
 
 /* ══════════════════════════════════════════════════════════════════════════
    FullCalendar overrides
@@ -423,8 +523,19 @@
   background: linear-gradient(135deg, var(--other-from) 0%, var(--other-to) 100%);
 }
 
+/* ── Evento con conflicto ────────────────────────────────────────────────── */
+.fc-event-custom.has-conflict {
+  border: 2.5px solid #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2), 0 4px 12px rgba(15,23,42,.12) !important;
+  animation: conflictPulse 2s infinite;
+}
+
+@keyframes conflictPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2), 0 4px 12px rgba(15,23,42,.12); }
+  50% { box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.3), 0 4px 12px rgba(15,23,42,.12); }
+}
+
 /* ── Badges de estado ── */
 .badge-pending  { background: var(--pending-color); }
 .badge-approved { background: var(--approved-color); }
 .badge-rejected { background: var(--rejected-color); }
-.badge-canceled { background: var(--canceled-color); }

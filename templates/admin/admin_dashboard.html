@@ -492,7 +492,7 @@ empresaNombreInput?.addEventListener('input', () => {
                 `;
                 li.addEventListener('click', () => {
                     displayCompanyResults([company]);
-                    empresaNombreInput.value = company.name.title;
+                    empresaNombreInput.value = company.name;
                     empresaNombreSuggestions.classList.add('d-none');
                     document.getElementById('empresa-feedback').textContent = 'Empresa seleccionada.';
                     document.getElementById('empresa-feedback').className = 'form-text text-success';
@@ -663,7 +663,7 @@ function displayCompanyResults(companies) {
                     </a>
                     <button type="button" class="btn btn-sm btn-outline-danger"
                             data-company-id="${company.id}"
-                            data-company-name="${company.name.title}"
+                            data-company-name="${company.name}"
                             data-company-legal-name="${company.legal_name}"
                             data-bs-toggle="modal"
                             data-bs-target="#modalEliminarEmpresa">
@@ -817,7 +817,7 @@ if (eliminarModal) {
                 checkboxDiv.innerHTML = `
                     <input class="form-check-input company-checkbox" type="checkbox"
                            id="company_${company.id}" value="${company.id}"
-                           data-company-name="${company.name.title}">
+                           data-company-name="${company.name}">
                     <label class="form-check-label" for="company_${company.id}">
                         ${company.name.title}
                     </label>

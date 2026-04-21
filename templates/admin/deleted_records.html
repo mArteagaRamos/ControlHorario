@@ -115,12 +115,12 @@
                                         {% for item in deleted_users %}
                                             <tr>
                                                 <td data-label="Email">{{ item.user.email|lower }}</td>
-                                                <td data-label="Nombre de Usuario">{{ item.user.username.title }}</td>
+                                                <td data-label="Nombre de Usuario">{{ item.user.username|title }}</td>
                                                 <td data-label="Empresas">
                                                     {% if item.companies %}
                                                         <div class="d-flex flex-wrap gap-1">
                                                             {% for company in item.companies %}
-                                                                <span class="badge" style="background-color: #6c757d; color: #fff;">{{ company.name.title }}</span>
+                                                                <span class="badge" style="background-color: #6c757d; color: #fff;">{{ company.name|title }}</span>
                                                             {% endfor %}
                                                         </div>
                                                     {% else %}
@@ -197,7 +197,7 @@
                                     <tbody>
                                         {% for company in deleted_companies %}
                                             <tr>
-                                                <td data-label="Nombre">{{ company.name.title }}</td>
+                                                <td data-label="Nombre">{{ company.name|title }}</td>
                                                 <td data-label="Razón Social">{{ company.legal_name }}</td>
                                                 <td data-label="CIF/NIF">{{ company.tax_id|default:"--" }}</td>
                                                 <td data-label="Eliminado">
@@ -260,7 +260,7 @@
                                         {% for membership in deleted_user_companies %}
                                             <tr>
                                                 <td data-label="Usuario">{{ membership.user.email|lower }}</td>
-                                                <td data-label="Empresa">{{ membership.company.name.title }}</td>
+                                                <td data-label="Empresa">{{ membership.company.name|title }}</td>
                                                 <td data-label="Rol">
                                                     {% if membership.role == 'manager' %}
                                                         <span class="badge" style="background-color: #1a1f2e; color: #fff;">Manager</span>
@@ -405,7 +405,7 @@
                                             <tr>
                                                 <td data-label="Usuario">{{ entry.user.email|lower }}</td>
                                                 <td data-label="Empresa">
-                                                    <span class="badge bg-secondary">{{ entry.company.name.title }}</span>
+                                                    <span class="badge bg-secondary">{{ entry.company.name|title }}</span>
                                                 </td>
                                                 <td data-label="Fecha">{{ entry.date|date:"j F Y" }}</td>
                                                 <td data-label="Entrada">

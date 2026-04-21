@@ -33,7 +33,7 @@ def time_entries(request):
             return redirect('home_timetracking')
     else:
         django_user = request.user
-        user = Users.objects.filter(email=django_user.email|lower).first()
+        user = Users.objects.filter(email=django_user.email).first()
 
         if not user:
             messages.error(request, 'Usuario no encontrado en el sistema.')

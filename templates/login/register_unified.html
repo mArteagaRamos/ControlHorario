@@ -532,7 +532,7 @@ companyNameInput?.addEventListener('input', () => {
         `;
         li.addEventListener('click', () => {
           fillCompanyForm(company);
-          companyNameInput.value = company.name.title;
+          companyNameInput.value = company.name;
           hideCompanySuggestions();
           setCompanyFeedback('Empresa seleccionada. Puedes editar sus datos.', 'success');
         });
@@ -707,7 +707,7 @@ nameInput?.addEventListener('input', () => {
         ;
         li.addEventListener('click', () => {
           fillWorkerForm(user);
-          nameInput.value = `${user.username.title} ${user.surname.title}`;
+          nameInput.value = `${user.username} ${user.surname}`;
           hideSuggestions();
           setFeedback('Trabajador seleccionado.', 'success');
         });
