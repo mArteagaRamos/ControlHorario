@@ -80,8 +80,9 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Fecha y Hora</th>
-                        <th>Actor</th>
+                        <th>Usuario</th>
                         <th>Estado / Acción</th>
+                        <th>Hash</th>
                         <th>Categoría</th>
                         <th>Motivo</th>
                         <th class="text-center">Detalles</th>
@@ -107,6 +108,11 @@
                             {% endif %}
                         </td>
                         <td>
+                            <span class="badge bg-light text-dark font-monospace border" title="{{ log.event_hash|default:'Sin firma' }}">
+                                {{ log.event_hash|slice:":12"|default:"-" }}...
+                            </span>
+                        </td>
+                        <td>
                             <span class="badge badge-category px-2 py-1 rounded-pill">
                                 {{ log.categoria|upper }}
                             </span>
@@ -120,7 +126,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">No hay registros de empresa con estos filtros.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">No hay registros de empresa con estos filtros.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -157,6 +163,20 @@
       </div>
       <div class="modal-body p-4">
         
+        <div class="alert alert-secondary font-monospace mb-4" style="word-break: break-all; border-left: 4px solid #1a1f2e;">
+            <div class="mb-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-lock me-1"></i> Firma del Evento (Hash)</span>
+                <span class="text-success fw-bold">{{ log.event_hash|default:"-" }}</span>
+            </div>
+            <div class="border-top border-secondary pt-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-link me-1"></i> Firma Anterior (Hash)</span>
+                {% if log.previous_hash %}
+                    <span class="text-muted">{{ log.previous_hash }}</span>
+                {% else %}
+                    <span class="text-muted fst-italic">Registro génesis (sin firma anterior)</span>
+                {% endif %}
+            </div>
+        </div>
         <div class="card bg-light border-0 mb-4">
             <div class="card-body">
                 <div class="row text-center">
