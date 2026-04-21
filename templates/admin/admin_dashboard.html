@@ -487,311 +487,25 @@
     </div>
 </div>
 
+<!-- FASE 1: Configuración global para módulos JavaScript -->
 <script>
-const LOOKUP_COMPANY_URL = "{% url 'lookup_company' %}";
-const LOOKUP_USER_URL    = "{% url 'lookup_user' %}";
-const CSRF_TOKEN         = "{{ csrf_token }}";
-
-let currentTipo = 'empresa';  // Current mode: 'empresa' or 'trabajador'
-
-// ── DOM References ────────────────────────────────────────────────────────────
-const btnTipoEmpresa = document.getElementById('btn-tipo-empresa');
-const btnTipoTrabajador = document.getElementById('btn-tipo-trabajador');
-const sectionEmpresa = document.getElementById('section-empresa');
-const sectionTrabajador = document.getElementById('section-trabajador');
-const sectionResultados = document.getElementById('section-resultados');
-
-// Empresa search
-const empresaCifInput = document.getElementById('empresa-cif-input');
-const empresaNombreInput = document.getElementById('empresa-nombre-input');
-const empresaNombreSuggestions = document.getElementById('empresa-nombre-suggestions');
-let empresaNombreDebounceTimer = null;
-
-// Trabajador search
-const trabajadorEmailInput = document.getElementById('trabajador-email-input');
-const trabajadorDniInput = document.getElementById('trabajador-dni-input');
-const trabajadorNombreInput = document.getElementById('trabajador-nombre-input');
-const trabajadorNombreSuggestions = document.getElementById('trabajador-nombre-suggestions');
-let trabajadorNombreDebounceTimer = null;
-
-// ── Toggle Tipo (Empresa/Trabajador) ───────────────────────────────────────
-btnTipoEmpresa.addEventListener('click', () => {
-    currentTipo = 'empresa';
-    btnTipoEmpresa.classList.add('btn-primary');
-    btnTipoEmpresa.classList.remove('btn-outline-primary');
-    btnTipoTrabajador.classList.add('btn-outline-primary');
-    btnTipoTrabajador.classList.remove('btn-primary');
-
-    sectionEmpresa.classList.remove('d-none');
-    sectionTrabajador.classList.add('d-none');
-    clearResults();
-});
-
-btnTipoTrabajador.addEventListener('click', () => {
-    currentTipo = 'trabajador';
-    btnTipoTrabajador.classList.add('btn-primary');
-    btnTipoTrabajador.classList.remove('btn-outline-primary');
-    btnTipoEmpresa.classList.add('btn-outline-primary');
-    btnTipoEmpresa.classList.remove('btn-primary');
-
-    sectionEmpresa.classList.add('d-none');
-    sectionTrabajador.classList.remove('d-none');
-    clearResults();
-});
-
-// ── Initialize on page load ───────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
-    btnTipoEmpresa.classList.add('btn-primary');
-    btnTipoEmpresa.classList.remove('btn-outline-primary');
-    btnTipoTrabajador.classList.add('btn-outline-primary');
-    btnTipoTrabajador.classList.remove('btn-primary');
-});
-
-// ── Empresa Search Mode Tabs ───────────────────────────────────────────────
-document.getElementById('empresa-search-mode-group')?.querySelectorAll('[data-cmode]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('#empresa-search-mode-group [data-cmode]').forEach(b => {
-            b.classList.toggle('active', b === btn);
-            b.classList.toggle('btn-secondary', b === btn);
-            b.classList.toggle('btn-outline-secondary', b !== btn);
-        });
-        document.querySelectorAll('.empresa-search-block').forEach(b => b.classList.add('d-none'));
-        document.getElementById(`empresa-search-block-${btn.dataset.cmode}`)?.classList.remove('d-none');
-        document.getElementById('empresa-feedback').textContent = '';
-        clearResults();
-    });
-});
-
-// ── Trabajador Search Mode Tabs ────────────────────────────────────────────
-document.getElementById('trabajador-search-mode-group')?.querySelectorAll('[data-tmode]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('#trabajador-search-mode-group [data-tmode]').forEach(b => {
-            b.classList.toggle('active', b === btn);
-            b.classList.toggle('btn-secondary', b === btn);
-            b.classList.toggle('btn-outline-secondary', b !== btn);
-        });
-        document.querySelectorAll('.trabajador-search-block').forEach(b => b.classList.add('d-none'));
-        document.getElementById(`trabajador-search-block-${btn.dataset.tmode}`)?.classList.remove('d-none');
-        document.getElementById('trabajador-feedback').textContent = '';
-        clearResults();
-    });
-});
-
-// ── Empresa CIF Search ─────────────────────────────────────────────────────
-document.getElementById('btn-buscar-empresa-cif')?.addEventListener('click', async () => {
-    const taxId = empresaCifInput.value.trim();
-    const feedback = document.getElementById('empresa-feedback');
-
-    if (!taxId) {
-        feedback.textContent = 'Introduce un CIF / NIF.';
-        feedback.className = 'form-text text-danger';
-        return;
-    }
-
-    try {
-        const res = await fetch(`${LOOKUP_COMPANY_URL}?tax_id=${encodeURIComponent(taxId)}&include_created=true`);
-        const data = await res.json();
-
-        if (data.found) {
-            displayCompanyResults([data]);
-            feedback.textContent = 'Empresa encontrada.';
-            feedback.className = 'form-text text-success';
-        } else {
-            clearResults();
-            feedback.textContent = 'No existe ninguna empresa con ese CIF.';
-            feedback.className = 'form-text text-danger';
-        }
-    } catch {
-        feedback.textContent = 'Error al buscar la empresa.';
-        feedback.className = 'form-text text-danger';
-    }
-});
-
-// ── Empresa Name Autocomplete ──────────────────────────────────────────────
-empresaNombreInput?.addEventListener('input', () => {
-    clearTimeout(empresaNombreDebounceTimer);
-    const query = empresaNombreInput.value.trim();
-
-    if (query.length < 2) {
-        empresaNombreSuggestions.classList.add('d-none');
-        document.getElementById('empresa-feedback').textContent = '';
-        return;
-    }
-
-    empresaNombreDebounceTimer = setTimeout(async () => {
-        try {
-            const res = await fetch(`${LOOKUP_COMPANY_URL}?name=${encodeURIComponent(query)}&include_created=true`);
-            const data = await res.json();
-            const results = data.results || [];
-
-            empresaNombreSuggestions.innerHTML = '';
-
-            if (results.length === 0) {
-                empresaNombreSuggestions.classList.add('d-none');
-                document.getElementById('empresa-feedback').textContent = 'Sin resultados para esa búsqueda.';
-                document.getElementById('empresa-feedback').className = 'form-text text-warning';
-                return;
-            }
-
-            document.getElementById('empresa-feedback').textContent = '';
-            results.forEach(company => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                li.style.cursor = 'pointer';
-                li.innerHTML = `
-                    <span>
-                        <strong>${company.name}</strong>
-                        <small class="text-muted ms-2">${company.legal_name}</small>
-                    </span>
-                `;
-                li.addEventListener('click', () => {
-                    displayCompanyResults([company]);
-                    empresaNombreInput.value = company.name;
-                    empresaNombreSuggestions.classList.add('d-none');
-                    document.getElementById('empresa-feedback').textContent = 'Empresa seleccionada.';
-                    document.getElementById('empresa-feedback').className = 'form-text text-success';
-                });
-                empresaNombreSuggestions.appendChild(li);
-            });
-
-            empresaNombreSuggestions.classList.remove('d-none');
-        } catch {
-            empresaNombreSuggestions.classList.add('d-none');
-            document.getElementById('empresa-feedback').textContent = 'Error al buscar empresas.';
-            document.getElementById('empresa-feedback').className = 'form-text text-danger';
-        }
-    }, 300);
-});
-
-document.addEventListener('click', (e) => {
-    if (!empresaNombreInput?.contains(e.target) && !empresaNombreSuggestions?.contains(e.target)) {
-        empresaNombreSuggestions?.classList.add('d-none');
-    }
-});
-
-// ── Trabajador Email Search ────────────────────────────────────────────────
-document.getElementById('btn-buscar-trabajador-email')?.addEventListener('click', async () => {
-    const email = trabajadorEmailInput.value.trim();
-    const feedback = document.getElementById('trabajador-feedback');
-
-    if (!email) {
-        feedback.textContent = 'Introduce un email.';
-        feedback.className = 'form-text text-danger';
-        return;
-    }
-
-    try {
-        const res = await fetch(`${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&include_companies=true`);
-        const data = await res.json();
-
-        if (data.found) {
-            displayWorkerResults([data]);
-            feedback.textContent = 'Trabajador encontrado.';
-            feedback.className = 'form-text text-success';
-        } else {
-            clearResults();
-            feedback.textContent = 'No existe ningún trabajador con ese email.';
-            feedback.className = 'form-text text-danger';
-        }
-    } catch {
-        feedback.textContent = 'Error al buscar el trabajador.';
-        feedback.className = 'form-text text-danger';
-    }
-});
-
-// ── Trabajador DNI Search ──────────────────────────────────────────────────
-document.getElementById('btn-buscar-trabajador-dni')?.addEventListener('click', async () => {
-    const dni = trabajadorDniInput.value.trim();
-    const feedback = document.getElementById('trabajador-feedback');
-
-    if (!dni) {
-        feedback.textContent = 'Introduce un DNI.';
-        feedback.className = 'form-text text-danger';
-        return;
-    }
-
-    try {
-        const res = await fetch(`${LOOKUP_USER_URL}?dni=${encodeURIComponent(dni)}&include_companies=true`);
-        const data = await res.json();
-
-        if (data.found) {
-            displayWorkerResults([data]);
-            feedback.textContent = 'Trabajador encontrado.';
-            feedback.className = 'form-text text-success';
-        } else {
-            clearResults();
-            feedback.textContent = 'No existe ningún trabajador con ese DNI.';
-            feedback.className = 'form-text text-danger';
-        }
-    } catch {
-        feedback.textContent = 'Error al buscar el trabajador.';
-        feedback.className = 'form-text text-danger';
-    }
-});
-
-// ── Trabajador Name Autocomplete ───────────────────────────────────────────
-trabajadorNombreInput?.addEventListener('input', () => {
-    clearTimeout(trabajadorNombreDebounceTimer);
-    const query = trabajadorNombreInput.value.trim();
-
-    if (query.length < 2) {
-        trabajadorNombreSuggestions.classList.add('d-none');
-        document.getElementById('trabajador-feedback').textContent = '';
-        return;
-    }
-
-    trabajadorNombreDebounceTimer = setTimeout(async () => {
-        try {
-            const res = await fetch(`${LOOKUP_USER_URL}?name=${encodeURIComponent(query)}&include_companies=true`);
-            const data = await res.json();
-            const results = data.results || [];
-
-            trabajadorNombreSuggestions.innerHTML = '';
-
-            if (results.length === 0) {
-                trabajadorNombreSuggestions.classList.add('d-none');
-                document.getElementById('trabajador-feedback').textContent = 'Sin resultados para esa búsqueda.';
-                document.getElementById('trabajador-feedback').className = 'form-text text-warning';
-                return;
-            }
-
-            document.getElementById('trabajador-feedback').textContent = '';
-            results.forEach(user => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-                li.style.cursor = 'pointer';
-                li.innerHTML = `<strong>${user.username} ${user.surname}</strong>`;
-                li.addEventListener('click', () => {
-                    displayWorkerResults([user]);
-                    trabajadorNombreInput.value = `${user.username} ${user.surname}`;
-                    trabajadorNombreSuggestions.classList.add('d-none');
-                    document.getElementById('trabajador-feedback').textContent = 'Trabajador seleccionado.';
-                    document.getElementById('trabajador-feedback').className = 'form-text text-success';
-                });
-                trabajadorNombreSuggestions.appendChild(li);
-            });
-
-            trabajadorNombreSuggestions.classList.remove('d-none');
-        } catch {
-            trabajadorNombreSuggestions.classList.add('d-none');
-            document.getElementById('trabajador-feedback').textContent = 'Error al buscar trabajadores.';
-            document.getElementById('trabajador-feedback').className = 'form-text text-danger';
-        }
-    }, 300);
-});
-
-document.addEventListener('click', (e) => {
-    if (!trabajadorNombreInput?.contains(e.target) && !trabajadorNombreSuggestions?.contains(e.target)) {
-        trabajadorNombreSuggestions?.classList.add('d-none');
-    }
-});
+// Configuración central - accesible por todos los módulos
+window.AEPTIC_ADMIN = {
+    LOOKUP_COMPANY_URL: "{% url 'lookup_company' %}",
+    LOOKUP_USER_URL: "{% url 'lookup_user' %}",
+    CSRF_TOKEN: "{{ csrf_token }}",
+    SELECT_WORKER_URL: "{% url 'select_delegated_worker' %}"
+};
 
 // ── Display Results ────────────────────────────────────────────────────────
+// NOTA: El código de búsqueda ha sido movido a módulos en static/js/modules/admin/
+// Las siguientes funciones se mantienen aquí porque son usadas por los módulos
 function displayCompanyResults(companies) {
     const tabla = document.getElementById('resultadoTabla');
     const tbody = document.getElementById('tabla-cuerpo');
     const encabezadoEmpresa = document.getElementById('tabla-encabezado-empresa');
     const encabezadoTrabajador = document.getElementById('tabla-encabezado-trabajador');
+    const sectionResultados = document.getElementById('section-resultados');
 
     // Show empresa header, hide trabajador header
     encabezadoEmpresa.classList.remove('d-none');
@@ -838,6 +552,7 @@ function displayWorkerResults(workers) {
     const tbody = document.getElementById('tabla-cuerpo');
     const encabezadoEmpresa = document.getElementById('tabla-encabezado-empresa');
     const encabezadoTrabajador = document.getElementById('tabla-encabezado-trabajador');
+    const sectionResultados = document.getElementById('section-resultados');
 
     // Show trabajador header, hide empresa header
     encabezadoEmpresa.classList.add('d-none');
@@ -911,119 +626,11 @@ function displayWorkerResults(workers) {
 }
 
 function clearResults() {
-    sectionResultados.classList.add('d-none');
-    document.getElementById('tabla-cuerpo').innerHTML = '';
-}
-
-// ── Modal Handling ─────────────────────────────────────────────────────────
-const editarModal = document.getElementById('modalEditarTrabajador');
-if (editarModal) {
-    editarModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        document.getElementById('editUserId').value = button.getAttribute('data-id');
-        document.getElementById('editNombre').value = button.getAttribute('data-nombre');
-        document.getElementById('editApellidos').value = button.getAttribute('data-apellidos');
-        document.getElementById('editEmail').value = button.getAttribute('data-email');
-        document.getElementById('editDni').value = button.getAttribute('data-dni');
-        document.getElementById('editEstado').value = button.getAttribute('data-estado');
-    });
-}
-
-const eliminarModal = document.getElementById('modalEliminarTrabajador');
-if (eliminarModal) {
-    eliminarModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        const userId = button.getAttribute('data-id');
-        const nombre = button.getAttribute('data-nombrecompleto');
-        const companiesJson = button.getAttribute('data-companies');
-        let companies = [];
-
-        try {
-            companies = companiesJson ? JSON.parse(companiesJson) : [];
-        } catch (e) {
-            console.error('Error parsing companies:', e);
-        }
-
-        document.getElementById('deleteUserId').value = userId;
-        document.getElementById('deleteNombre').textContent = nombre;
-
-        // Handle companies display
-        const singleCompanySection = document.getElementById('singleCompanySection');
-        const multipleCompaniesSection = document.getElementById('multipleCompaniesSection');
-        const companiesCheckboxes = document.getElementById('companiesCheckboxes');
-
-        if (companies.length === 1) {
-            // Single company - show it directly
-            singleCompanySection.classList.remove('d-none');
-            multipleCompaniesSection.classList.add('d-none');
-            document.getElementById('singleCompanyName').textContent = companies[0].name;
-            document.getElementById('singleCompanyId').name = 'company_ids';
-            document.getElementById('singleCompanyId').value = companies[0].id;
-        } else if (companies.length > 1) {
-            // Multiple companies - show checkboxes
-            singleCompanySection.classList.add('d-none');
-            multipleCompaniesSection.classList.remove('d-none');
-            companiesCheckboxes.innerHTML = '';
-
-            companies.forEach((company, index) => {
-                const checkboxDiv = document.createElement('div');
-                checkboxDiv.className = 'form-check';
-                checkboxDiv.innerHTML = `
-                    <input class="form-check-input company-checkbox" type="checkbox"
-                           id="company_${company.id}" value="${company.id}"
-                           data-company-name="${company.name}">
-                    <label class="form-check-label" for="company_${company.id}">
-                        ${company.name}
-                    </label>
-                `;
-                companiesCheckboxes.appendChild(checkboxDiv);
-
-                // Auto-check first one for convenience
-                if (index === 0) {
-                    checkboxDiv.querySelector('.form-check-input').checked = true;
-                }
-            });
-
-            // Create hidden input that will be updated when form submits
-            updateCompanyIdsInput();
-        }
-    });
-
-    // Update the company_ids hidden input when checkboxes change
-    function updateCompanyIdsInput() {
-        const checkboxes = document.querySelectorAll('.company-checkbox:checked');
-        const form = eliminarModal.querySelector('form');
-        let companyIdsInput = form.querySelector('input[name="company_ids"]');
-
-        if (!companyIdsInput) {
-            companyIdsInput = document.createElement('input');
-            companyIdsInput.type = 'hidden';
-            companyIdsInput.name = 'company_ids';
-            form.insertBefore(companyIdsInput, form.querySelector('.modal-body').nextSibling);
-        }
-
-        const selectedIds = Array.from(checkboxes).map(cb => cb.value).join(',');
-        companyIdsInput.value = selectedIds;
+    const sectionResultados = document.getElementById('section-resultados');
+    if (sectionResultados) {
+        sectionResultados.classList.add('d-none');
     }
-
-    // Listen for checkbox changes
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('company-checkbox')) {
-            updateCompanyIdsInput();
-        }
-    });
-
-    // Validate at least one company is selected before submitting
-    eliminarModal.querySelector('form').addEventListener('submit', function(e) {
-        const checkboxes = document.querySelectorAll('.company-checkbox');
-        if (checkboxes.length > 0) {
-            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
-            if (!anyChecked) {
-                e.preventDefault();
-                alert('Por favor selecciona al menos una empresa');
-            }
-        }
-    });
+    document.getElementById('tabla-cuerpo').innerHTML = '';
 }
 
 // ── Enter key handling for search inputs ────────────────────────────────────
@@ -1039,7 +646,8 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ── Delegated Worker Selection ─────────────────────────────────────────
+// ── FASE 7: Delegated Worker Selection ──
+
 async function handleSelectWorker(workerId, companies) {
     /**
      * Maneja la selección inteligente de empresa:
@@ -1098,7 +706,7 @@ async function selectWorker(workerId, companyId) {
     try {
         const response = await fetch("{% url 'select_delegated_worker' %}", {
             method: 'POST',
-            headers: {'X-CSRFToken': CSRF_TOKEN},
+            headers: {'X-CSRFToken': window.AEPTIC_ADMIN.CSRF_TOKEN},
             body: formData
         });
 
@@ -1123,82 +731,9 @@ document.addEventListener('click', function(e) {
 
     handleSelectWorker(workerId, companies);
 });
-
-// ── Modal Handling for Delete Company ───────────────────────────────────────
-const deleteCompanyModal = document.getElementById('modalEliminarEmpresa');
-if (deleteCompanyModal) {
-    deleteCompanyModal.addEventListener('show.bs.modal', async function(event) {
-        const button = event.relatedTarget;
-        const companyId = button.getAttribute('data-company-id');
-        const companyName = button.getAttribute('data-company-name');
-        const companyLegalName = button.getAttribute('data-company-legal-name');
-
-        document.getElementById('deleteCompanyId').value = companyId;
-        document.getElementById('deleteCompanyName').textContent = companyName;
-
-        // Fetch member count for this company
-        try {
-            const response = await fetch(`${LOOKUP_COMPANY_URL}?company_id=${companyId}`);
-            const data = await response.json();
-            const memberCount = data.member_count || 0;
-            document.getElementById('memberCountWarning').textContent = memberCount;
-        } catch (e) {
-            console.error('Error fetching member count:', e);
-            document.getElementById('memberCountWarning').textContent = '?';
-        }
-    });
-}
-
-// ── PAGINATION FOR ALL COMPANIES TABLE ──────────────────────────────────
-document.addEventListener('DOMContentLoaded', function() {
-    const empresasRows = Array.from(document.querySelectorAll('.empresa-row'));
-    const empresasShowMoreBtn = document.getElementById('empresasShowMore');
-
-    if (empresasShowMoreBtn && empresasRows.length > 0) {
-        let empresasPage = 1;
-        const ROWS_PER_PAGE = 5;
-
-        empresasShowMoreBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            empresasPage++;
-            const maxRows = ROWS_PER_PAGE * empresasPage;
-
-            let visibleCount = 0;
-            empresasRows.forEach((row) => {
-                visibleCount++;
-                row.style.display = (visibleCount <= maxRows) ? '' : 'none';
-            });
-
-            if (maxRows >= empresasRows.length) {
-                empresasShowMoreBtn.style.display = 'none';
-            }
-        });
-    }
-
-    // ── PAGINATION FOR ALL WORKERS TABLE ────────────────────────────────
-    const trabajadoresRows = Array.from(document.querySelectorAll('.worker-row'));
-    const trabajadoresShowMoreBtn = document.getElementById('trabajadoresShowMore');
-
-    if (trabajadoresShowMoreBtn && trabajadoresRows.length > 0) {
-        let trabajadoresPage = 1;
-        const ROWS_PER_PAGE = 5;
-
-        trabajadoresShowMoreBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            trabajadoresPage++;
-            const maxRows = ROWS_PER_PAGE * trabajadoresPage;
-
-            let visibleCount = 0;
-            trabajadoresRows.forEach((row) => {
-                visibleCount++;
-                row.style.display = (visibleCount <= maxRows) ? '' : 'none';
-            });
-
-            if (maxRows >= trabajadoresRows.length) {
-                trabajadoresShowMoreBtn.style.display = 'none';
-            }
-        });
-    }
-});
 </script>
+
+<!-- FASE 8: Main entry point (carga todos los módulos automáticamente) -->
+<script type="module" src="{% static 'js/main.js' %}"></script>
+
 {% endblock %}
