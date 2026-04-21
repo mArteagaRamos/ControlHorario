@@ -243,6 +243,7 @@
   const LEAVE_RESOLVED_URL = '{% url "api_leave_resolved" %}';
   const LEAVE_BASE_URL    = '/leave/';  // Para construir leave_id/review/
   const CSRF_TOKEN        = '{{ csrf_token }}';
+  const today = new Date().toISOString().split('T')[0];
 
   let currentUserId    = null;
   let calendarObj      = null;
@@ -251,8 +252,12 @@
   window._leaveDataMap = {};
 
   document.addEventListener('DOMContentLoaded', function () {
-
-    // ── FullCalendar ──────────────────────────────────────────────────────
+  document.getElementById('vacationStart').min = today;
+  document.getElementById('vacationEnd').min   = today;
+  document.getElementById('absenceStart').min  = today;
+  document.getElementById('absenceEnd').min    = today;
+   
+  // ── FullCalendar ──────────────────────────────────────────────────────
     const calEl = document.getElementById('calendar');
     calendarObj = new FullCalendar.Calendar(calEl, {
       locale: 'es',
