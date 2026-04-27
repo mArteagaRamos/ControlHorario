@@ -12,6 +12,14 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}"> 
 <link rel="stylesheet" href="{% static 'css/admin/admin_dashboard.css' %}">
+<style>
+    thead.table-dark,
+    thead.table-dark th {
+        background-color: #1a1f2e !important;
+        color: white !important;
+        border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+    }
+</style>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -344,7 +352,7 @@
         <div class="modal-content">
             <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">Editar Trabajador</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'edit_employee' %}" method="POST">
                 {% csrf_token %}
@@ -393,7 +401,7 @@
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold">Eliminar Trabajador</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}
@@ -439,7 +447,7 @@
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold">Eliminar Empresa</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'delete_company' %}" method="POST">
                 {% csrf_token %}
@@ -472,7 +480,7 @@
         <div class="modal-content">
             <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">Seleccionar Empresa</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <p class="text-muted mb-3">Elige la empresa para la cual trabajar:</p>

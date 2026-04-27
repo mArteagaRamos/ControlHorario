@@ -6,11 +6,11 @@
 {% block content %}
 
 {% if is_delegating %}
-<div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative;">
-    <small>
-        <i class="bi bi-exclamation-circle"></i>
+<div class="alert alert-warning alert-dismissible fade show mb-4 shadow-sm alert-delegation" role="alert">
+    <small class="d-flex align-items-center">
+        <i class="bi bi-exclamation-circle me-2"></i>
         <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="clearDelegation()" style="opacity: 0.5; filter: invert(0.3);"></button>
+        <button type="button" class="btn-close ms-auto" onclick="clearDelegation()" aria-label="Limpiar delegación">×</button>
     </small>
 </div>
 {% endif %}
@@ -267,7 +267,7 @@
 
                 <div class="modal-header">
                     <h5 class="modal-title">Solicitud de Corrección</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
                 </div>
 
                 <div class="modal-body">

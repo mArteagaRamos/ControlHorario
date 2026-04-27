@@ -29,6 +29,30 @@
 
         /* Ajuste para el badge de modificación */
         .badge.bg-warning { color: #212529 !important; font-weight: 600; }
+
+        thead.table-dark,
+        thead.table-dark th {
+            background-color: #1a1f2e !important;
+            color: white !important;
+            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+        }
+
+        /* Estilos para el paginador (cambiador de páginas) */
+        .pagination .page-link {
+            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
+        }
+        
+        .pagination .page-link:hover {
+            color: #1a1f2e;
+            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
+        }
+        
+        .pagination .page-item.active .page-link,
+        .pagination .page-link.bg-corporate {
+            background-color: #1a1f2e !important;
+            border-color: #1a1f2e !important;
+            color: white !important;
+        }
     </style>
 {% endblock %}
 
@@ -159,7 +183,7 @@
     <div class="modal-content border-0 shadow">
       <div class="modal-header text-white bg-corporate">
         <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles del Cambio</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
       </div>
       <div class="modal-body p-4">
         

@@ -419,7 +419,7 @@ def staff(request):
     is_manager = (user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
 
     # 3. Get ALL memberships (employees) for that company (non-deleted only)
-    memberships = UserCompany.objects.filter(
+    memberships_list = UserCompany.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
 
@@ -428,7 +428,7 @@ def staff(request):
 
     # Crear diccionario de leaves activas por user_id
     active_leaves_map = {}
-    for membership in memberships:
+    for membership in memberships_list:
         # Asegúrate de tener LeaveRequest importado si es necesario
         active_leave = LeaveRequest.objects.filter(
             user=membership.user,
@@ -440,8 +440,13 @@ def staff(request):
             active_leaves_map[membership.user.id] = active_leave
 
     # Agregar la information de leaves al contexto de cada membership
-    for membership in memberships:
+    for membership in memberships_list:
         membership.active_leave = active_leaves_map.get(membership.user.id)
+
+    # 5. Paginación
+    paginator = Paginator(memberships_list, 20)
+    page_number = request.GET.get('page')
+    memberships = paginator.get_page(page_number)
 
     context = {
         'memberships': memberships,
