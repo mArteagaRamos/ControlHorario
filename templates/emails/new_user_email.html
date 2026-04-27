@@ -15,9 +15,9 @@
         </div>
 
         <div class="content">
-            <p>Hola <strong>{{ username }}</strong>,</p>
+            <p>Hola <strong>{{ username|title }}</strong>,</p>
 
-            <p>Tu cuenta de usuario ha sido registrada en <strong>{{ company_name }}</strong>.</p>
+            <p>Tu cuenta de usuario ha sido registrada en <strong>{{ company_name|title }}</strong>.</p>
 
             <p>A continuación encontrarás tu contraseña temporal para acceder al sistema. Deberás cambiarla en tu primer inicio de sesión.</p>
 
@@ -45,7 +45,7 @@
 
         <div class="footer">
             <p>Este correo fue generado automáticamente. Por favor, no responda a este mensaje.</p>
-            <p>&copy; {{ current_year }} {{ company_name }}. Todos los derechos reservados.</p>
+            <p>&copy; {{ current_year }} {{ company_name|title }}. Todos los derechos reservados.</p>
         </div>
     </div>
 </body>

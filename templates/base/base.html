@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/messages.css' %}">
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -43,7 +44,7 @@
         <div class="dropdown me-2">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
-                    <span class="d-none d-sm-inline">{{ current_company.name }}</span>
+                    <span class="d-none d-sm-inline">{{ current_company.name|title }}</span>
                     <i class="bi bi-building d-sm-none"></i>
                 {% endif %}
             </a>
@@ -51,7 +52,7 @@
                 {% for membership in memberships %}
                     <li>
                         <a class="dropdown-item" href="{% url 'switch_company' membership.company.id %}">
-                            {{ membership.company.name }}
+                            {{ membership.company.name|title }}
                         </a>
                     </li>
                 {% endfor %}
@@ -62,7 +63,7 @@
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
                 <span class="d-none d-md-inline-block">
-                    {{ request.user.username }} {{ request.user.surname }}
+                    {{ request.user.username|title }} {{ request.user.surname|title }}
                     {% if current_role %}
                         <small>({{ current_role }})</small>
                     {% endif %}
@@ -177,16 +178,29 @@
 
 <main class="main-content">
     {% if messages %}
-    <div class="container mt-3">
+    <div id="django-messages-container">
         {% for message in messages %}
-            {% if message.tags == "error" %}
-            <div class="alert alert-danger alert-dismissible fade show">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-            {% endif %}
+        <div class="alert-message alert-{{ message.tags }}">
+            <button class="btn-close-message" onclick="this.closest('#django-messages-container').remove();">
+                ✕
+            </button>
+            <p>{{ message }}</p>
+        </div>
         {% endfor %}
     </div>
+
+    <script>
+        // Auto-close messages after 5 seconds
+        setTimeout(function() {
+            var container = document.getElementById('django-messages-container');
+            if (container) {
+                container.classList.add('closing');
+                setTimeout(function() {
+                    container.remove();
+                }, 300);
+            }
+        }, 5000);
+    </script>
     {% endif %}
 
     <nav aria-label="breadcrumb" class="mb-4">
@@ -262,11 +276,8 @@ collapseLinks.forEach(link => {
         chevron.classList.toggle('rotated');
     });
 });
-</script>
 
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
-
-<script>
+// Función para mostrar toast
 function showToast(message) {
     const toast = document.getElementById("toast");
     toast.innerText = message;
@@ -280,51 +291,7 @@ function showToast(message) {
 }
 </script>
 
-{% if messages %}
-    <div id="django-messages-container" style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
-        width: 90%;
-        max-width: 400px;
-    ">
-        {% for message in messages %}
-        <div class="alert shadow-lg" style="
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        ">
-            <div style="font-size: 40px; margin-bottom: 10px;">
-                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
-            </div>
-            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
-                {{ message }}
-            </p>
-            <button onclick="document.getElementById('django-messages-container').remove()" style="
-                margin-top: 20px;
-                padding: 8px 20px;
-                border: none;
-                background: #f1f1f1;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-            ">Entendido</button>
-            </div>
-        {% endfor %}
-    </div>
-
-    <script>
-        setTimeout(function() {
-            var msg = document.getElementById('django-messages-container');
-            if (msg) msg.remove();
-        }, 5000);
-    </script>
-{% endif %}
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
 
 {% block extra_scripts %}{% endblock %}
 

@@ -95,7 +95,7 @@
                             <strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> 
                             <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small>
                         </td>
-                        <td>{{ log.user.username|default:"Sistema" }}</td>
+                        <td>{{ log.user.username|title|default:"Sistema" }}</td>
                         <td>
                             {% if log.action_type == 'create' %}
                                 <span class="badge bg-success px-2 py-1 rounded-pill">CREADA</span>

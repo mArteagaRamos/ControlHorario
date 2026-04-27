@@ -282,7 +282,7 @@ def select_delegated_worker(request):
 
     # Guardar en sesión
     request.session['delegated_user_id'] = str(worker_id)
-    request.session['delegated_user_name'] = delegated_user.username
+    request.session['delegated_user_name'] = delegated_user.username.title
     request.session['delegated_company_id'] = str(company_id)
     request.session['delegated_user_role'] = membership.role
 
@@ -404,7 +404,7 @@ def restore_record(request):
             if record.company.deleted_at is not None:
                 messages.error(
                     request,
-                    f"No se puede restaurar esta membresía: la empresa '{record.company.name}' está eliminada. "
+                    f"No se puede restaurar esta membresía: la empresa '{record.company.name.title}' está eliminada. "
                     f"Restaura primero la empresa desde la lista de registros eliminados."
                 )
                 return redirect('deleted_records')
@@ -553,7 +553,7 @@ def delete_company(request):
         suspended_msg = f" {suspended_users_count} usuario(s) fue(ron) suspendido(s)." if suspended_users_count > 0 else ""
         messages.success(
             request,
-            f"Empresa '{company.name}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
+            f"Empresa '{company.name.title}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
         )
 
     except Exception as e:

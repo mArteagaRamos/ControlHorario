@@ -526,7 +526,7 @@ companyNameInput?.addEventListener('input', () => {
         li.style.cursor = 'pointer';
         li.innerHTML = `
           <span>
-            <strong>${company.name}</strong>
+            <strong>${company.name.title}</strong>
             <small class="text-muted ms-2">${company.legal_name}</small>
           </span>
         `;
@@ -696,12 +696,12 @@ nameInput?.addEventListener('input', () => {
         li.style.cursor = 'pointer';
         li.innerHTML = `
           <span>
-            <strong>${user.username} ${user.surname}</strong>
+            <strong>${user.username.title} ${user.surname.title}</strong>
           </span>
         <span>
         `;
-//            <strong>${user.username} ${user.surname}</strong>
-//            <small class="text-muted ms-2">${user.email}</small>
+//            <strong>${user.username.title} ${user.surname.title}</strong>
+//            <small class="text-muted ms-2">${user.email|lower}</small>
 //          </span>
 //          <span class="badge bg-secondary">${user.dni || ''}</span>
         ;

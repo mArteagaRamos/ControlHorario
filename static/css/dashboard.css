@@ -271,3 +271,86 @@ button.btn.std-btn-toggle.btn-outline-primary:focus {
   color: #6c757d !important;
   box-shadow: none !important;
 }
+
+/* ── Estilos unificados para alertas y mensajes ─────────────────────────── */
+.alert {
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    padding: 1rem 1.5rem !important;
+    background-color: #ffffff !important;
+    color: #333333 !important;
+    font-weight: 500 !important;
+}
+
+.alert.alert-info {
+    border-left: 4px solid #17a2b8 !important;
+}
+
+.alert.alert-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.alert.alert-danger {
+    border-left: 4px solid #dc3545 !important;
+}
+
+.alert.alert-success {
+    border-left: 4px solid #28a745 !important;
+}
+
+.alert .btn-close {
+    background: none !important;
+    border: none !important;
+    font-size: 1.2rem !important;
+    color: #6c757d !important;
+    opacity: 0.7 !important;
+}
+
+.alert .btn-close:hover {
+    opacity: 1 !important;
+}
+
+/* ── Estilos unificados para modales ────────────────────────────────────── */
+.modal-content {
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+    background-color: #ffffff !important;
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef !important;
+    background-color: #f8f9fa !important;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 1.5rem !important;
+}
+
+.modal-title {
+    color: #1a1f2e !important;
+    font-weight: 600 !important;
+}
+
+.modal-body {
+    padding: 1.5rem !important;
+    color: #333333 !important;
+}
+
+.modal-footer {
+    border-top: 1px solid #e9ecef !important;
+    background-color: #f8f9fa !important;
+    border-radius: 0 0 12px 12px !important;
+    padding: 1rem 1.5rem !important;
+}
+
+.modal .btn-close {
+    background: none !important;
+    border: none !important;
+    font-size: 1.2rem !important;
+    color: #6c757d !important;
+    opacity: 0.7 !important;
+}
+
+.modal .btn-close:hover {
+    opacity: 1 !important;
+}

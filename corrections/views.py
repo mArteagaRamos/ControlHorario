@@ -82,7 +82,7 @@ def resolver_incidencia(request):
                 clock_in=incidencia.new_clock_in,
                 clock_out=incidencia.new_clock_out,
                 status=TimeEntries.EntryStatus.CONFIRMED,
-                notes=f"Aceptado por {approver_user.username}. Motivo: {incidencia.reason}",
+                notes=f"Aceptado por {approver_user.username.title()}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
@@ -297,13 +297,13 @@ def api_leave_pending(request):
         data = []
         for l in leaves:
             # Según tu users/models.py, los campos son 'username' y 'surname'
-            full_name = f"{l.user.username} {l.user.surname}".strip()
+            full_name = f"{l.user.username.title()} {l.user.surname.title()}".strip()
             
             data.append({
                 'id':           str(l.id),
-                'user':         full_name or l.user.email,
+                'user':         full_name or l.user.email.lower(),
                 'leave_type':   l.get_leave_type_display(),
-                # USAMOS 'reason' directamente si get_reason_display falla
+                'leave_type_raw': l.leave_type,
                 'leave_reason': l.get_leave_reason_display(),
                 'start_date':   l.start_date.strftime('%d/%m/%Y'),
                 'end_date':     l.end_date.strftime('%d/%m/%Y'),
@@ -409,13 +409,13 @@ def api_leave_resolved(request):
     else:
         leaves = base_qs.filter(user=request.user)[:30]
 
-    show_user_col = user_is_manager and bool(user_id)
+    show_user_col: bool = user_is_manager and user_id == 'all'
 
     data = []
     for l in leaves:
         data.append({
             'id':               str(l.id),
-            'user_name':        f"{l.user.username} {l.user.surname}".strip(),
+            'user_name':        f"{l.user.username.title()} {l.user.surname.title()}".strip(),
             'leave_type':       l.get_leave_type_display(),
             'leave_reason':     l.get_leave_reason_display(),
             'start_date':       l.start_date.strftime('%d/%m/%Y'),
@@ -440,6 +440,8 @@ def api_calendar_events(request):
         return JsonResponse({'error': 'No company'}, status=400)
 
     user_id = request.GET.get('user_id')
+    statuses_param = request.GET.get('statuses', 'pending,approved')
+    statuses = [s.strip() for s in statuses_param.split(',') if s.strip()]
 
     start_str = request.GET.get('start', '')[:10]
     end_str   = request.GET.get('end', '')[:10]
@@ -457,25 +459,53 @@ def api_calendar_events(request):
         'rejected': '#b94040',
     }
 
+    # Mapeo de status para filtrar
+    status_mapping = {
+        'pending': LeaveRequest.LeaveStatus.PENDING,
+        'approved': LeaveRequest.LeaveStatus.APPROVED,
+        'rejected': LeaveRequest.LeaveStatus.REJECTED,
+    }
+    
+    filtered_statuses = [status_mapping[s] for s in statuses if s in status_mapping]
+    
+    if not filtered_statuses:
+        filtered_statuses = [LeaveRequest.LeaveStatus.PENDING, LeaveRequest.LeaveStatus.APPROVED]
+
     # ── Todos los empleados ───────────────────────────────────────────────
     if user_id == 'all' and check_is_manager(request, company):
         leaves = LeaveRequest.objects.filter(
             company=company,
             start_date__lte=end,
             end_date__gte=start,
+            status__in=filtered_statuses,
         ).select_related('user')
+
+        # Detectar solapamientos
+        conflict_map = {}
+        for leave in leaves:
+            conflicts = LeaveRequest.objects.filter(
+                user=leave.user,
+                company=company,
+                status__in=[LeaveRequest.LeaveStatus.APPROVED, LeaveRequest.LeaveStatus.PENDING],
+            ).exclude(id=leave.id).filter(
+                start_date__lte=leave.end_date,
+                end_date__gte=leave.start_date
+            )
+            if conflicts.exists():
+                conflict_map[str(leave.id)] = True
 
         for leave in leaves:
             events.append({
                 'id': f'leave-{leave.id}',
-                'title': f'{leave.user.username} · {leave.get_leave_type_display()}',
-                'start': leave.start_date.isoformat(),
+                'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',                'start': leave.start_date.isoformat(),
                 'end': (leave.end_date + timedelta(days=1)).isoformat(),
                 'color': STATUS_COLOR.get(leave.status, '#6b7280'),
                 'allDay': True,
+                'classNames': ['has-conflict'] if str(leave.id) in conflict_map else [],
                 'extendedProps': {
                     'status': leave.get_status_display(),
                     'reason': leave.reason_note or '',
+                    'has_conflict': str(leave.id) in conflict_map,
                 },
             })
         return JsonResponse(events, safe=False)
@@ -493,7 +523,22 @@ def api_calendar_events(request):
         company=company,
         start_date__lte=end,
         end_date__gte=start,
+        status__in=filtered_statuses,
     )
+
+    # Detectar solapamientos
+    conflict_map = {}
+    for leave in leaves:
+        conflicts = LeaveRequest.objects.filter(
+            user=leave.user,
+            company=company,
+            status__in=[LeaveRequest.LeaveStatus.APPROVED, LeaveRequest.LeaveStatus.PENDING],
+        ).exclude(id=leave.id).filter(
+            start_date__lte=leave.end_date,
+            end_date__gte=leave.start_date
+        )
+        if conflicts.exists():
+            conflict_map[str(leave.id)] = True
 
     for leave in leaves:
         events.append({
@@ -503,13 +548,65 @@ def api_calendar_events(request):
             'end': (leave.end_date + timedelta(days=1)).isoformat(),
             'color': STATUS_COLOR.get(leave.status, '#6b7280'),
             'allDay': True,
+            'classNames': ['has-conflict'] if str(leave.id) in conflict_map else [],
             'extendedProps': {
                 'status': leave.get_status_display(),
                 'reason': leave.reason_note or '',
+                'has_conflict': str(leave.id) in conflict_map,
             },
         })
 
     return JsonResponse(events, safe=False)
+
+# ── API: validar solapamientos ────────────────────────────────────────────────
+ 
+@login_required
+@require_POST
+def api_validate_leave_overlap(request):
+    """Valida si hay solapamientos ANTES de crear solicitud"""
+    try:
+        data = json.loads(request.body)
+        start_date_str = data.get('start_date')
+        end_date_str = data.get('end_date')
+        
+        try:
+            start_date = parse_date(start_date_str)
+            end_date = parse_date(end_date_str)
+        except (ValueError, TypeError):
+            return JsonResponse({'error': 'Fechas inválidas'}, status=400)
+        
+        if not start_date or not end_date:
+            return JsonResponse({'error': 'Fechas inválidas'}, status=400)
+        
+        company = get_company(request)
+        
+        conflicts = LeaveRequest.objects.filter(
+            user=request.user,
+            company=company,
+            status__in=[LeaveRequest.LeaveStatus.PENDING, LeaveRequest.LeaveStatus.APPROVED],
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        ).values('id', 'leave_type', 'start_date', 'end_date', 'status')
+        
+        conflicts_list = list(conflicts)
+        
+        if conflicts_list:
+            return JsonResponse({
+                'ok': False,
+                'conflicts': [
+                    {
+                        'id': str(c['id']),
+                        'leave_type': dict(LeaveRequest.LeaveType.choices).get(c['leave_type'], c['leave_type']),
+                        'start_date': str(c['start_date']),
+                        'end_date': str(c['end_date']),
+                    }
+                    for c in conflicts_list
+                ]
+            }, status=200)
+        
+        return JsonResponse({'ok': True, 'conflicts': []})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 # ── API: solicitar ausencia ────────────────────────────────────────────────────
  
@@ -584,7 +681,7 @@ def api_leave_upload_attachment(request, leave_id):
 
     if archivo:
         # Limpiamos nombre de usuario (ej: "Juan Perez" -> "JuanPerez")
-        nombre_usuario = f"{request.user.username}{request.user.surname}".replace(" ", "")
+        nombre_usuario = f"{request.user.username.title}{request.user.surname.title}".replace(" ", "")
         
         # Creamos el timestamp y sacamos la extensión
         timestamp = timezone.localtime(timezone.now()).strftime('Fecha-%Y/%m/%d_Hora-%H.%M.%S')
