@@ -25,6 +25,10 @@ class ApiClient {
             csrfToken = getAdminConfig('CSRF_TOKEN');
         } else if (this.configNamespace === 'AEPTIC_CALENDAR') {
             csrfToken = getCalendarConfig('CSRF_TOKEN');
+        } else if (this.configNamespace === 'AEPTIC_TIMETRACKING') {
+            // Para timetracking, intenta obtener del DOM directamente
+            const csrfElement = document.getElementById('csrfToken');
+            csrfToken = csrfElement?.value;
         }
 
         // Si no encuentra, busca en el DOM
@@ -123,6 +127,7 @@ class ApiClient {
 // Crear instancias para cada página
 export const adminApiClient = new ApiClient('AEPTIC_ADMIN');
 export const calendarApiClient = new ApiClient('AEPTIC_CALENDAR');
+export const timetrackingApiClient = new ApiClient('AEPTIC_TIMETRACKING');
 
 // Export por defecto es el admin client
 export default adminApiClient;

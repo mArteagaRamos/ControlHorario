@@ -9,8 +9,8 @@
 <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
     <small>
         <i class="bi bi-exclamation-circle"></i>
-        <strong>Actuando como:</strong> {{ delegated_user_name }}
-        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+        <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()">×</button>
     </small>
 </div>
 {% endif %}
@@ -131,53 +131,10 @@
     </table>
   </div>
 
+  <script type="module" src="{% static 'js/modules/timetracking/timer.js' %}"></script>
+
   <script>
-    const timerDisplay = document.getElementById('timerDisplay');
-    const dataEl = document.getElementById('active-data');
-
-    //Constants from data attributes to control timer display and state
-    const hasActive = dataEl.dataset.hasActive === 'true';
-    const isPaused = dataEl.dataset.isPaused === 'true';
-    const startTimeStr = dataEl.dataset.startTime;
-    const pauseSecs = parseInt(dataEl.dataset.pauseSeconds || '0');
-    const pausedElapsed = parseInt(dataEl.dataset.pausedElapsed || '0');
-
-
-  function formatTime(seconds) {
-    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
-    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
-    const s = String(seconds % 60).padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  }
-
-  if (hasActive) {
-    if (isPaused) {
-        timerDisplay.textContent = formatTime(pausedElapsed);
-    } else {
-        const start = new Date(startTimeStr).getTime();
-        const update = () => {
-            const elapsed = Math.floor((Date.now() - start) / 1000) - pauseSecs;
-            timerDisplay.textContent = formatTime(elapsed);
-        };
-        update();
-        setInterval(update, 1000);
-    }
-  }
-
-
-    async function postAction(action) {
-        const res = await fetch(window.location.href, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': document.getElementById('csrfToken').value,
-            },
-            body: new URLSearchParams({action}).toString(),
-        });
-        if (res.ok) window.location.reload();
-    }
-
-    // Clear delegation function
+    // Clear delegation function - Kept inline for window popup functionality
     async function clearDelegation() {
         const response = await fetch("{% url 'clear_delegated_worker' %}", {
             method: 'POST',
@@ -187,7 +144,6 @@
             location.reload();
         }
     }
-
   </script>
 
 {% endblock %}

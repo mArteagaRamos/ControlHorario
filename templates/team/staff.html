@@ -17,7 +17,7 @@
 <div class="alert alert-warning alert-dismissible fade show mb-4 shadow-sm alert-delegation" role="alert">
     <small class="d-flex align-items-center">
         <i class="bi bi-exclamation-circle me-2"></i>
-        <strong>Actuando como:</strong> <span class="ms-1">{{ delegated_user_name }}</span>
+        <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
         <button type="button" class="btn-close ms-auto" onclick="clearDelegation()" aria-label="Limpiar delegación">×</button>
     </small>
 </div>
@@ -167,7 +167,7 @@
                             <td data-label="Acciones">
                                 <div class="d-flex acciones-movil gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary std-btn-secondary js-edit-btn"
-                                        data-bs-toggle="modal" data-bs-target="#modalEditar"
+                                        data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
                                         data-id="{{ membership.user.id }}"
                                         data-nombre="{{ membership.user.username }}"
                                         data-apellidos="{{ membership.user.surname }}"
@@ -223,7 +223,7 @@
 </div>
 
 {% if is_manager %}
-<div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+<div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-light border-bottom-0">
@@ -234,6 +234,7 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <input type="hidden" name="user_id" id="editUserId">
+                    <input type="hidden" name="company_id" value="{{ company.id }}">
                     <div class="row g-3">
                         <div class="col-12 col-sm-6">
                             <label for="editNombre" class="form-label small fw-semibold text-muted mb-1">Nombre</label>
@@ -299,149 +300,37 @@
 </div>
 {% endif %}
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    
-    // --- MÓDULO 1: FILTRADO DE TABLA (CLIENT-SIDE) ---
-    const initFilters = () => {
-        const inputBusqueda = document.getElementById('filtroBusqueda');
-        const selectRol = document.getElementById('filtroRol');
-        const selectEstado = document.getElementById('filtroEstado');
-        const filas = document.querySelectorAll('.empleado-row');
-        const noResultsJs = document.getElementById('no-results-js');
+<script type="module">
+    import { initializeEditWorkerModal } from '{% static "js/utils/modals.js" %}';
+    import { initializeDeleteWorkerModalStaff } from '{% static "js/modules/staff/delete-worker.js" %}';
+    import { initializeFilters } from '{% static "js/modules/staff/filters.js" %}';
+    import { initializeExports } from '{% static "js/modules/staff/exports.js" %}';
 
-        if (!inputBusqueda || !selectRol || !selectEstado) return;
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeEditWorkerModal();
+        initializeDeleteWorkerModalStaff();
+        initializeFilters();
+        initializeExports();
+    });
 
-        const filtrarTabla = () => {
-            const textoBuscado = inputBusqueda.value.toLowerCase().trim();
-            const rolBuscado = selectRol.value;
-            const estadoBuscado = selectEstado.value;
-            let filasVisibles = 0;
-
-            filas.forEach(fila => {
-                const nombre = fila.querySelector('.nombre-empleado')?.textContent.toLowerCase() || '';
-                const email = fila.querySelector('.email-empleado')?.textContent.toLowerCase() || '';
-                const rol = fila.dataset.rol || '';
-                const estado = fila.dataset.estado || '';
-
-                const coincideTexto = nombre.includes(textoBuscado) || email.includes(textoBuscado);
-                const coincideRol = rolBuscado === "" || rol === rolBuscado;
-                const coincideEstado = estadoBuscado === "" || estado === estadoBuscado;
-
-                if (coincideTexto && coincideRol && coincideEstado) {
-                    fila.classList.remove('d-none');
-                    filasVisibles++;
-                } else {
-                    fila.classList.add('d-none');
+    // --- FUNCIÓN GLOBAL DE DELEGACIÓN ---
+    window.clearDelegation = async () => {
+        try {
+            const response = await fetch("{% url 'clear_delegated_worker' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
                 }
             });
-
-            if (noResultsJs) {
-                if (filasVisibles === 0 && filas.length > 0) {
-                    noResultsJs.classList.remove('d-none');
-                } else {
-                    noResultsJs.classList.add('d-none');
-                }
-            }
-        };
-
-        inputBusqueda.addEventListener('input', filtrarTabla);
-        selectRol.addEventListener('change', filtrarTabla);
-        selectEstado.addEventListener('change', filtrarTabla);
-    };
-
-    // --- MÓDULO 2: LOGICA DE SELECCIÓN Y EXPORTACIÓN ---
-    const initExports = () => {
-        const tableBody = document.querySelector('tbody');
-        const selectAllCheckbox = document.getElementById('selectAllEmpleados');
-        const btnExportar = document.getElementById('btnExportarEmpleados');
-        
-        if (!tableBody || !selectAllCheckbox || !btnExportar) return;
-
-        const actualizarBotonExportar = () => {
-            const seleccionados = document.querySelectorAll('.select-row-empleados:checked').length;
-            
-            if (seleccionados > 0) {
-                btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
-                btnExportar.disabled = false;
+            if (response.ok) {
+                window.location.reload();
             } else {
-                btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
-                btnExportar.disabled = true;
+                console.error("Error al limpiar la delegación");
             }
-        };
-
-        // Delegación de eventos para el tbody
-        tableBody.addEventListener('change', (e) => {
-            if (e.target.classList.contains('select-row-empleados')) {
-                actualizarBotonExportar();
-                if (!e.target.checked) selectAllCheckbox.checked = false;
-            }
-        });
-
-        // Evento para el checkbox "Seleccionar todos"
-        selectAllCheckbox.addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.select-row-empleados');
-            checkboxes.forEach(cb => {
-                const isVisible = !cb.closest('tr').classList.contains('d-none');
-                if(isVisible) cb.checked = e.target.checked;
-            });
-            actualizarBotonExportar();
-        });
-    };
-
-    // --- MÓDULO 3: PREPARACIÓN DE MODALES ---
-    const initModals = () => {
-        const editarModal = document.getElementById('modalEditar');
-        if (editarModal) {
-            editarModal.addEventListener('show.bs.modal', (e) => {
-                const btn = e.relatedTarget.closest('.js-edit-btn');
-                if (!btn) return;
-                
-                document.getElementById('editUserId').value = btn.dataset.id;
-                document.getElementById('editNombre').value = btn.dataset.nombre;
-                document.getElementById('editApellidos').value = btn.dataset.apellidos;
-                document.getElementById('editEmail').value = btn.dataset.email;
-                document.getElementById('editRol').value = btn.dataset.rol;
-                document.getElementById('editEstado').value = btn.dataset.estado;
-            });
-        }
-
-        const eliminarModal = document.getElementById('modalEliminar');
-        if (eliminarModal) {
-            eliminarModal.addEventListener('show.bs.modal', (e) => {
-                const btn = e.relatedTarget.closest('.js-delete-btn');
-                if (!btn) return;
-
-                document.getElementById('deleteUserId').value = btn.dataset.id;
-                document.getElementById('deleteNombre').textContent = btn.dataset.nombrecompleto;
-            });
+        } catch (error) {
+            console.error("Fallo de red:", error);
         }
     };
-
-    // Inicializar todos los módulos
-    initFilters();
-    initExports();
-    initModals();
-});
-
-// --- FUNCIÓN GLOBAL DE DELEGACIÓN ---
-const clearDelegation = async () => {
-    try {
-        const response = await fetch("{% url 'clear_delegated_worker' %}", {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            }
-        });
-        if (response.ok) {
-            window.location.reload();
-        } else {
-            console.error("Error al limpiar la delegación");
-        }
-    } catch (error) {
-        console.error("Fallo de red:", error);
-    }
-};
 </script>
 {% endblock %}

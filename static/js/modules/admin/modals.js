@@ -1,11 +1,16 @@
 /**
- * Modals Module
+ * Modals Module - Admin
  * Maneja los modals de Bootstrap para editar/eliminar empresas y trabajadores
+ * Reutiliza helpers genéricos de utils/modals.js y utils/dom.js
  *
  * FASE 7: Extraer Modals
+ * FASE 9: Refactorizar con helpers genéricos
+ * FASE 10: Usar initializeSimpleModal para casos simples
  */
 
 import { getAdminConfig } from '../../utils/config.js';
+import { initializeEditWorkerModal, initializeSimpleModal } from '../../utils/modals.js';
+import { toggleVisibility } from '../../utils/dom.js';
 
 /**
  * Inicializa todos los modals
@@ -13,36 +18,14 @@ import { getAdminConfig } from '../../utils/config.js';
 export function initializeModals() {
     console.log('[Modals] Initializing...');
 
-    // Inicializar cada modal
+    // Usar helper genérico de utils
     initializeEditWorkerModal();
+
+    // Funciones específicas de admin
     initializeDeleteWorkerModal();
     initializeDeleteCompanyModal();
 
     console.log('[Modals] All modals initialized');
-}
-
-/**
- * Modal de Editar Trabajador
- * Rellena los campos del formulario cuando se abre el modal
- */
-function initializeEditWorkerModal() {
-    const editarModal = document.getElementById('modalEditarTrabajador');
-    if (!editarModal) return;
-
-    editarModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget;
-        if (!button) return;
-
-        // Rellenar los campos del formulario con los datos del trabajador
-        document.getElementById('editUserId').value = button.getAttribute('data-id') || '';
-        document.getElementById('editNombre').value = button.getAttribute('data-nombre') || '';
-        document.getElementById('editApellidos').value = button.getAttribute('data-apellidos') || '';
-        document.getElementById('editEmail').value = button.getAttribute('data-email') || '';
-        document.getElementById('editDni').value = button.getAttribute('data-dni') || '';
-        document.getElementById('editEstado').value = button.getAttribute('data-estado') || '';
-    });
-
-    console.log('[Modals] Edit worker modal initialized');
 }
 
 /**
@@ -81,15 +64,15 @@ function initializeDeleteWorkerModal() {
 
         if (companies.length === 1) {
             // Una empresa: mostrar directamente
-            singleCompanySection.classList.remove('d-none');
-            multipleCompaniesSection.classList.add('d-none');
+            toggleVisibility(singleCompanySection, true);
+            toggleVisibility(multipleCompaniesSection, false);
             document.getElementById('singleCompanyName').textContent = companies[0].name;
             document.getElementById('singleCompanyId').name = 'company_ids';
             document.getElementById('singleCompanyId').value = companies[0].id;
         } else if (companies.length > 1) {
             // Múltiples empresas: mostrar checkboxes
-            singleCompanySection.classList.add('d-none');
-            multipleCompaniesSection.classList.remove('d-none');
+            toggleVisibility(singleCompanySection, false);
+            toggleVisibility(multipleCompaniesSection, true);
             companiesCheckboxes.innerHTML = '';
 
             companies.forEach((company, index) => {
@@ -168,33 +151,34 @@ function updateCompanyIdsInput() {
 /**
  * Modal de Eliminar Empresa
  * Muestra información de la empresa y cantidad de empleados
+ * Usa initializeSimpleModal con callback para obtener datos del backend
  */
 function initializeDeleteCompanyModal() {
-    const deleteCompanyModal = document.getElementById('modalEliminarEmpresa');
-    if (!deleteCompanyModal) return;
+    initializeSimpleModal({
+        modalId: 'modalEliminarEmpresa',
+        mapping: {
+            deleteCompanyId: 'companyId'
+        },
+        onShow: async (button) => {
+            const companyId = button.getAttribute('data-company-id');
+            const companyName = button.getAttribute('data-company-name');
 
-    deleteCompanyModal.addEventListener('show.bs.modal', async function(event) {
-        const button = event.relatedTarget;
-        if (!button) return;
+            // Rellenar el nombre (es un elemento de texto, no input)
+            document.getElementById('deleteCompanyName').textContent = companyName;
 
-        const companyId = button.getAttribute('data-company-id');
-        const companyName = button.getAttribute('data-company-name');
-
-        // Asignar valores básicos
-        document.getElementById('deleteCompanyId').value = companyId;
-        document.getElementById('deleteCompanyName').textContent = companyName;
-
-        // Obtener el count de miembros desde el backend
-        try {
-            const LOOKUP_COMPANY_URL = getAdminConfig('LOOKUP_COMPANY_URL');
-            const response = await fetch(`${LOOKUP_COMPANY_URL}?company_id=${companyId}`);
-            const data = await response.json();
-            const memberCount = data.member_count || 0;
-            document.getElementById('memberCountWarning').textContent = memberCount;
-        } catch (e) {
-            console.error('[Modals] Error fetching member count:', e);
-            document.getElementById('memberCountWarning').textContent = '?';
-        }
+            // Obtener el count de miembros desde el backend
+            try {
+                const LOOKUP_COMPANY_URL = getAdminConfig('LOOKUP_COMPANY_URL');
+                const response = await fetch(`${LOOKUP_COMPANY_URL}?company_id=${companyId}`);
+                const data = await response.json();
+                const memberCount = data.member_count || 0;
+                document.getElementById('memberCountWarning').textContent = memberCount;
+            } catch (e) {
+                console.error('[Modals] Error fetching member count:', e);
+                document.getElementById('memberCountWarning').textContent = '?';
+            }
+        },
+        logName: '[Modals]'
     });
 
     console.log('[Modals] Delete company modal initialized');

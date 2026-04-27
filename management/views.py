@@ -465,7 +465,14 @@ def edit_employee(request):
     delegation_context = get_effective_context(request)
 
     # 1. Determine which company to use
-    if delegation_context['is_delegating']:
+    # First, try to get company_id from the form (sent from staff.html)
+    company_id_form = request.POST.get('company_id', '').strip()
+
+    if company_id_form:
+        # Use the company_id from the form
+        company = get_object_or_404(Companies, id=company_id_form)
+    elif delegation_context['is_delegating']:
+        # Use delegated company
         company_id = delegation_context['delegated_company_id']
         company = Companies.objects.get(id=company_id)
     else:
