@@ -22,6 +22,23 @@
             color: white !important;
             border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
         }
+
+        /* Estilos para el paginador (cambiador de páginas) */
+        .pagination .page-link {
+            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
+        }
+        
+        .pagination .page-link:hover {
+            color: #1a1f2e;
+            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
+        }
+        
+        .pagination .page-item.active .page-link,
+        .pagination .page-link.bg-corporate {
+            background-color: #1a1f2e !important;
+            border-color: #1a1f2e !important;
+            color: white !important;
+        }
     </style>
 {% endblock %}
 
