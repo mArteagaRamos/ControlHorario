@@ -6,6 +6,14 @@
 {% block content %}
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'css/team/manager_logs.css' %}">
+<style>
+        thead.table-dark,
+        thead.table-dark th {
+            background-color: #1a1f2e !important;
+            color: white !important;
+            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+    }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 {% if is_delegating %}

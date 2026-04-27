@@ -5,6 +5,14 @@
 {% block extra_head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        thead.table-dark,
+        thead.table-dark th {
+            background-color: #1a1f2e !important;
+            color: white !important;
+            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+    }
+    </style>
 {% endblock %}
 
 {% block content %}

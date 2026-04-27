@@ -12,6 +12,14 @@
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/dashboard.css' %}"> 
 <link rel="stylesheet" href="{% static 'css/admin/admin_dashboard.css' %}">
+<style>
+    thead.table-dark,
+    thead.table-dark th {
+        background-color: #1a1f2e !important;
+        color: white !important;
+        border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+    }
+</style>
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
