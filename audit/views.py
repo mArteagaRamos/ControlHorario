@@ -66,7 +66,7 @@ def audit_fichajes(request):
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
     # 4. PAGINACIÓN
-    paginator = Paginator(logs_list, 20)
+    paginator = Paginator(logs_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -198,7 +198,7 @@ def audit_vacaciones(request):
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
 
-    paginator = Paginator(logs_list, 15)
+    paginator = Paginator(logs_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -239,7 +239,7 @@ def audit_usuarios(request):
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
     # 4. PAGINACIÓN (15 registros por página)
-    paginator = Paginator(logs_list, 15)
+    paginator = Paginator(logs_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -281,7 +281,7 @@ def audit_incidencias(request):
     if hasta:
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
-    paginator = Paginator(logs_list, 10) 
+    paginator = Paginator(logs_list, 12) 
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -452,7 +452,7 @@ def audit_company(request):
         log.categoria = _infer_categoria(log)
 
     # ── Paginación ────────────────────────────────────────────────────────────
-    paginator = Paginator(log_list, 20)
+    paginator = Paginator(log_list, 12)
     page_number = request.GET.get('page', 1)
     logs = paginator.get_page(page_number)
 
@@ -471,5 +471,5 @@ def audit_company(request):
         'tipo_cambio':  tipo_cambio,
         'desde':        desde,
         'hasta':        hasta,
-        'has_more':     len(log_list) > 20,
+        'has_more':     len(log_list) > 12,
     })
