@@ -182,6 +182,7 @@ def get_effective_context(request):
             'delegated_user_id': str(UUID) or None,
             'delegated_user_name': str or None,
             'delegated_company_id': str(UUID) or None,
+            'delegated_company_name': str or None,
             'delegated_user_role': str or None,
             'is_delegating': bool,
         }
@@ -190,6 +191,7 @@ def get_effective_context(request):
         'delegated_user_id': None,
         'delegated_user_name': None,
         'delegated_company_id': None,
+        'delegated_company_name': None,
         'delegated_user_role': None,
         'is_delegating': False,
     }
@@ -206,6 +208,7 @@ def get_effective_context(request):
         'delegated_user_id': delegated_user_id,
         'delegated_user_name': request.session.get('delegated_user_name'),
         'delegated_company_id': request.session.get('delegated_company_id'),
+        'delegated_company_name': request.session.get('delegated_company_name'),
         'delegated_user_role': request.session.get('delegated_user_role'),
         'is_delegating': True,
     })

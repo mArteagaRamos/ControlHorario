@@ -282,8 +282,9 @@ def select_delegated_worker(request):
 
     # Guardar en sesión
     request.session['delegated_user_id'] = str(worker_id)
-    request.session['delegated_user_name'] = delegated_user.username.title
+    request.session['delegated_user_name'] = delegated_user.username.title()
     request.session['delegated_company_id'] = str(company_id)
+    request.session['delegated_company_name'] = delegated_company.name
     request.session['delegated_user_role'] = membership.role
 
     return JsonResponse({'success': True})

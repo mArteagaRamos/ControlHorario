@@ -9,11 +9,11 @@
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
 {% if is_delegating %}
-<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: relative; max-width: 350px; z-index: 1050;">
+<div class="alert alert-warning alert-dismissible fade show" role="alert" style="position: relative; z-index: 1050;">
     <small>
         <i class="bi bi-exclamation-circle"></i>
-        <strong>Actuando como:</strong> {{ delegated_user_name }}
-        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+        <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" onclick="clearDelegation()" style="opacity: 0.5; filter: invert(0.3);"></button>
     </small>
 </div>
 {% endif %}
