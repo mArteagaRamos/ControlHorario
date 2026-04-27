@@ -176,7 +176,8 @@ def exportar_logs(request):
                 'tabla': 'timetracking_registro',
                 'cantidad': len(registros_ids),
                 'ids': [str(id) for id in registros_ids],
-            }
+            },
+            source='web' # Añadido
         )
 
         response = HttpResponse(content_type='text/csv')
@@ -191,16 +192,16 @@ def exportar_logs(request):
         # Clear headers
         writer.writerow(['Empleado', 'Fecha', 'Entrada', 'Salida', 'Tiempo Total (HH:MM:SS)', 'Notas'])
 
-    for r in registros:
-        # Seconds to HH:MM:SS conversion logic
-        total_s = r.total_seconds
+        for r in registros:
+            # Seconds to HH:MM:SS conversion logic
+            total_s = r.total_seconds
 
-        horas = total_s // 3600
-        minutos = (total_s % 3600) // 60
-        segundos = total_s % 60
+            horas = total_s // 3600
+            minutos = (total_s % 3600) // 60
+            segundos = total_s % 60
 
-        # Format with leading zeros (e.g., 08:05:09)
-        tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
+            # Format with leading zeros (e.g., 08:05:09)
+            tiempo_formateado = f"{horas:02d}:{minutos:02d}:{segundos:02d}" if total_s > 0 else "00:00:00"
 
         writer.writerow([
             f"{r.user.username.title} {r.user.surname.title}",
@@ -211,7 +212,7 @@ def exportar_logs(request):
             r.notes if r.notes else ''
         ])
 
-    return response
+        return response
 
 
 @manager_or_admin_with_delegation_check
@@ -243,7 +244,8 @@ def exportar_staff(request):
             'tabla': 'user_company',
             'cantidad': len(employee_ids),
             'ids': [str(id) for id in employee_ids],
-        }
+        },
+        source='web' # Añadido
     )
 
     response = HttpResponse(content_type='text/csv')
@@ -349,7 +351,8 @@ def editar_registro(request):
             action_type='update', # Se considera actualización porque reemplaza el original
             before=estado_anterior,
             after=safe_dict(nuevo_registro),
-            reason="Edición manual de fichaje por el manager/admin"
+            reason="Edición manual de fichaje por el manager/admin",
+            source='web' # Añadido
         )
         # -------------------------------------------
 
@@ -426,6 +429,7 @@ def staff(request):
     # Crear diccionario de leaves activas por user_id
     active_leaves_map = {}
     for membership in memberships:
+        # Asegúrate de tener LeaveRequest importado si es necesario
         active_leave = LeaveRequest.objects.filter(
             user=membership.user,
             company=company,
@@ -492,6 +496,7 @@ def edit_employee(request):
     membership.save()
 
     return redirect('staff')
+
 
 @manager_or_admin_with_delegation_check
 @require_POST
@@ -596,6 +601,7 @@ def delete_employee(request):
 
     return redirect('deleted_records')
 
+
 @manager_or_admin_with_delegation_check
 @require_POST
 def anular_registro(request):
@@ -637,7 +643,8 @@ def anular_registro(request):
         action_type='voided', # Registramos el tipo de acción
         before=estado_anterior,
         after=safe_dict(registro),
-        reason="Anulación directa de registro"
+        reason="Anulación directa de registro",
+        source='web' # Añadido
     )
     # -------------------------------------------
 
@@ -723,7 +730,7 @@ def entity_info(request):
                 'company': company,
                 'user_role': user_role,
                 'settings': settings_obj,
-                'weekdays': WEEKDAY,
+                'weekdays': WEEKDAY, # Asegúrate de que WEEKDAY esté definido globalmente o importado
             }
             context.update(delegation_context)
             return render(request, 'team/entity_info.html', context)
@@ -739,7 +746,7 @@ def entity_info(request):
                 'company': company,
                 'user_role': user_role,
                 'settings': settings_obj,
-                'weekdays': WEEKDAY,
+                'weekdays': WEEKDAY, # Asegúrate de que WEEKDAY esté definido globalmente o importado
             }
             context.update(delegation_context)
             return render(request, 'team/entity_info.html', context)
@@ -782,9 +789,12 @@ def entity_info(request):
             ]
 
             holidays = []
+            # Asegúrate de importar parse_date de django.utils.dateparse si no lo tienes
             for raw in request.POST.get('holidays', '').split(','):
                 raw = raw.strip()
                 if raw:
+                    # from django.utils.dateparse import parse_date (importarlo si falta)
+                    from django.utils.dateparse import parse_date
                     parsed = parse_date(raw)
                     if parsed:
                         holidays.append(parsed)
@@ -806,28 +816,31 @@ def entity_info(request):
 
             # 🔐 Auditoría: Jornada laboral
             if before_jornada != after_jornada:
+                # Usa uuid.uuid4() porque importamos uuid
                 AuditLog.objects.create(
-                    id=uuid4(),
+                    id=uuid.uuid4(),
                     table_name='company_settings',
                     record_id=settings_obj.id,
                     user=request.user,
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_jornada,
                     after=after_jornada,
-                    reason=f'Modificación de jornada laboral en empresa {company.name.title}',
+                    reason=f'Modificación de jornada laboral en empresa {company.name}',
+                    source='web' # Añadido
                 )
 
             # 🔐 Auditoría: Cierre automático
             if before_cierre != after_cierre:
                 AuditLog.objects.create(
-                    id=uuid4(),
+                    id=uuid.uuid4(),
                     table_name='company_settings',
                     record_id=settings_obj.id,
                     user=request.user,
                     action_type=AuditLog.AuditAction.UPDATE,
                     before=before_cierre,
                     after=after_cierre,
-                    reason=f'Modificación de cierre automático en empresa {company.name.title}',
+                    reason=f'Modificación de cierre automático en empresa {company.name}',
+                    source='web' # Añadido
                 )
 
         return redirect('manager_entity_info')
@@ -836,7 +849,7 @@ def entity_info(request):
         'company':   company,
         'user_role': user_role,
         'settings':  settings_obj,
-        'weekdays':  WEEKDAY,
+        'weekdays':  WEEKDAY, # Asegúrate de que WEEKDAY esté definido globalmente
     }
     context.update(delegation_context)
 

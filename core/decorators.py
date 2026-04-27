@@ -58,6 +58,22 @@ def auditor_cannot_access(view_func):
     return _wrapped_view
 
 
+def auditor_or_admin_required(view_func):
+    """Decorator to ensure only auditors or admin users can access audit views"""
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return render(request, 'error/sin_loguear.html', status=401)
+
+        # Allow only auditors and admins
+        if request.user.is_auditor or request.user.is_admin:
+            return view_func(request, *args, **kwargs)
+        else:
+            return render(request, 'error/sin_permisos.html', status=403)
+
+    return _wrapped_view
+
+
 def manager_or_admin_with_delegation_check(view_func):
     """
     Decorator that validates manager/admin access AND checks delegation permissions.

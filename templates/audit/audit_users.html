@@ -5,12 +5,32 @@
 {% block extra_head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        /* Estilos corporativos y semáforo */
+        .bg-corporate { background-color: #1a1f2e !important; color: white !important; }
+        .text-corporate { color: #1a1f2e !important; }
+        .border-corporate { border-left: 4px solid #1a1f2e !important; }
+        .table-dark { background-color: #1a1f2e !important; border-color: #1a1f2e !important; }
+        
+        /* Ajuste para que el amarillo se lea bien */
+        .badge.bg-warning { color: #212529 !important; font-weight: 600; }
+        
+        /* Estilo para los botones personalizados si los usas */
+        .std-btn {
+            background-color: #1a1f2e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            transition: opacity 0.2s;
+        }
+        .std-btn:hover { opacity: 0.9; color: white; }
+    </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h2 style="color: #1a1f2e;"><i class="fas fa-users pe-2" style="color: #1a1f2e;"></i> Auditoría de Usuarios</h2>
+        <h2 class="text-corporate"><i class="fas fa-users pe-2"></i> Auditoría de Usuarios</h2>
         <a href="{% url 'audit_dashboard' %}" class="btn btn-outline-secondary">&larr; Volver al Panel</a>
     </div>
     <hr>
@@ -45,8 +65,9 @@
             <thead class="table-dark">
                 <tr>
                     <th>Fecha y Hora</th>
-                    <th>Actor</th>
+                    <th>Usuario</th>
                     <th>Acción</th>
+                    <th>Hash</th>
                     <th>ID Registro</th>
                     <th>Motivo del Cambio</th>
                     <th class="text-center">Detalles</th>
@@ -61,19 +82,34 @@
                     </td>
                     <td>{{ log.user.username|title|default:"Sistema" }}</td>
                     <td>
-                        <span class="badge bg-info text-white rounded-pill px-2 py-1">{{ log.get_action_type_display|upper }}</span>
+                        {% with action=log.action_type|upper %}
+                            {% if action == 'CREATE' %}
+                                <span class="badge rounded-pill bg-success px-3 py-2">CREACIÓN</span>
+                            {% elif action == 'UPDATE' %}
+                                <span class="badge rounded-pill bg-warning px-3 py-2">MODIFICACIÓN</span>
+                            {% elif action == 'DELETE' %}
+                                <span class="badge rounded-pill bg-danger px-3 py-2">ELIMINACIÓN</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary px-3 py-2">{{ action }}</span>
+                            {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td>
+                        <span class="badge bg-light text-dark font-monospace border" title="{{ log.event_hash|default:'Sin firma' }}">
+                            {{ log.event_hash|slice:":12"|default:"-" }}...
+                        </span>
                     </td>
                     <td class="text-muted font-monospace small">{{ log.record_id|truncatechars:12 }}</td>
                     <td>{{ log.reason|default:"-" }}</td>
                     <td class="text-center">
-                        <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
+                        <button type="button" class="std-btn" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
                             <i class="fas fa-search me-1"></i> Ver Detalles
                         </button>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center py-4 text-muted">No hay registros de modificaciones de usuarios.</td>
+                    <td colspan="7" class="text-center py-4 text-muted">No hay registros de modificaciones de usuarios.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -85,18 +121,43 @@
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content border-0 shadow">
-      <div class="modal-header text-white" style="background-color: #1a1f2e;">
+      <div class="modal-header text-white bg-corporate">
         <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles de la Acción</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
+        
+        <div class="alert alert-secondary font-monospace mb-4" style="word-break: break-all; border-left: 4px solid #1a1f2e;">
+            <div class="mb-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-lock me-1"></i> Firma del Evento (Hash)</span>
+                <span class="text-success fw-bold">{{ log.event_hash|default:"-" }}</span>
+            </div>
+            <div class="border-top border-secondary pt-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-link me-1"></i> Firma Anterior (Hash)</span>
+                {% if log.previous_hash %}
+                    <span class="text-muted">{{ log.previous_hash }}</span>
+                {% else %}
+                    <span class="text-muted fst-italic">Registro génesis (sin firma anterior)</span>
+                {% endif %}
+            </div>
+        </div>
         
         <div class="card bg-light border-0 mb-4">
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
-                        <span class="badge bg-info px-3 py-2 rounded-pill text-white">{{ log.get_action_type_display|upper }}</span>
+                        {% with action=log.action_type|upper %}
+                            {% if action == 'CREATE' %}
+                                <span class="badge rounded-pill bg-success px-3 py-2">CREACIÓN</span>
+                            {% elif action == 'UPDATE' %}
+                                <span class="badge rounded-pill bg-warning px-3 py-2">MODIFICACIÓN</span>
+                            {% elif action == 'DELETE' %}
+                                <span class="badge rounded-pill bg-danger px-3 py-2">ELIMINACIÓN</span>
+                            {% else %}
+                                <span class="badge rounded-pill bg-secondary px-3 py-2">{{ action }}</span>
+                            {% endif %}
+                        {% endwith %}
                     </div>
                     <div class="col-4 border-start border-end">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
@@ -111,35 +172,31 @@
         </div>
 
         {% if log.reason %}
-        <div class="alert alert-info border-0 shadow-sm mb-4" role="alert">
-            <strong><i class="fas fa-comment me-2"></i> Razón:</strong> {{ log.reason }}
+        <div class="alert border-0 shadow-sm mb-4 bg-light border-corporate" role="alert">
+            <strong class="text-corporate"><i class="fas fa-comment me-2"></i> Razón:</strong> {{ log.reason }}
         </div>
         {% endif %}
 
         <div class="card border-0 shadow-sm rounded-3">
-            <div class="card-header bg-info bg-opacity-10 border-bottom-0 rounded-top-3">
-                <h6 class="mb-0 text-info fw-bold"><i class="fas fa-info-circle me-2"></i> Información Modificada</h6>
+            <div class="card-header border-bottom-0 rounded-top-3" style="background-color: rgba(26, 31, 46, 0.05);">
+                <h6 class="mb-0 text-corporate fw-bold"><i class="fas fa-info-circle me-2"></i> Información Modificada</h6>
             </div>
             <div class="card-body p-0">
                 {% if log.after %}
-                    <ul class="list-group list-group-flush rounded-bottom-3">
+                    <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
-                            <li class="list-group-item bg-transparent px-4 py-3 d-flex justify-content-between align-items-start">
+                            <li class="list-group-item bg-transparent px-4 py-3 d-flex justify-content-between align-items-start border-bottom">
                                 <span class="text-muted text-capitalize fw-bold">{{ key|title }}</span>
                                 <span class="text-end text-break ms-3" style="max-width: 60%;">
                                     {% if value is iterable and value is not string %}
                                         <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} item(s)</div>
-                                        {% if value|length <= 5 %}
-                                            <small class="text-muted d-block mt-1">
-                                                {% for item in value %}
-                                                    <code>{{ item }}</code>{% if not forloop.last %}<br>{% endif %}
-                                                {% endfor %}
-                                            </small>
-                                        {% else %}
-                                            <small class="text-muted d-block mt-1">[{{ value|truncatechars:50 }}...]</small>
-                                        {% endif %}
+                                        <small class="text-muted d-block mt-1">
+                                            {% for item in value %}
+                                                <code>{{ item }}</code>{% if not forloop.last %}<br>{% endif %}
+                                            {% endfor %}
+                                        </small>
                                     {% else %}
-                                        <strong>{{ value|default:"-" }}</strong>
+                                        <strong class="text-dark">{{ value|default:"-" }}</strong>
                                     {% endif %}
                                 </span>
                             </li>
@@ -153,7 +210,6 @@
                 {% endif %}
             </div>
         </div>
-        
       </div>
       <div class="modal-footer bg-light">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
@@ -166,68 +222,22 @@
 <div id="toast" class="toast-custom hidden"></div> 
 
 {% if messages %}
-    <div id="django-messages-container" style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
-        width: 90%;
-        max-width: 400px;
-    ">
+    <div id="django-messages-container" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; width: 90%; max-width: 400px;">
         {% for message in messages %}
-        <div class="alert shadow-lg" style="
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        ">
-            <div style="font-size: 40px; margin-bottom: 10px;">
-                {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
-            </div>
-            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
-                {{ message }}
-            </p>
-            <button onclick="document.getElementById('django-messages-container').remove()" style="
-                margin-top: 20px;
-                padding: 8px 20px;
-                border: none;
-                background: #f1f1f1;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-            ">Entendido</button>
-            </div>
+        <div class="alert shadow-lg" style="background-color: white; border-radius: 12px; padding: 25px; text-align: center; border-top: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %}; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+            <div style="font-size: 40px; margin-bottom: 10px;">{% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}</div>
+            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">{{ message }}</p>
+            <button onclick="document.getElementById('django-messages-container').remove()" style="margin-top: 20px; padding: 8px 20px; border: none; background: #f1f1f1; border-radius: 5px; cursor: pointer; font-weight: bold;">Entendido</button>
+        </div>
         {% endfor %}
     </div>
-
-    <script>
-        setTimeout(function() {
-            var msg = document.getElementById('django-messages-container');
-            if (msg) msg.remove();
-        }, 5000);
-    </script>
+    <script>setTimeout(() => { const msg = document.getElementById('django-messages-container'); if (msg) msg.remove(); }, 5000);</script>
 {% endif %}
 
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-function showToast(message) {
-    const toast = document.getElementById("toast");
-    if(!toast) return;
-    toast.innerText = message;
-    toast.classList.remove("hidden");
-    toast.classList.add("show");
-
-    setTimeout(() => {
-        toast.classList.remove("show");
-        setTimeout(() => toast.classList.add("hidden"), 300);
-    }, 3000);
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('search');
     const desdeInput = document.getElementById('desde');
@@ -236,8 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableRows = document.querySelectorAll('tbody tr');
 
     function filterTable() {
-        if(!searchInput || !desdeInput || !hastaInput) return;
-        
         const searchTerm = searchInput.value.toLowerCase();
         const desdeVal = desdeInput.value; 
         const hastaVal = hastaInput.value; 
@@ -246,45 +254,30 @@ document.addEventListener('DOMContentLoaded', function() {
         let hastaDate = hastaVal ? new Date(hastaVal + 'T23:59:59') : null;
 
         tableRows.forEach(row => {
-            if (row.cells.length === 1) return; // Salta la fila de "No hay registros"
-
+            if (row.cells.length === 1) return;
             const rowText = row.textContent.toLowerCase();
             const matchesSearch = rowText.includes(searchTerm);
-            
             let matchesDate = true;
             const dateElement = row.querySelector('td strong'); 
             
             if (dateElement && (desdeDate || hastaDate)) {
-                const dateStr = dateElement.textContent.trim(); 
-                const parts = dateStr.split('/');
+                const parts = dateElement.textContent.trim().split('/');
                 if (parts.length === 3) {
                     const rowDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
-                    
                     if (desdeDate && rowDate < desdeDate) matchesDate = false;
                     if (hastaDate && rowDate > hastaDate) matchesDate = false;
                 }
             }
-
-            if (matchesSearch && matchesDate) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
+            row.style.display = (matchesSearch && matchesDate) ? '' : 'none';
         });
     }
 
-    if(searchInput) searchInput.addEventListener('input', filterTable);
-    if(desdeInput) desdeInput.addEventListener('change', filterTable);
-    if(hastaInput) hastaInput.addEventListener('change', filterTable);
-    
-    if (btnLimpiar) {
-        btnLimpiar.addEventListener('click', function() {
-            if(searchInput) searchInput.value = '';
-            if(desdeInput) desdeInput.value = '';
-            if(hastaInput) hastaInput.value = '';
-            filterTable();
-        });
-    }
+    searchInput?.addEventListener('input', filterTable);
+    desdeInput?.addEventListener('change', filterTable);
+    hastaInput?.addEventListener('change', filterTable);
+    btnLimpiar?.addEventListener('click', () => {
+        searchInput.value = ''; desdeInput.value = ''; hastaInput.value = ''; filterTable();
+    });
 });
 </script>
 {% endblock %}

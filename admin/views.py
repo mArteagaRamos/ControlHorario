@@ -55,7 +55,52 @@ def admin_dashboard(request):
         }
     )
 
-    return render(request, 'admin/admin_dashboard.html')
+    # Get all companies and workers for listing tables
+    all_companies = Companies.objects.all().order_by('name')
+    all_workers = Users.objects.all().order_by('username')
+
+    # Serialize companies data (add created_at formatting)
+    companies_data = []
+    for company in all_companies:
+        companies_data.append({
+            'id': str(company.id),
+            'name': company.name,
+            'tax_id': company.tax_id,
+            'legal_name': company.legal_name,
+            'created_at': company.created_at.strftime('%d/%m/%Y') if company.created_at else '--'
+        })
+
+    # Serialize workers data (add companies and formatted info)
+    workers_data = []
+    for worker in all_workers:
+        companies = list(Companies.objects.filter(
+            usercompany__user=worker,
+            usercompany__deleted_at__isnull=True
+        ).values('id', 'name', 'tax_id').distinct())
+
+        # Convert UUID to string for JSON serialization
+        for company in companies:
+            company['id'] = str(company['id'])
+
+        workers_data.append({
+            'id': str(worker.id),
+            'username': worker.username,
+            'surname': worker.surname,
+            'email': worker.email,
+            'dni': worker.dni or '--',
+            'status': worker.status,
+            'companies': companies,
+            'companies_json': json.dumps(companies)
+        })
+
+    context = {
+        'all_companies': companies_data,
+        'all_workers': workers_data,
+        'total_companies': len(companies_data),
+        'total_workers': len(workers_data),
+    }
+
+    return render(request, 'admin/admin_dashboard.html', context)
 
 @admin_only_required
 @require_POST

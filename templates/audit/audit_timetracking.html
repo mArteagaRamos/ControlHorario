@@ -47,8 +47,7 @@
                     <th>Fecha y Hora</th>
                     <th>Usuario</th>
                     <th>Acción</th>
-                    <th>ID Registro</th>
-                    <th>Evento</th>
+                    <th>Hash</th> <th>Evento</th>
                     <th>Detalles</th>
                 </tr>
             </thead>
@@ -68,7 +67,11 @@
                             <span class="badge bg-secondary">OTRO</span>
                         {% endif %}
                     </td>
-                    <td>{{ log.record_id|truncatechars:12 }}</td>
+                    <td>
+                        <span class="badge bg-light text-dark font-monospace border" title="{{ log.event_hash|default:'Sin firma' }}">
+                            {{ log.event_hash|slice:":12"|default:"-" }}...
+                        </span>
+                    </td>
                     <td>{{ log.reason|default:"-" }}</td>
                     <td>
                         <button type="button" class="std-btn text-center" style="padding: 0.4rem 0.5rem !important; font-size: 0.75rem !important;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
@@ -94,6 +97,20 @@
       </div>
       <div class="modal-body p-4">
         
+        <div class="alert alert-secondary font-monospace mb-4" style="word-break: break-all; border-left: 4px solid #1a1f2e;">
+            <div class="mb-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-lock me-1"></i> Firma del Evento (Hash)</span>
+                <span class="text-success fw-bold">{{ log.event_hash|default:"-" }}</span>
+            </div>
+            <div class="border-top border-secondary pt-2">
+                <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-link me-1"></i> Firma Anterior (Hash)</span>
+                {% if log.previous_hash %}
+                    <span class="text-muted">{{ log.previous_hash }}</span>
+                {% else %}
+                    <span class="text-muted fst-italic">Registro génesis (sin firma anterior)</span>
+                {% endif %}
+            </div>
+        </div>
         <div class="card bg-light border-0 mb-4">
             <div class="card-body">
                 <div class="row text-center">
@@ -129,30 +146,27 @@
                 {% if log.before %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.before.items %}
-                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                {% if key|lower == 'actor' %}
-                                    <span class="text-muted fw-bold">Usuario</span>
-                                    <strong class="text-end text-break ms-3">{{ log.user.username.title|default:value }}</strong>
-                                
-                                {% elif key|lower == 'event_type' or key|lower == 'event type' %}
-                                    <span class="text-muted fw-bold">Evento</span>
-                                    <strong class="text-end text-break ms-3">
-                                        {% if value == 'pause_start' %}Inicio de pausa
-                                        {% elif value == 'pause_end' %}Fin de pausa
-                                        {% elif value == 'clock_in' %}Fichaje de entrada
-                                        {% elif value == 'clock_out' %}Fichaje de salida
-                                        {% else %}{{ value }}{% endif %}
-                                    </strong>
-
-                                {% elif key|lower == 'time_tracking' or key|lower == 'time entry' %}
-                                    <span class="text-muted fw-bold">ID Jornada</span>
-                                    <strong class="text-end text-break ms-3 text-muted font-monospace small">{{ value|default:"-" }}</strong>
-                                
-                                {% else %}
-                                    <span class="text-muted fw-bold">{{ key|title }}</span>
-                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
-                                {% endif %}
-                            </li>
+                            {% if "id" not in key|lower %}
+                                <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                    {% if key|lower == 'actor' %}
+                                        <span class="text-muted fw-bold">Usuario</span>
+                                        <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                    
+                                    {% elif key|lower == 'event_type' or key|lower == 'event type' %}
+                                        <span class="text-muted fw-bold">Evento</span>
+                                        <strong class="text-end text-break ms-3">
+                                            {% if value == 'pause_start' %}Inicio de pausa
+                                            {% elif value == 'pause_end' %}Fin de pausa
+                                            {% elif value == 'clock_in' %}Fichaje de entrada
+                                            {% elif value == 'clock_out' %}Fichaje de salida
+                                            {% else %}{{ value }}{% endif %}
+                                        </strong>
+                                    {% else %}
+                                        <span class="text-muted fw-bold">{{ key|title }}</span>
+                                        <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                    {% endif %}
+                                </li>
+                            {% endif %}
                         {% endfor %}
                     </ul>
                 {% else %}
@@ -169,30 +183,27 @@
                 {% if log.after %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
-                            <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
-                                {% if key|lower == 'actor' %}
-                                    <span class="text-muted fw-bold">Usuario</span>
-                                    <strong class="text-end text-break ms-3">{{ log.user.username.title|default:value }}</strong>
-                                
-                                {% elif key|lower == 'event_type' or key|lower == 'event type' %}
-                                    <span class="text-muted fw-bold">Evento</span>
-                                    <strong class="text-end text-break ms-3">
-                                        {% if value == 'pause_start' %}Inicio de pausa
-                                        {% elif value == 'pause_end' %}Fin de pausa
-                                        {% elif value == 'clock_in' %}Fichaje de entrada
-                                        {% elif value == 'clock_out' %}Fichaje de salida
-                                        {% else %}{{ value }}{% endif %}
-                                    </strong>
-
-                                {% elif key|lower == 'time_tracking' or key|lower == 'time entry' %}
-                                    <span class="text-muted fw-bold">ID Jornada</span>
-                                    <strong class="text-end text-break ms-3 text-muted font-monospace small">{{ value|default:"-" }}</strong>
-                                
-                                {% else %}
-                                    <span class="text-muted fw-bold">{{ key|title }}</span>
-                                    <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
-                                {% endif %}
-                            </li>
+                            {% if "id" not in key|lower %}
+                                <li class="list-group-item bg-transparent px-0 py-2 d-flex justify-content-between align-items-center">
+                                    {% if key|lower == 'actor' %}
+                                        <span class="text-muted fw-bold">Usuario</span>
+                                        <strong class="text-end text-break ms-3">{{ log.user.username|default:value }}</strong>
+                                    
+                                    {% elif key|lower == 'event_type' or key|lower == 'event type' %}
+                                        <span class="text-muted fw-bold">Evento</span>
+                                        <strong class="text-end text-break ms-3">
+                                            {% if value == 'pause_start' %}Inicio de pausa
+                                            {% elif value == 'pause_end' %}Fin de pausa
+                                            {% elif value == 'clock_in' %}Fichaje de entrada
+                                            {% elif value == 'clock_out' %}Fichaje de salida
+                                            {% else %}{{ value }}{% endif %}
+                                        </strong>
+                                    {% else %}
+                                        <span class="text-muted fw-bold">{{ key|title }}</span>
+                                        <strong class="text-end text-break ms-3">{{ value|default:"-" }}</strong>
+                                    {% endif %}
+                                </li>
+                            {% endif %}
                         {% endfor %}
                     </ul>
                 {% else %}

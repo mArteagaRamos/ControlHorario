@@ -85,6 +85,7 @@ def time_entries(request):
                 )
                 
                 # REGISTRO DE AUDITORÍA (CREATE)
+                # No necesitas pasar los hashes, el modelo los calcula automáticamente.
                 AuditLog.objects.create(
                     id=uuid4(),
                     table_name='timetracking_registro',
@@ -94,6 +95,7 @@ def time_entries(request):
                     before=None,
                     after=safe_dict(entry),
                     reason='Fichaje de entrada (Clock-in)',
+                    source='web', # Añadido para completitud del payload
                     timestamp=timezone.now()
                 )
                 
@@ -136,6 +138,7 @@ def time_entries(request):
                         before=estado_anterior,
                         after=safe_dict(active_entry),
                         reason='Fichaje de salida (Clock-out)',
+                        source='web', # Añadido
                         timestamp=timezone.now()
                     )
 
@@ -170,6 +173,7 @@ def time_entries(request):
                         before=None,
                         after=safe_dict(evento),
                         reason='Inicio de pausa',
+                        source='web', # Añadido
                         timestamp=timezone.now()
                     )
 
@@ -204,6 +208,7 @@ def time_entries(request):
                         before=None,
                         after=safe_dict(evento),
                         reason='Fin de pausa',
+                        source='web', # Añadido
                         timestamp=timezone.now()
                     )
 
