@@ -100,7 +100,7 @@
                         <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
                             <td>
                                 <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
-                                {{ registro.user.username }} {{ registro.user.surname }}
+                                {{ registro.user.username.title }} {{ registro.user.surname.title }}
                             </td>
                             <td><strong>{{ registro.date|date:"d/m/Y" }}</strong></td>
                             <td>{{ registro.clock_in|time:"H:i" }} - {{ registro.clock_out|time:"H:i"|default:"--:--" }}</td>
@@ -206,7 +206,7 @@
                     <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
                         <td>
                             <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
-                            {{ incidencia.requester.username }} {{ incidencia.requester.surname }}
+                            {{ incidencia.requester.username.title }} {{ incidencia.requester.surname.title }}
                         </td>
                         <td><strong>{{ incidencia.request_date|date:"d/m/Y H:i" }}</strong></td>
                         <td>

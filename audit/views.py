@@ -66,7 +66,7 @@ def audit_fichajes(request):
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
     # 4. PAGINACIÓN
-    paginator = Paginator(logs_list, 15)
+    paginator = Paginator(logs_list, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -106,6 +106,10 @@ def audit_fichajes(request):
         'pending': 'Pendiente',
         'confirmed': 'Confirmado',
     }
+
+    # -----------------------------------------------------------------------
+    # 6. PROCESAR LOGS PARA LA PÁGINA ACTUAL
+    # -----------------------------------------------------------------------
 
     for log in page_obj:
         for atributo in ['before', 'after']:
@@ -452,10 +456,20 @@ def audit_company(request):
     page_number = request.GET.get('page', 1)
     logs = paginator.get_page(page_number)
 
+    # Handle AJAX load more
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.GET.get('load_more'):
+        offset = int(request.GET.get('offset', 20))
+        limit = 10
+        logs_to_add = log_list[offset:offset+limit]
+        for log in logs_to_add:
+            log.categoria = _infer_categoria(log)
+        return render(request, 'audit/audit_company_rows.html', {'logs': logs_to_add})
+
     return render(request, 'audit/audit_company.html', {
         'logs':         logs,
         'search_query': search_query,
         'tipo_cambio':  tipo_cambio,
         'desde':        desde,
         'hasta':        hasta,
+        'has_more':     len(log_list) > 20,
     })

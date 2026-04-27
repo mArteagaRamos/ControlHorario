@@ -131,7 +131,7 @@ class CompanySelectLoginForm(forms.Form):
         super().__init__(*args, **kwargs)
         if companies:
             self.fields['company_id'].choices = [
-                (str(m.company.id), m.company.name) for m in companies
+                (str(m.company.id), m.company.name.title) for m in companies
             ]
 
 
@@ -371,8 +371,8 @@ class UserPersonalDataForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         # Normalize case
-        user.username = user.username.upper().strip() if user.username else user.username
-        user.surname = user.surname.upper().strip() if user.surname else user.surname
+        user.username.title = user.username.title.upper().strip() if user.username.title else user.username.title
+        user.surname.title = user.surname.title.upper().strip() if user.surname.title else user.surname.title
         user.email = user.email.lower().strip() if user.email else user.email
         user.dni = user.dni.upper().strip() if user.dni else user.dni
         if commit:

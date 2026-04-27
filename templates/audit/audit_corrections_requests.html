@@ -16,28 +16,28 @@
     <hr>
     
     <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
-        <div class="row g-3 align-items-end">
+        <form id="filter-form" method="GET" class="row g-3 align-items-end">
             <div class="col-md-5">
                 <label for="search" class="form-label text-muted small fw-bold">Buscar en esta página</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" class="form-control border-start-0" id="search" placeholder="Usuario, motivo, evento...">
+                    <input type="text" name="search" class="form-control border-start-0" id="search" placeholder="Usuario, motivo, evento..." value="{{ search_query|default:'' }}">
                 </div>
             </div>
             <div class="col-md-3">
                 <label for="desde" class="form-label text-muted small fw-bold">Desde</label>
-                <input type="date" class="form-control" id="desde">
+                <input type="date" name="desde" class="form-control" id="desde" value="{{ desde|default:'' }}">
             </div>
             <div class="col-md-3">
                 <label for="hasta" class="form-label text-muted small fw-bold">Hasta</label>
-                <input type="date" class="form-control" id="hasta">
+                <input type="date" name="hasta" class="form-control" id="hasta" value="{{ hasta|default:'' }}">
             </div>
             <div class="col-md-1 d-flex">
-                <button type="button" id="btn-limpiar" class="btn btn-outline-secondary w-100" title="Limpiar filtros">
+                <a href="{% url 'audit_incidencias' %}" class="btn btn-outline-secondary w-100 d-flex justify-content-center align-items-center" title="Limpiar filtros" style="height: 38px;">
                     <i class="fas fa-eraser"></i>
-                </button>
+                </a>
             </div>
-        </div>
+        </form>
     </div>
     
     <div class="table-responsive shadow-sm bg-white p-3 rounded">
@@ -57,7 +57,7 @@
                 {% for log in logs %}
                 <tr>
                     <td><strong>{{ log.timestamp|date:"d/m/Y" }}</strong> <br> <small class="text-muted">{{ log.timestamp|time:"H:i:s" }}</small></td>
-                    <td>{{ log.user.username|default:"Sistema" }}</td>
+                    <td>{{ log.user.username|title|default:"Sistema" }}</td>
                     
                     <td>
                         {% if log.action_type == 'create' %}
