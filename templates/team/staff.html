@@ -8,7 +8,7 @@
 {% if is_inspecting %}
 <div class="alert alert-info alert-dismissible fade show mb-4 shadow-sm" role="alert">
     <i class="bi bi-info-circle-fill me-2"></i>
-    <strong>Viendo personal de:</strong> {{ company.name }}
+    <strong>Viendo personal de:</strong> {{ company.name.title }}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar alerta"></button>
 </div>
 {% endif %}
@@ -40,7 +40,7 @@
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
         <h2 class="h4 fw-bold mb-0" style="color: #1a1f2e;">Directorio de Empleados</h2>
         <div class="d-flex gap-2 align-self-start align-self-sm-auto">
-            <button type="submit" form="exportFormEmpleados" id="btnExportarEmpleados" class="btn btn-success std-btn d-flex align-items-center gap-2" disabled>
+            <button type="submit" form="exportFormEmpleados" id="btnExportarEmpleados" class="std-btn d-flex align-items-center gap-2" disabled>
                 <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
             </button>
             {% if is_manager %}
@@ -108,10 +108,10 @@
                             <td data-label="Empleado">
                                 <div class="fw-bold nombre-empleado text-start d-flex align-items-center">
                                     <input class="form-check-input select-row-empleados me-2" type="checkbox" name="employee_id" value="{{ membership.id }}">
-                                    <span>{{ membership.user.username }} {{ membership.user.surname }}</span>
+                                    <span>{{ membership.user.username|title }} {{ membership.user.surname|title }}</span>
                                 </div>
                             </td>
-                            <td data-label="Email" class="email-empleado text-muted">{{ membership.user.email }}</td>
+                            <td data-label="Email" class="email-empleado text-muted">{{ membership.user.email|lower }}</td>
                             <td data-label="Rol">
                                 {% if membership.role == 'manager' %}
                                     <span class="badge bg-primary px-2 py-1 rounded-pill">Manager</span>
@@ -154,7 +154,7 @@
                                         data-id="{{ membership.user.id }}"
                                         data-nombre="{{ membership.user.username }}"
                                         data-apellidos="{{ membership.user.surname }}"
-                                        data-email="{{ membership.user.email }}"
+                                        data-email="{{ membership.user.email|lower }}"
                                         data-rol="{{ membership.role }}"
                                         data-estado="{{ membership.user.status }}"
                                         title="Editar Empleado">

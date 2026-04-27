@@ -525,7 +525,7 @@ function displayCompanyResults(companies) {
         const tr = document.createElement('tr');
         tr.className = 'data-row';
         tr.innerHTML = `
-            <td data-label="Empresa">${company.name}</td>
+            <td data-label="Empresa">${company.name.title}</td>
             <td data-label="CIF / NIF">${company.tax_id || '--'}</td>
             <td data-label="Razón Social">${company.legal_name || '--'}</td>
             <td data-label="Creada">${company.created_at || '--'}</td>
@@ -682,7 +682,7 @@ async function handleSelectWorker(workerId, companies) {
             button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
             button.innerHTML = `
                 <div>
-                    <strong>${company.name}</strong>
+                    <strong>${company.name.title}</strong>
                     <small class="text-muted d-block">${company.tax_id}</small>
                 </div>
                 <i class="bi bi-chevron-right text-secondary"></i>

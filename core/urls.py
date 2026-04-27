@@ -88,6 +88,7 @@ urlpatterns = [
     path('leave/<uuid:leave_id>/upload/', corrections_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
     path('calendar/events/', corrections_views.api_calendar_events, name='calendar_events'),
     path('leave/create/', corrections_views.api_leave_request_create, name='leave_create'),
+    path('api/leave/validate-overlap/', corrections_views.api_validate_leave_overlap, name='api_validate_leave_overlap'),
     path('leave/<uuid:leave_id>/cancel/', corrections_views.api_leave_request_cancel, name='api_leave_cancel'),
 
     # ════════════════════════════════════════════════════════════════════════

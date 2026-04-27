@@ -32,10 +32,38 @@
             <option value="all">Todos los empleados</option>
             {% for uc in team %}
             <option value="{{ uc.user.id }}">
-              {{ uc.user.get_full_name|default:uc.user.email }}
+              {{ uc.user.get_full_name|default:uc.user.email|lower }}
             </option>
             {% endfor %}
           </select>
+        </div>
+      </div>
+
+      <!-- ── Filtros de Estado ────────────────────────────────────────── -->
+      <div class="card shadow-sm mb-3">
+        <div class="card-header fw-semibold">Filtrar calendario</div>
+        <div class="card-body">
+          <div class="filter-checkbox">
+            <input type="checkbox" id="filterPending" checked>
+            <label for="filterPending">
+              <span class="status-dot" style="background:#f59e0b;"></span>
+              Pendientes
+            </label>
+          </div>
+          <div class="filter-checkbox">
+            <input type="checkbox" id="filterApproved" checked>
+            <label for="filterApproved">
+              <span class="status-dot" style="background:#10b981;"></span>
+              Aprobadas
+            </label>
+          </div>
+          <div class="filter-checkbox">
+            <input type="checkbox" id="filterRejected">
+            <label for="filterRejected">
+              <span class="status-dot" style="background:#ef4444;"></span>
+              Rechazadas
+            </label>
+          </div>
         </div>
       </div>
       {% endif %}
@@ -126,11 +154,11 @@
       {% if is_manager %}
       <div class="pending-section">
         <div class="pending-section__header">
-          Solicitudes pendientes
+          <span>Solicitudes pendientes</span>
           <span class="pending-section__badge" id="pendingBadge">{{ pending_count }}</span>
         </div>
         <div class="pending-grid" id="pendingContainer">
-          <small class="text-muted">Cargando…</small>
+          <small class="text-muted ps-3 py-2">Cargando…</small>
         </div>
       </div>
       {% endif %}
@@ -261,12 +289,26 @@
   let _pendingRejectId = null;
   let currentLeaveId   = null;
   window._leaveDataMap = {};
+  window.selectedStatuses = ['pending', 'approved'];  // Filtros de estado por defecto
 
   document.addEventListener('DOMContentLoaded', function () {
   document.getElementById('vacationStart').min = today;
   document.getElementById('vacationEnd').min   = today;
   document.getElementById('absenceStart').min  = today;
   document.getElementById('absenceEnd').min    = today;
+
+  // ── Configurar filtros de estado ──────────────────────────────────────
+  document.querySelectorAll('[id^="filter"]').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const selectedStatuses = [];
+      if(document.getElementById('filterPending').checked) selectedStatuses.push('pending');
+      if(document.getElementById('filterApproved').checked) selectedStatuses.push('approved');
+      if(document.getElementById('filterRejected').checked) selectedStatuses.push('rejected');
+      
+      window.selectedStatuses = selectedStatuses;
+      if (calendarObj) calendarObj.refetchEvents();
+    });
+  });
    
   // ── FullCalendar ──────────────────────────────────────────────────────
     const calEl = document.getElementById('calendar');
@@ -282,6 +324,9 @@
           end:   info.endStr.slice(0, 10),
         });
         if (currentUserId) params.set('user_id', currentUserId);
+        if (window.selectedStatuses && window.selectedStatuses.length > 0) {
+          params.set('statuses', window.selectedStatuses.join(','));
+        }
         fetch(`${EVENTS_URL}?${params}`).then(r => r.json()).then(successCb).catch(failureCb);
       },
       eventClick: function (info) { showEventModal(info.event); }
@@ -350,6 +395,42 @@
     const msgEl = document.getElementById(msgElementId);
     msgEl.textContent = '';
 
+    const start_date = isFormData 
+      ? payload.get('start_date') 
+      : payload.start_date;
+    const end_date = isFormData 
+      ? payload.get('end_date') 
+      : payload.end_date;
+
+    // VALIDACION: Verificar solapamientos antes de enviar
+    if (start_date && end_date) {
+      try {
+        const validationRes = await fetch('/api/leave/validate-overlap/', {
+          method: 'POST',
+          headers: { 
+            'X-CSRFToken': CSRF_TOKEN,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ start_date, end_date })
+        });
+        const validationData = await validationRes.json();
+        
+        if (!validationRes.ok) {
+          msgEl.className = 'mt-2 small text-danger';
+          msgEl.innerHTML = '⚠️ ' + validationData.message;
+          return;
+        }
+        
+        if (validationData.conflicts && validationData.conflicts.length > 0) {
+          msgEl.className = 'mt-2 small text-warning';
+          msgEl.innerHTML = '⚠️ Conflicto detectado: ya tienes ' + validationData.conflicts[0].leave_type + ' en este periodo';
+          return;
+        }
+      } catch (err) {
+        console.error('Error validating:', err);
+      }
+    }
+
     const fetchOptions = {
       method: 'POST',
       headers: { 'X-CSRFToken': CSRF_TOKEN },
@@ -372,6 +453,15 @@
         // Limpiar file input si existe
         const f = document.getElementById('absenceAttachment');
         if(f) f.value = '';
+        // Limpiar formularios
+        document.getElementById('vacationReason').value = document.querySelector('#vacationReason option').value;
+        document.getElementById('vacationStart').value = '';
+        document.getElementById('vacationEnd').value = '';
+        document.getElementById('vacationNote').value = '';
+        document.getElementById('absenceReason').value = document.querySelector('#absenceReason option').value;
+        document.getElementById('absenceStart').value = '';
+        document.getElementById('absenceEnd').value = '';
+        document.getElementById('absenceNote').value = '';
       } else {
         msgEl.className = 'mt-2 small text-danger';
         msgEl.textContent = data.error || 'Error al enviar la solicitud.';
@@ -457,18 +547,30 @@
   }
 }
 
-  // ── Modal detalle de evento (Modificado) ────────────────────────────────
+  // ── Modal detalle de evento ──────────────────────────────────────────────
   function showEventModal(event) {
     const props = event.extendedProps;
-    currentLeaveId = event.id; // Guardamos el ID actual
+    currentLeaveId = event.id;
     
     document.getElementById('eventModalTitle').textContent = event.title;
-    document.getElementById('eventModalBody').innerHTML =
+    
+    let bodyHTML = 
       '<p class="mb-1"><strong>Estado:</strong> ' + (props.status || 'N/A') + '</p>' +
       '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
       '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
     
-    //Preparamos la sección de archivos
+    // Agregar indicador de conflicto
+    if (props.has_conflict) {
+      bodyHTML += `
+        <div class="conflict-warning">
+          <strong>Conflicto detectado</strong><br>
+          Este período se solapa con otra solicitud.
+        </div>
+      `;
+    }
+    
+    document.getElementById('eventModalBody').innerHTML = bodyHTML;
+    
     prepareAttachmentSection(event);
     
     new bootstrap.Modal(document.getElementById('eventModal')).show();
@@ -485,7 +587,7 @@
       badge.textContent = list.length;
 
       if (list.length === 0) {
-        container.innerHTML = '<small class="text-muted ps-2">Sin solicitudes pendientes.</small>';
+        container.innerHTML = '<small class="text-muted ps-3 py-2">Sin solicitudes pendientes.</small>';
         return;
       }
 
@@ -494,19 +596,26 @@
       list.forEach(l => { window._leaveDataMap[l.id] = l; });
 
       container.innerHTML = list.map(l => `
-        <div class="pending-card" id="pending-${l.id}">
-          <div class="pending-card__name">${l.user}</div>
-          <div class="pending-card__meta">${l.leave_type} · ${l.leave_reason}</div>
-          <div class="pending-card__dates"> ${l.start_date} → ${l.end_date}</div>
-          ${l.reason_note ? `<div class="pending-card__note">"${l.reason_note}"</div>` : ''}
-          <div class="pending-card__actions">
-            <button class="pcard-btn pcard-btn--approve" onclick="approveLeave('${l.id}')">✓ Aprobar</button>
-            <button class="pcard-btn pcard-btn--reject"  onclick="openRejectModal('${l.id}')">✗ Rechazar</button>
+        <div class="pending-item" id="pending-${l.id}">
+          <div class="pending-item__header">
+            <div class="pending-item__header-left">
+              <div class="pending-item__name">${l.user}</div>
+              <div class="pending-item__badge-group">
+                <span class="pending-badge badge-${l.leave_type_raw === 'vacation' ? 'vacation' : 'absence'}">${l.leave_type}</span>
+                <span class="pending-badge" style="background:#ede9fe;color:#5b21b6;">${l.leave_reason}</span>
+              </div>
+            </div>
+            <div class="pending-item__dates">${l.start_date} → ${l.end_date}</div>
+          </div>
+          ${l.reason_note ? `<div class="pending-item__reason">${l.reason_note}</div>` : '<div class="pending-item__reason text-muted">Sin motivo especificado</div>'}
+          <div class="pending-item__actions">
+            <button class="pcard-btn pcard-btn--approve" onclick="approveLeave('${l.id}')">Aprobar</button>
+            <button class="pcard-btn pcard-btn--reject"  onclick="openRejectModal('${l.id}')">Rechazar</button>
           </div>
         </div>
       `).join('');
     } catch (e) {
-      container.innerHTML = '<small class="text-danger ps-2">Error al cargar.</small>';
+      container.innerHTML = '<small class="text-danger ps-3 py-2">Error al cargar.</small>';
     }
   }
 

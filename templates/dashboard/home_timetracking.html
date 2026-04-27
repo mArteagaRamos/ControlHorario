@@ -50,7 +50,7 @@
     {% if is_delegating %}
       <span class="home-username">, {{ delegated_user_name }}</span>
     {% elif request.user.is_authenticated %}
-      <span class="home-username">, {{ request.user.username }}</span>
+      <span class="home-username">, {{ request.user.username.title }}</span>
     {% endif %}
   </h2>
   {% if active_entry %}
