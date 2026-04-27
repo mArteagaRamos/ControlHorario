@@ -81,7 +81,7 @@ def resolver_incidencia(request):
                 clock_in=incidencia.new_clock_in,
                 clock_out=incidencia.new_clock_out,
                 status=TimeEntries.EntryStatus.CONFIRMED,
-                notes=f"Aceptado por {approver_user.username.title}. Motivo: {incidencia.reason}",
+                notes=f"Aceptado por {approver_user.username.title()}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
@@ -403,13 +403,13 @@ def api_leave_resolved(request):
     else:
         leaves = base_qs.filter(user=request.user)[:30]
 
-    show_user_col = user_is_manager and bool(user_id)
+    show_user_col: bool = user_is_manager and user_id == 'all'
 
     data = []
     for l in leaves:
         data.append({
             'id':               str(l.id),
-            'user_name':        f"{l.user.username.title} {l.user.surname.title}".strip(),
+            'user_name':        f"{l.user.username.title()} {l.user.surname.title()}".strip(),
             'leave_type':       l.get_leave_type_display(),
             'leave_reason':     l.get_leave_reason_display(),
             'start_date':       l.start_date.strftime('%d/%m/%Y'),
@@ -491,8 +491,7 @@ def api_calendar_events(request):
         for leave in leaves:
             events.append({
                 'id': f'leave-{leave.id}',
-                'title': f'{leave.user.username.title} · {leave.get_leave_type_display()}',
-                'start': leave.start_date.isoformat(),
+                'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',                'start': leave.start_date.isoformat(),
                 'end': (leave.end_date + timedelta(days=1)).isoformat(),
                 'color': STATUS_COLOR.get(leave.status, '#6b7280'),
                 'allDay': True,
