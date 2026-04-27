@@ -237,6 +237,17 @@
 
 {% block extra_scripts %}
 <script>
+  // FASE 1: Configuración global para módulos JavaScript
+  window.AEPTIC_CALENDAR = {
+    EVENTS_URL: '{% url "calendar_events" %}',
+    LEAVE_CREATE_URL: '{% url "leave_create" %}',
+    LEAVE_PENDING_URL: '{% url "leave_pending" %}',
+    LEAVE_RESOLVED_URL: '{% url "api_leave_resolved" %}',
+    LEAVE_BASE_URL: '/leave/',
+    CSRF_TOKEN: '{{ csrf_token }}'
+  };
+
+  // Variables locales (temporales, serán movidas a módulos en fases posteriores)
   const EVENTS_URL        = '{% url "calendar_events" %}';
   const LEAVE_CREATE_URL  = '{% url "leave_create" %}';
   const LEAVE_PENDING_URL = '{% url "leave_pending" %}';

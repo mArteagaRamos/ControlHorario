@@ -21,7 +21,7 @@ from audit.utils import safe_dict
 from uuid import uuid4
 
 # Import centralized decorators and services
-from core.decorators import manager_or_admin_required, auditor_cannot_access
+from core.decorators import manager_or_admin_required, auditor_cannot_access, auditor_or_admin_required
 from core.services import combine_local_date_time, get_effective_context
 
 
@@ -30,6 +30,7 @@ from core.services import combine_local_date_time, get_effective_context
 # ═══════════════════════════════════════════════════════════════════════════════
 #
 # 1. Vista del Dashboard (el menú de botones)
+@auditor_or_admin_required
 def audit_dashboard(request):
     # Añadimos 'audit/' a la ruta
     return render(request, 'audit/audit_dashboard.html')
@@ -38,6 +39,7 @@ def audit_dashboard(request):
 # VISTAS DE TABLAS ESPECÍFICAS
 # -------------------------------------------------------------
 
+@auditor_or_admin_required
 def audit_fichajes(request):
     # Tablas a monitorear
     tablas_fichajes = ['timetracking_registro', 'timetracking_pausa', 'timetracking_timeentries']
@@ -165,9 +167,10 @@ def audit_fichajes(request):
         'desde': desde,
         'hasta': hasta,
     }
-    
+
     return render(request, 'audit/audit_timetracking.html', context)
 
+@auditor_or_admin_required
 def audit_vacaciones(request):
 
     logs_list = AuditLog.objects.filter(table_name='leave_requests').order_by('-timestamp')
@@ -206,6 +209,7 @@ def audit_vacaciones(request):
     }
     return render(request, 'audit/audit_leave_requests.html', context)
 
+@auditor_or_admin_required
 def audit_usuarios(request):
     tablas_usuarios = ['user_action']  # Tabla estándar para todos los eventos de usuario
 
@@ -251,6 +255,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 # Asegúrate de tener importados tus modelos AuditLog, Users, Company...
 
+@auditor_or_admin_required
 def audit_incidencias(request):
     tablas_incidencias = ['timetracking_correctionrequest'] 
     
@@ -392,7 +397,7 @@ def _infer_categoria(log):
     return 'otros'
 
 
-@login_required
+@auditor_or_admin_required
 def audit_company(request):
 
     # ── Filtros ───────────────────────────────────────────────────────────────
