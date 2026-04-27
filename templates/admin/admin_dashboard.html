@@ -344,7 +344,7 @@
         <div class="modal-content">
             <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">Editar Trabajador</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'edit_employee' %}" method="POST">
                 {% csrf_token %}
@@ -393,7 +393,7 @@
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold">Eliminar Trabajador</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}
@@ -439,7 +439,7 @@
         <div class="modal-content border-danger">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title fw-bold">Eliminar Empresa</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <form action="{% url 'delete_company' %}" method="POST">
                 {% csrf_token %}
@@ -472,7 +472,7 @@
         <div class="modal-content">
             <div class="modal-header bg-light">
                 <h5 class="modal-title fw-bold">Seleccionar Empresa</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">×</button>
             </div>
             <div class="modal-body">
                 <p class="text-muted mb-3">Elige la empresa para la cual trabajar:</p>

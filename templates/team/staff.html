@@ -9,7 +9,7 @@
 <div class="alert alert-info alert-dismissible fade show mb-4 shadow-sm" role="alert">
     <i class="bi bi-info-circle-fill me-2"></i>
     <strong>Viendo personal de:</strong> {{ company.name.title }}
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar alerta"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar alerta">×</button>
 </div>
 {% endif %}
 
@@ -18,7 +18,7 @@
     <small class="d-flex align-items-center">
         <i class="bi bi-exclamation-circle me-2"></i>
         <strong>Actuando como:</strong> <span class="ms-1">{{ delegated_user_name }}</span>
-        <button type="button" class="btn-close ms-auto" onclick="clearDelegation()" aria-label="Limpiar delegación"></button>
+        <button type="button" class="btn-close ms-auto" onclick="clearDelegation()" aria-label="Limpiar delegación">×</button>
     </small>
 </div>
 {% endif %}
@@ -182,7 +182,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-light border-bottom-0">
                 <h5 class="modal-title fw-bold" id="modalEditarLabel" style="color: #1a1f2e;">Editar Empleado</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar">×</button>
             </div>
             <form action="{% url 'edit_employee' %}" method="POST">
                 {% csrf_token %}
@@ -232,7 +232,7 @@
         <div class="modal-content border-danger shadow">
             <div class="modal-header bg-danger text-white border-bottom-0">
                 <h5 class="modal-title fw-bold" id="modalEliminarLabel">Eliminar Empleado</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar">×</button>
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}

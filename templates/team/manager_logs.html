@@ -13,7 +13,7 @@
     <small>
         <i class="bi bi-exclamation-circle"></i>
         <strong>Actuando como:</strong> {{ delegated_user_name }}
-        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+        <button type="button" class="btn-close" onclick="clearDelegation()">×</button>
     </small>
 </div>
 {% endif %}
@@ -283,7 +283,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title"><i class="bi bi-exclamation-circle me-2"></i> Resolver Incidencia</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
             <div class="modal-body p-4">
                 <p><strong>Empleado:</strong> <span id="modalEmpleado" class="text-primary fw-semibold"></span></p>
@@ -333,7 +333,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Modificar Entrada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
             <form method="POST" action="{% url 'editar_registro' %}"> 
                 {% csrf_token %}
@@ -364,7 +364,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i> Anular Entrada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
             <form method="POST" action="{% url 'anular_registro' %}"> 
                 {% csrf_token %}
@@ -388,7 +388,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i> Editar Incidencia Rechazada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
             <form method="POST" action="{% url 'editar_incidencia_rechazada' %}">
                 {% csrf_token %}
@@ -424,7 +424,7 @@
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title fw-bold"><i class="bi bi-trash me-2 text-danger"></i> Eliminar Incidencia Rechazada</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
             <form method="POST" action="{% url 'eliminar_incidencia_rechazada' %}">
                 {% csrf_token %}
