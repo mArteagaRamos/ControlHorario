@@ -37,7 +37,9 @@
     display: inline;
 }
 
-
+ul.nav-tabs .nav-link {
+    color: #6c757d;
+}
 
 /* Responsive Design */
 @media (max-width: 767px) {
