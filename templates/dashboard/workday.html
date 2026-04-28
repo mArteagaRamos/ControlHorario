@@ -9,8 +9,8 @@
 <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative; max-width: 350px;">
     <small>
         <i class="bi bi-exclamation-circle"></i>
-        <strong>Actuando como:</strong> {{ delegated_user_name }}
-        <button type="button" class="btn-close" onclick="clearDelegation()"></button>
+        <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
+        <button type="button" class="btn-close" onclick="clearDelegation()">×</button>
     </small>
 </div>
 {% endif %}
@@ -56,12 +56,14 @@
 
     /* --- ESTILOS DE LA TABLA Y SCROLL --- */
     .table-scroll-container {
-        max-height: 500px; 
         overflow-y: auto;
         border-radius: 0.5rem;
-        box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
     }
-    
+
+    .table-scroll-container.has-fixed-height {
+        height: var(--table-fixed-height, auto);
+    }
+
     .table-scroll-container thead th {
         position: sticky;
         top: 0;
@@ -70,11 +72,25 @@
         color: white;
         box-shadow: 0 2px 4px rgba(0,0,0,0.04);
     }
-    
+
     .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
     .table-scroll-container::-webkit-scrollbar-thumb { background: #adb5bd; border-radius: 4px; }
     .table-scroll-container::-webkit-scrollbar-track { background: #f8f9fa; }
-    
+
+    /* Ocultar botón por defecto */
+    .btn-show-more {
+        display: none !important;
+    }
+
+    .btn-show-more.visible {
+        display: block !important;
+    }
+
+    /* Ocultar filas filtradas */
+    .table-row-hidden {
+        display: none !important;
+    }
+
 </style>
 
 <div class="container-fluid">
@@ -163,7 +179,7 @@
             </div>
 
             <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
-                <button class="std-btn-secondary" id="entryShowMore">Ver Más</button>
+                <button class="std-btn-secondary btn-show-more" id="entryShowMore">Ver Más</button>
             </div>
 
             <h5 style="color: #1a1f2e;" class="mb-3 mt-4 fw-semibold d-flex justify-content-between align-items-center">
@@ -173,7 +189,7 @@
                 </button>
             </h5>
 
-            <div class="table-responsive table-scroll-container" id="entryTableContainer">
+            <div class="table-responsive table-scroll-container" id="requestTableContainer">
                 <form id="exportFormRequests" action="{% url 'exportar_workday_requests' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="requestTable">
@@ -242,7 +258,7 @@
             </div>
 
             <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
-                <button class="std-btn-secondary" id="requestShowMore">Ver Más</button>
+                <button class="std-btn-secondary btn-show-more" id="requestShowMore">Ver Más</button>
             </div>
 
     <div class="modal fade" id="modalCorreccion" tabindex="-1">
@@ -251,7 +267,7 @@
 
                 <div class="modal-header">
                     <h5 class="modal-title">Solicitud de Corrección</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal">×</button>
                 </div>
 
                 <div class="modal-body">
@@ -297,242 +313,32 @@
 
 </div>
 
-<script>
-    // ── Preparar el modal según la acción (Crear vs Editar) ──────────────
-    document.getElementById('modalCorreccion').addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const action = button.getAttribute('data-action') || 'request_correction';
-        
-        document.getElementById('form_action').value = action;
-        
-        // Limpiar feedback anterior al abrir el modal
-        const feedback = document.getElementById('correctionFeedback');
-        feedback.textContent = '';
-        feedback.classList.add('d-none');
+<script type="module">
+    // Importar módulos de timetracking (rutas relativas)
+    import { initWorkdayPagination } from '../../../static/js/modules/timetracking/workday-pagination.js';
+    import { initWorkdayExports } from '../../../static/js/modules/timetracking/workday-exports.js';
+    import { initWorkdayModal } from '../../../static/js/modules/timetracking/workday-modal.js';
+    import { initWorkdayFilters } from '../../../static/js/modules/timetracking/workday-filters.js';
 
-        if (action === 'edit_correction') {
-            // MODO EDICIÓN
-            document.getElementById('request_id').value = button.getAttribute('data-request-id') || '';
-            document.getElementById('entry_id').value = ''; // Limpiamos por si acaso
-            document.querySelector('input[name="new_clock_in"]').value = button.getAttribute('data-in') || '';
-            document.querySelector('input[name="new_clock_out"]').value = button.getAttribute('data-out') || '';
-            document.querySelector('textarea[name="reason"]').value = button.getAttribute('data-reason') || '';
-            document.querySelector('.modal-title').textContent = 'Editar Solicitud de Corrección';
-        } else {
-            // MODO CREACIÓN NUEVA
-            document.getElementById('entry_id').value = button.getAttribute('data-entry-id') || '';
-            document.getElementById('request_id').value = ''; // Limpiamos por si acaso
-            document.querySelector('input[name="new_clock_in"]').value = '';
-            document.querySelector('input[name="new_clock_out"]').value = '';
-            document.querySelector('textarea[name="reason"]').value = '';
-            document.querySelector('.modal-title').textContent = 'Nueva Solicitud de Corrección';
-        }
-    });
-
-    // ── Pagination state manager ─────────────────────────────────────────────
-    const pagination = {};
-
-    function initTablePagination(tableSelector, rowSelector, buttonSelector, containerSelector) {
-        const table = document.querySelector(tableSelector);
-        if (!table) return; // Prevención de errores si la tabla no existe
-        
-        const tbody = table.querySelector('tbody');
-        const rows = Array.from(tbody.querySelectorAll(rowSelector));
-        const button = document.querySelector(buttonSelector);
-        const container = document.querySelector(containerSelector);
-
-        const ROWS_PER_PAGE = 5;
-        const stateKey = buttonSelector;
-
-        pagination[stateKey] = {
-            currentPage: 1,
-            rows: rows,
-            container: container,
-            button: button,
-            ROWS_PER_PAGE: ROWS_PER_PAGE
-        };
-
-        function updateTableView() {
-            const state = pagination[stateKey];
-            const visibleRows = state.rows.filter(r => !r.classList.contains('table-row-hidden'));
-            const maxRows = state.ROWS_PER_PAGE * state.currentPage;
-
-            let visibleCount = 0;
-            state.rows.forEach((row) => {
-                if (!row.classList.contains('table-row-hidden')) {
-                    visibleCount++;
-                    row.style.display = visibleCount <= maxRows ? '' : 'none';
-                }
-            });
-
-            if (visibleRows.length > state.ROWS_PER_PAGE) {
-                state.container.classList.add('table-scroll-container');
-            } else {
-                state.container.classList.remove('table-scroll-container');
-            }
-
-            if (maxRows >= visibleRows.length) {
-                state.button.style.display = 'none';
-            } else {
-                state.button.style.display = 'block';
-            }
-        }
-
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            pagination[stateKey].currentPage++;
-            updateTableView();
-        });
-
-        updateTableView();
+    // Inicializar módulos
+    function initializeWorkday() {
+        initWorkdayPagination();
+        initWorkdayExports();
+        initWorkdayModal();
+        initWorkdayFilters();
     }
 
-    // ── Initialize both tables & Filters ──────────────────────────────────────
-    document.addEventListener('DOMContentLoaded', function() {
-        initTablePagination('#entryTable', '.entry-row', '#entryShowMore', '#entryTableContainer');
-        initTablePagination('#requestTable', '.request-row', '#requestShowMore', '#requestTableContainer');
+    // Chequear si DOM ya está listo
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeWorkday);
+    } else {
+        // DOM ya está listo
+        initializeWorkday();
+    }
+</script>
 
-        const filterButton = document.getElementById('filterButton');
-        const filterFromDate = document.getElementById('filterFromDate');
-        const filterToDate = document.getElementById('filterToDate');
-
-        filterButton.addEventListener('click', function(e) {
-            e.preventDefault();
-            const fromDate = filterFromDate.value;
-            const toDate = filterToDate.value;
-
-            const entryRows = document.querySelectorAll('.entry-row');
-            const requestRows = document.querySelectorAll('.request-row');
-
-            function applyFilter(rows) {
-                rows.forEach(row => {
-                    const rowDate = row.getAttribute('data-entry-date');
-                    let shouldShow = true;
-
-                    if (fromDate && rowDate < fromDate) shouldShow = false;
-                    if (toDate && rowDate > toDate) shouldShow = false;
-
-                    if (shouldShow) {
-                        row.classList.remove('table-row-hidden');
-                    } else {
-                        row.classList.add('table-row-hidden');
-                    }
-                });
-            }
-
-            applyFilter(entryRows);
-            applyFilter(requestRows);
-
-            // Reset pagination
-            pagination['#entryShowMore'].currentPage = 1;
-            pagination['#requestShowMore'].currentPage = 1;
-
-            // Trigger manual refresh
-            ['#entryShowMore', '#requestShowMore'].forEach(key => {
-                const state = pagination[key];
-                const visibleRows = state.rows.filter(r => !r.classList.contains('table-row-hidden'));
-                const maxRows = state.ROWS_PER_PAGE * state.currentPage;
-
-                let visibleCount = 0;
-                state.rows.forEach((row) => {
-                    if (!row.classList.contains('table-row-hidden')) {
-                        visibleCount++;
-                        row.style.display = visibleCount <= maxRows ? '' : 'none';
-                    }
-                });
-
-                if (visibleRows.length > state.ROWS_PER_PAGE) {
-                    state.container.classList.add('table-scroll-container');
-                } else {
-                    state.container.classList.remove('table-scroll-container');
-                }
-
-                if (maxRows >= visibleRows.length) {
-                    state.button.style.display = 'none';
-                } else {
-                    state.button.style.display = 'block';
-                }
-            });
-        });
-    });
-
-    // ── Handle HTMX response ───────────────────────────────────────────────
-    document.getElementById('correctionForm').addEventListener('htmx:afterRequest', function (evt) {
-        const status   = evt.detail.xhr.status;
-        const feedback = document.getElementById('correctionFeedback');
-
-        // Asumimos que la vista de Django devuelve un código 204 (No Content) o 200 en caso de éxito
-        if (status === 204 || status === 200) {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalCorreccion'));
-            modal.hide();
-            window.location.reload();
-        } else {
-            // Si hay un error (ej. 400), mostramos el mensaje del servidor
-            feedback.textContent = evt.detail.xhr.responseText || 'Error al enviar la solicitud.';
-            feedback.classList.remove('d-none');
-        }
-    });
-
-    // --- EXPORT LOGIC FOR ENTRIES ---
-    window.actualizarBotonExportarEntries = function() {
-        const seleccionados = document.querySelectorAll('.select-row-entries:checked').length;
-        const btnExportar = document.getElementById('btnExportarEntries');
-        if (!btnExportar) return;
-
-        if (seleccionados > 0) {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
-            btnExportar.disabled = false;
-        } else {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
-            btnExportar.disabled = true;
-        }
-    };
-
-    // --- EXPORT LOGIC FOR REQUESTS ---
-    window.actualizarBotonExportarRequests = function() {
-        const seleccionados = document.querySelectorAll('.select-row-requests:checked').length;
-        const btnExportar = document.getElementById('btnExportarRequests');
-        if (!btnExportar) return;
-
-        if (seleccionados > 0) {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar (${seleccionados})`;
-            btnExportar.disabled = false;
-        } else {
-            btnExportar.innerHTML = `<i class="bi bi-file-earmark-excel"></i> Exportar seleccionados`;
-            btnExportar.disabled = true;
-        }
-    };
-
-    // Use event delegation for checkboxes
-    document.addEventListener('change', function(e) {
-        // Handle entries checkboxes
-        if (e.target.id === 'selectAllEntries') {
-            document.querySelectorAll('.select-row-entries').forEach(cb => cb.checked = e.target.checked);
-            actualizarBotonExportarEntries();
-        }
-        else if (e.target.classList.contains('select-row-entries')) {
-            actualizarBotonExportarEntries();
-            const selectAllCheckbox = document.getElementById('selectAllEntries');
-            if (!e.target.checked && selectAllCheckbox) {
-                selectAllCheckbox.checked = false;
-            }
-        }
-
-        // Handle requests checkboxes
-        if (e.target.id === 'selectAllRequests') {
-            document.querySelectorAll('.select-row-requests').forEach(cb => cb.checked = e.target.checked);
-            actualizarBotonExportarRequests();
-        }
-        else if (e.target.classList.contains('select-row-requests')) {
-            actualizarBotonExportarRequests();
-            const selectAllCheckbox = document.getElementById('selectAllRequests');
-            if (!e.target.checked && selectAllCheckbox) {
-                selectAllCheckbox.checked = false;
-            }
-        }
-    });
-
-    // Clear delegation function
+<script>
+    // Clear delegation function - MANTENER EN TEMPLATE
     async function clearDelegation() {
         const response = await fetch("{% url 'clear_delegated_worker' %}", {
             method: 'POST',

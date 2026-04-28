@@ -44,7 +44,7 @@
         <div class="dropdown me-2">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
-                    <span class="d-none d-sm-inline">{{ current_company.name|title }}</span>
+                    <span class="d-none d-sm-inline" style="color: white !important;">{{ current_company.name|title }}</span>
                     <i class="bi bi-building d-sm-none"></i>
                 {% endif %}
             </a>
@@ -188,19 +188,6 @@
         </div>
         {% endfor %}
     </div>
-
-    <script>
-        // Auto-close messages after 5 seconds
-        setTimeout(function() {
-            var container = document.getElementById('django-messages-container');
-            if (container) {
-                container.classList.add('closing');
-                setTimeout(function() {
-                    container.remove();
-                }, 300);
-            }
-        }, 5000);
-    </script>
     {% endif %}
 
     <nav aria-label="breadcrumb" class="mb-4">
@@ -230,70 +217,8 @@
 
 {% bootstrap_javascript %}
 
-<script>
-// Toggle principal para mobile
-const toggleBtn = document.getElementById('menu-toggle');
-const sidebar = document.getElementById('sidebar');
-const closeBtn = document.getElementById('close-sidebar-btn'); // Nueva referencia
-
-// Abrir menú
-toggleBtn?.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
-});
-
-// Cerrar menú con la X
-closeBtn?.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-});
-
-// Cerrar sidebar cuando se hace click en un link en mobile
-const navLinks = document.querySelectorAll('.sidebar .nav-link:not(.collapse-toggle)');
-navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-        if (window.innerWidth < 768) {
-            sidebar.classList.remove('active');
-        }
-    });
-});
-
-// Cerrar sidebar al hacer clic fuera
-document.addEventListener('click', (e) => {
-    if (window.innerWidth < 768 && sidebar.classList.contains('active')) {
-        if (!sidebar.contains(e.target) && !toggleBtn.contains(e.target)) {
-            sidebar.classList.remove('active');
-        }
-    }
-});
-
-// Menús colapsables
-const collapseLinks = document.querySelectorAll('.collapse-toggle');
-collapseLinks.forEach(link => {
-    link.addEventListener('click', (e) => {
-        e.preventDefault();
-        const submenu = link.nextElementSibling;
-        const chevron = link.querySelector('.chevron');
-        submenu.classList.toggle('active');
-        chevron.classList.toggle('rotated');
-    });
-});
-
-// Función para mostrar toast
-function showToast(message) {
-    const toast = document.getElementById("toast");
-    toast.innerText = message;
-    toast.classList.remove("hidden");
-    toast.classList.add("show");
-
-    setTimeout(() => {
-        toast.classList.remove("show");
-        setTimeout(() => toast.classList.add("hidden"), 300);
-    }, 3000);
-}
-</script>
-
+<script type="module" src="{% static 'js/modules/layout/base-layout.js' %}"></script>
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-
-{% block extra_scripts %}{% endblock %}
 
 </body>
 </html>
