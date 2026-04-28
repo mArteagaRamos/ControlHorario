@@ -1,18 +1,17 @@
 /**
  * Search Tabs Module
  * Maneja el tab switching para búsqueda de empresas y trabajadores
- *
- * FASE 5: Extraer UI (Tabs)
+ * REFACTORIZADO: Usa ui-utils para reducir duplicación
  */
+
+import { toggleTabBlocks, setFeedback, hideElement } from '../../utils/ui-utils.js';
 
 /**
  * Limpia resultados
  */
 function clearResultsWrapper() {
     const sectionResultados = document.getElementById('section-resultados');
-    if (sectionResultados) {
-        sectionResultados.classList.add('d-none');
-    }
+    hideElement(sectionResultados);
 }
 
 /**
@@ -24,21 +23,14 @@ function initializeCompanySearchTabs() {
 
     modeGroup.querySelectorAll('[data-cmode]').forEach(btn => {
         btn.addEventListener('click', () => {
-            // Actualizar estado visual de los botones
-            modeGroup.querySelectorAll('[data-cmode]').forEach(b => {
-                b.classList.toggle('active', b === btn);
-                b.classList.toggle('btn-secondary', b === btn);
-                b.classList.toggle('btn-outline-secondary', b !== btn);
-            });
+            const mode = btn.dataset.cmode;
 
-            // Ocultar todos los bloques y mostrar el seleccionado
-            document.querySelectorAll('.empresa-search-block').forEach(b => {
-                b.classList.add('d-none');
-            });
-            document.getElementById(`empresa-search-block-${btn.dataset.cmode}`)?.classList.remove('d-none');
+            // Usar utilidad compartida para toggle de tabs
+            toggleTabBlocks(modeGroup, 'data-cmode', mode, '.empresa-search-block');
 
             // Limpiar feedback y resultados
-            document.getElementById('empresa-feedback').textContent = '';
+            const feedback = document.getElementById('empresa-feedback');
+            setFeedback(feedback, '', '');
             clearResultsWrapper();
         });
     });
@@ -55,21 +47,14 @@ function initializeWorkerSearchTabs() {
 
     modeGroup.querySelectorAll('[data-tmode]').forEach(btn => {
         btn.addEventListener('click', () => {
-            // Actualizar estado visual de los botones
-            modeGroup.querySelectorAll('[data-tmode]').forEach(b => {
-                b.classList.toggle('active', b === btn);
-                b.classList.toggle('btn-secondary', b === btn);
-                b.classList.toggle('btn-outline-secondary', b !== btn);
-            });
+            const mode = btn.dataset.tmode;
 
-            // Ocultar todos los bloques y mostrar el seleccionado
-            document.querySelectorAll('.trabajador-search-block').forEach(b => {
-                b.classList.add('d-none');
-            });
-            document.getElementById(`trabajador-search-block-${btn.dataset.tmode}`)?.classList.remove('d-none');
+            // Usar utilidad compartida para toggle de tabs
+            toggleTabBlocks(modeGroup, 'data-tmode', mode, '.trabajador-search-block');
 
             // Limpiar feedback y resultados
-            document.getElementById('trabajador-feedback').textContent = '';
+            const feedback = document.getElementById('trabajador-feedback');
+            setFeedback(feedback, '', '');
             clearResultsWrapper();
         });
     });
@@ -85,3 +70,4 @@ export function initializeSearchTabs() {
     initializeWorkerSearchTabs();
     console.log('[SearchTabs] All search tabs initialized');
 }
+

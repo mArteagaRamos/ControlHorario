@@ -1,18 +1,18 @@
 /**
  * Worker Search Module
  * Maneja la búsqueda de trabajadores por Email, DNI y autocomplete por nombre
- *
- * FASE 4: Extraer búsqueda de trabajadores
+ * REFACTORIZADO: Usa search-utils y ui-utils para reducir duplicación
  */
 
 import { getAdminConfig } from '../../utils/config.js';
+import { createDebouncedSearch, renderSuggestions, setupClickOutsideListener, clearSuggestions } from '../../utils/search-utils.js';
+import { setFeedback, hideElement } from '../../utils/ui-utils.js';
 
 // DOM References
 let trabajadorEmailInput = null;
 let trabajadorDniInput = null;
 let trabajadorNombreInput = null;
 let trabajadorNombreSuggestions = null;
-let trabajadorNombreDebounceTimer = null;
 
 /**
  * Inicializa las referencias del DOM
@@ -28,10 +28,7 @@ function initializeDOMReferences() {
  * Limpia los resultados
  */
 export function clearResults() {
-    const sectionResultados = document.getElementById('section-resultados');
-    if (sectionResultados) {
-        sectionResultados.classList.add('d-none');
-    }
+    hideElement(document.getElementById('section-resultados'));
 }
 
 /**
@@ -42,31 +39,30 @@ async function searchWorkerByEmail() {
     const feedback = document.getElementById('trabajador-feedback');
 
     if (!email) {
-        feedback.textContent = 'Introduce un email.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Introduce un email.', 'danger');
         return;
     }
 
     try {
         const LOOKUP_USER_URL = getAdminConfig('LOOKUP_USER_URL');
-        const res = await fetch(`${LOOKUP_USER_URL}?email=${encodeURIComponent(email)}&include_companies=true`);
+        const url = new URL(LOOKUP_USER_URL, window.location.origin);
+        url.searchParams.set('email', email);
+        url.searchParams.set('include_companies', 'true');
+
+        const res = await fetch(url.toString());
         const data = await res.json();
 
         if (data.found) {
-            // Importar dinámicamente para evitar dependencia circular
             const { displayWorkerResults } = await import('./result-display.js');
             displayWorkerResults([data]);
-            feedback.textContent = 'Trabajador encontrado.';
-            feedback.className = 'form-text text-success';
+            setFeedback(feedback, 'Trabajador encontrado.', 'success');
         } else {
             clearResults();
-            feedback.textContent = 'No existe ningún trabajador con ese email.';
-            feedback.className = 'form-text text-danger';
+            setFeedback(feedback, 'No existe ningún trabajador con ese email.', 'danger');
         }
     } catch (error) {
         console.error('Error searching worker by email:', error);
-        feedback.textContent = 'Error al buscar el trabajador.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Error al buscar el trabajador.', 'danger');
     }
 }
 
@@ -78,82 +74,38 @@ async function searchWorkerByDni() {
     const feedback = document.getElementById('trabajador-feedback');
 
     if (!dni) {
-        feedback.textContent = 'Introduce un DNI.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Introduce un DNI.', 'danger');
         return;
     }
 
     try {
         const LOOKUP_USER_URL = getAdminConfig('LOOKUP_USER_URL');
-        const res = await fetch(`${LOOKUP_USER_URL}?dni=${encodeURIComponent(dni)}&include_companies=true`);
+        const url = new URL(LOOKUP_USER_URL, window.location.origin);
+        url.searchParams.set('dni', dni);
+        url.searchParams.set('include_companies', 'true');
+
+        const res = await fetch(url.toString());
         const data = await res.json();
 
         if (data.found) {
             const { displayWorkerResults } = await import('./result-display.js');
             displayWorkerResults([data]);
-            feedback.textContent = 'Trabajador encontrado.';
-            feedback.className = 'form-text text-success';
+            setFeedback(feedback, 'Trabajador encontrado.', 'success');
         } else {
             clearResults();
-            feedback.textContent = 'No existe ningún trabajador con ese DNI.';
-            feedback.className = 'form-text text-danger';
+            setFeedback(feedback, 'No existe ningún trabajador con ese DNI.', 'danger');
         }
     } catch (error) {
         console.error('Error searching worker by DNI:', error);
-        feedback.textContent = 'Error al buscar el trabajador.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Error al buscar el trabajador.', 'danger');
     }
 }
 
 /**
- * Busca trabajadores por nombre (autocomplete)
+ * Formatea item de trabajador para sugerencias
  */
-async function searchWorkerByName(query) {
-    if (!query || query.length < 2) {
-        trabajadorNombreSuggestions.classList.add('d-none');
-        document.getElementById('trabajador-feedback').textContent = '';
-        return;
-    }
-
-    try {
-        const LOOKUP_USER_URL = getAdminConfig('LOOKUP_USER_URL');
-        const res = await fetch(`${LOOKUP_USER_URL}?name=${encodeURIComponent(query)}&include_companies=true`);
-        const data = await res.json();
-        const results = data.results || [];
-
-        trabajadorNombreSuggestions.innerHTML = '';
-
-        if (results.length === 0) {
-            trabajadorNombreSuggestions.classList.add('d-none');
-            document.getElementById('trabajador-feedback').textContent = 'Sin resultados para esa búsqueda.';
-            document.getElementById('trabajador-feedback').className = 'form-text text-warning';
-            return;
-        }
-
-        document.getElementById('trabajador-feedback').textContent = '';
-        results.forEach(user => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-            li.style.cursor = 'pointer';
-            li.innerHTML = `<strong>${user.username} ${user.surname}</strong>`;
-            li.addEventListener('click', async () => {
-                const { displayWorkerResults } = await import('./result-display.js');
-                displayWorkerResults([user]);
-                trabajadorNombreInput.value = `${user.username} ${user.surname}`;
-                trabajadorNombreSuggestions.classList.add('d-none');
-                document.getElementById('trabajador-feedback').textContent = 'Trabajador seleccionado.';
-                document.getElementById('trabajador-feedback').className = 'form-text text-success';
-            });
-            trabajadorNombreSuggestions.appendChild(li);
-        });
-
-        trabajadorNombreSuggestions.classList.remove('d-none');
-    } catch (error) {
-        console.error('Error searching worker by name:', error);
-        trabajadorNombreSuggestions.classList.add('d-none');
-        document.getElementById('trabajador-feedback').textContent = 'Error al buscar trabajadores.';
-        document.getElementById('trabajador-feedback').className = 'form-text text-danger';
-    }
+function formatWorkerItem(user) {
+    return `<strong>${user.username} ${user.surname}</strong>`;
 }
 
 /**
@@ -162,27 +114,58 @@ async function searchWorkerByName(query) {
 export function initializeWorkerSearch() {
     initializeDOMReferences();
 
+    const LOOKUP_USER_URL = getAdminConfig('LOOKUP_USER_URL');
+    const feedback = document.getElementById('trabajador-feedback');
+
     // Búsqueda por Email
     document.getElementById('btn-buscar-trabajador-email')?.addEventListener('click', searchWorkerByEmail);
 
     // Búsqueda por DNI
     document.getElementById('btn-buscar-trabajador-dni')?.addEventListener('click', searchWorkerByDni);
 
-    // Búsqueda por nombre (autocomplete con debounce)
+    // Búsqueda por nombre (autocomplete con debounce reutilizable)
+    const performSearch = createDebouncedSearch(
+        LOOKUP_USER_URL,
+        async (data) => {
+            const results = data.results || [];
+
+            if (results.length === 0) {
+                clearSuggestions(trabajadorNombreSuggestions);
+                setFeedback(feedback, 'Sin resultados para esa búsqueda.', 'warning');
+                return;
+            }
+
+            setFeedback(feedback, '', '');
+            renderSuggestions(results, trabajadorNombreSuggestions, formatWorkerItem, async (user) => {
+                const { displayWorkerResults } = await import('./result-display.js');
+                displayWorkerResults([user]);
+                trabajadorNombreInput.value = `${user.username} ${user.surname}`;
+                setFeedback(feedback, 'Trabajador seleccionado.', 'success');
+            });
+        },
+        (error) => {
+            console.error('Error searching worker by name:', error);
+            clearSuggestions(trabajadorNombreSuggestions);
+            setFeedback(feedback, 'Error al buscar trabajadores.', 'danger');
+        },
+        300
+    );
+
     trabajadorNombreInput?.addEventListener('input', () => {
-        clearTimeout(trabajadorNombreDebounceTimer);
         const query = trabajadorNombreInput.value.trim();
-        trabajadorNombreDebounceTimer = setTimeout(() => {
-            searchWorkerByName(query);
-        }, 300);
+        if (!query || query.length < 2) {
+            clearSuggestions(trabajadorNombreSuggestions);
+            setFeedback(feedback, '', '');
+            return;
+        }
+        performSearch(query);
     });
 
-    // Cerrar sugerencias al hacer click fuera
-    document.addEventListener('click', (e) => {
-        if (!trabajadorNombreInput?.contains(e.target) && !trabajadorNombreSuggestions?.contains(e.target)) {
-            trabajadorNombreSuggestions?.classList.add('d-none');
-        }
+    // Cerrar sugerencias al hacer click fuera (usa función compartida)
+    setupClickOutsideListener(trabajadorNombreInput, trabajadorNombreSuggestions, () => {
+        trabajadorNombreSuggestions.innerHTML = '';
     });
 
     console.log('[WorkerSearch] Initialized');
 }
+
