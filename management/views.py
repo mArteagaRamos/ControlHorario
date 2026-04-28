@@ -123,18 +123,28 @@ def manager_logs(request):
     if solo_incidencias == 'on':
         registros = registros.filter(id__in=fichajes_con_incidencia)
 
-    # 6. Format seconds for all records and convert to list for iteration
-    registros_list = list(registros)
-    for r in registros_list:
+
+    # 6. Format seconds for all records
+    for r in registros:
         horas = r.total_seconds // 3600
         minutos = (r.total_seconds % 3600) // 60
         r.horas_formateadas = f"{horas}h {minutos}m" if r.total_seconds > 0 else "--"
 
+    # 7. Paginate main records (registros)
+    page_number = request.GET.get('page', 1)
+    paginator = Paginator(registros, 20)
+    page_obj = paginator.get_page(page_number)
+
+    # 8. Paginate rejected incidents (incidencias_rechazadas)
+    page_number_rechazadas = request.GET.get('page_rechazadas', 1)
+    paginator_rechazadas = Paginator(incidencias_rechazadas, 20)
+    page_obj_rechazadas = paginator_rechazadas.get_page(page_number_rechazadas)
+
     context = {
-        'registros_list': registros_list, # Send all records for JS pagination
+        'page_obj': page_obj,
         'empleados': empleados,
         'incidencias': incidencias,
-        'incidencias_rechazadas': incidencias_rechazadas,
+        'page_obj_rechazadas': page_obj_rechazadas,
         'fichajes_con_incidencia': fichajes_con_incidencia_str,
         # Pass current filters so the HTML can preserve them
         'current_filters': {
@@ -465,14 +475,7 @@ def edit_employee(request):
     delegation_context = get_effective_context(request)
 
     # 1. Determine which company to use
-    # First, try to get company_id from the form (sent from staff.html)
-    company_id_form = request.POST.get('company_id', '').strip()
-
-    if company_id_form:
-        # Use the company_id from the form
-        company = get_object_or_404(Companies, id=company_id_form)
-    elif delegation_context['is_delegating']:
-        # Use delegated company
+    if delegation_context['is_delegating']:
         company_id = delegation_context['delegated_company_id']
         company = Companies.objects.get(id=company_id)
     else:
