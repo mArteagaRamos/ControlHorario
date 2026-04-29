@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import sys
 from dotenv import load_dotenv
 import os
 
@@ -126,6 +127,22 @@ DATABASES = {
         },
     }
 }
+
+# Configuración específica para tests
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'test_db.sqlite3',
+    }
+
+    class DisableMigrations:
+        def __contains__(self, item):
+            return True
+        def __getitem__(self, item):
+            return None
+
+    MIGRATION_MODULES = DisableMigrations()
+    TEST_RUNNER = 'core.test_runner.ManagedModelTestRunner'
 
 
 # Password validation
