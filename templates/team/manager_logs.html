@@ -121,8 +121,8 @@
                         </tr>
                     </thead>
                     <tbody id="tablaRegistros">
-                        {% for registro in registros_list %}
-                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                        {% for registro in page_obj %}
+                        <tr class="registro-row {% if registro.status == 'corrected' and registro.id|stringformat:'s' not in fichajes_con_incidencia %}table-light{% endif %}">
                             <td>
                                 <input class="form-check-input select-row me-2" type="checkbox" name="registro_id" value="{{ registro.id }}">
                                 {{ registro.user.username.title }} {{ registro.user.surname.title }}
@@ -196,9 +196,23 @@
     </div>
 
 
-    <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3">
-        <button class="std-btn-secondary" id="registrosShowMore" style="{% if registros_list|length <= 5 %}display: none;{% endif %}">Ver Más</button>
-    </div>
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-3">
+        <ul class="pagination justify-content-center mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link shadow-sm" href="?page={{ page_obj.previous_page_number }}{% if request.GET.page_rechazadas %}&page_rechazadas={{ request.GET.page_rechazadas }}{% endif %}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link shadow-sm {% if page_obj.number == num %}bg-corporate border-corporate text-white{% endif %}" href="?page={{ num }}{% if request.GET.page_rechazadas %}&page_rechazadas={{ request.GET.page_rechazadas }}{% endif %}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link shadow-sm" href="?page={{ page_obj.next_page_number }}{% if request.GET.page_rechazadas %}&page_rechazadas={{ request.GET.page_rechazadas }}{% endif %}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 
     <div class="mb-3 mt-5 d-flex justify-content-between align-items-center">
         <h5 style="color: #1a1f2e;"><i class="bi bi-x-circle me-2"></i> Historial de Incidencias Rechazadas</h5>
@@ -227,8 +241,8 @@
                         </tr>
                     </thead>
                     <tbody id="tablaRechazadas">
-                    {% for incidencia in incidencias_rechazadas %}
-                    <tr class="rechazada-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                    {% for incidencia in page_obj_rechazadas %}
+                    <tr class="rechazada-row">
                         <td>
                             <input class="form-check-input select-row-rechazadas me-2" type="checkbox" name="incidencia_id" value="{{ incidencia.id }}">
                             {{ incidencia.requester.username.title }} {{ incidencia.requester.surname.title }}
@@ -298,9 +312,23 @@
         </div>
     </div>
     
-    <div class="text-center mt-3 buttonContainer d-flex justify-content-center mb-3" id="rechazadasContainer">
-        <button class="std-btn-secondary" id="rechazadasShowMore" style="{% if incidencias_rechazadas|length <= 5 %}display: none;{% endif %}">Ver Más</button>
-    </div>
+    {% if page_obj_rechazadas.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-3">
+        <ul class="pagination justify-content-center mb-0">
+            {% if page_obj_rechazadas.has_previous %}
+                <li class="page-item"><a class="page-link shadow-sm" href="?page_rechazadas={{ page_obj_rechazadas.previous_page_number }}{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj_rechazadas.paginator.page_range %}
+                <li class="page-item {% if page_obj_rechazadas.number == num %}active{% endif %}">
+                    <a class="page-link shadow-sm {% if page_obj_rechazadas.number == num %}bg-corporate border-corporate text-white{% endif %}" href="?page_rechazadas={{ num }}{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj_rechazadas.has_next %}
+                <li class="page-item"><a class="page-link shadow-sm" href="?page_rechazadas={{ page_obj_rechazadas.next_page_number }}{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 
 <div class="modal fade" id="modalResolver" tabindex="-1">

@@ -56,12 +56,22 @@ def admin_dashboard(request):
     )
 
     # Get all companies and workers for listing tables
-    all_companies = Companies.objects.all().order_by('name')
-    all_workers = Users.objects.all().order_by('username')
+    companies_list = Companies.objects.all().order_by('name')
+    workers_list = Users.objects.all().order_by('username')
+
+    # Pagination for companies
+    paginator_companies = Paginator(companies_list, 10)
+    page_companies = request.GET.get('page_companies', 1)
+    companies_page_obj = paginator_companies.get_page(page_companies)
+
+    # Pagination for workers
+    paginator_workers = Paginator(workers_list, 10)
+    page_workers = request.GET.get('page_workers', 1)
+    workers_page_obj = paginator_workers.get_page(page_workers)
 
     # Serialize companies data (add created_at formatting)
     companies_data = []
-    for company in all_companies:
+    for company in companies_page_obj:
         companies_data.append({
             'id': str(company.id),
             'name': company.name,
@@ -72,7 +82,7 @@ def admin_dashboard(request):
 
     # Serialize workers data (add companies and formatted info)
     workers_data = []
-    for worker in all_workers:
+    for worker in workers_page_obj:
         companies = list(Companies.objects.filter(
             usercompany__user=worker,
             usercompany__deleted_at__isnull=True
@@ -96,8 +106,10 @@ def admin_dashboard(request):
     context = {
         'all_companies': companies_data,
         'all_workers': workers_data,
-        'total_companies': len(companies_data),
-        'total_workers': len(workers_data),
+        'companies_page_obj': companies_page_obj,
+        'workers_page_obj': workers_page_obj,
+        'total_companies': paginator_companies.count,
+        'total_workers': paginator_workers.count,
     }
 
     return render(request, 'admin/admin_dashboard.html', context)
