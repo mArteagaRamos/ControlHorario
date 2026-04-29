@@ -1,9 +1,11 @@
 {% extends 'base/base.html' %}
 {% load django_bootstrap5 %}
+{% load static %}
 
 {% block title %}User Panel{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/workday.css' %}">
 
 {% if is_delegating %}
 <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative;">
@@ -56,11 +58,13 @@
 
     /* --- ESTILOS DE LA TABLA Y SCROLL --- */
     .table-scroll-container {
+        max-height: 500px;
         overflow-y: auto;
         border-radius: 0.5rem;
     }
 
     .table-scroll-container.has-fixed-height {
+        max-height: none;
         height: var(--table-fixed-height, auto);
     }
 
@@ -141,7 +145,7 @@
                 Jornadas <span class="text-muted">Acciones</span>
             </h5>
 
-            <div class="table-responsive table-scroll-container" id="entryTableContainer">
+            <div class="table-responsive table-scroll-container" id="entryTableContainer" style="border-radius: 0.5rem;">
                 <form id="exportFormEntries" action="{% url 'exportar_workday_entries' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="entryTable">
@@ -220,7 +224,7 @@
                 </button>
             </h5>
 
-            <div class="table-responsive table-scroll-container" id="requestTableContainer">
+            <div class="table-responsive table-scroll-container" id="requestTableContainer" style="border-radius: 0.5rem;">
                 <form id="exportFormRequests" action="{% url 'exportar_workday_requests' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="requestTable">
@@ -380,6 +384,25 @@
         // DOM ya está listo
         initializeWorkday();
     }
+</script>
+
+<!-- Script para inicializar la altura fija de tablas de paginación -->
+<script src="{% static 'js/modules/shared/pagination-height.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPaginationHeights({
+        '#entryTable': {
+            rowSelector: 'tbody tr.entry-row',
+            containerSelector: '#entryTableContainer',
+            fixedHeight: '280px'
+        },
+        '#requestTable': {
+            rowSelector: 'tbody tr.request-row',
+            containerSelector: '#requestTableContainer',
+            fixedHeight: '280px'
+        }
+    });
+});
 </script>
 
 <script>

@@ -216,8 +216,8 @@
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
             </h5>
 
-            <div class="table-responsive table-scroll-container">
-                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresasBody">
+            <div class="table-responsive table-scroll-container" id="empresasTableContainer">
+                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresas">
                     <thead class="table-dark">
                         <tr>
                             <th>Empresa</th>
@@ -291,8 +291,8 @@
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
             </h5>
 
-            <div class="table-responsive table-scroll-container">
-                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadoresBody">
+            <div class="table-responsive table-scroll-container" id="trabajadoresTableContainer">
+                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadores">
                     <thead class="table-dark">
                         <tr>
                             <th>Nombre</th>
@@ -780,6 +780,23 @@ document.addEventListener('click', function(e) {
 
     handleSelectWorker(workerId, companies);
 });
+
+<!-- Script para inicializar la altura fija de tablas de paginación -->
+<script src="{% static 'js/modules/shared/pagination-height.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPaginationHeights({
+        '#tablaTodosEmpresas': {
+            rowSelector: 'tbody tr.empresa-row',
+            containerSelector: '#empresasTableContainer'
+        },
+        '#tablaTodosTrabajadores': {
+            rowSelector: 'tbody tr.worker-row',
+            containerSelector: '#trabajadoresTableContainer'
+        }
+    });
+});
+</script>
 </script>
 
 <!-- FASE 8: Main entry point (carga todos los módulos automáticamente) -->

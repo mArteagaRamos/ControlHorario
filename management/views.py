@@ -132,12 +132,12 @@ def manager_logs(request):
 
     # 7. Paginate main records (registros)
     page_number = request.GET.get('page', 1)
-    paginator = Paginator(registros, 20)
+    paginator = Paginator(registros, 10)
     page_obj = paginator.get_page(page_number)
 
     # 8. Paginate rejected incidents (incidencias_rechazadas)
     page_number_rechazadas = request.GET.get('page_rechazadas', 1)
-    paginator_rechazadas = Paginator(incidencias_rechazadas, 20)
+    paginator_rechazadas = Paginator(incidencias_rechazadas, 10)
     page_obj_rechazadas = paginator_rechazadas.get_page(page_number_rechazadas)
 
     context = {

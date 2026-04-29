@@ -9,10 +9,10 @@ def admin_only_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
+            return render(request, 'error/401.html', status=401)
 
         if not request.user.is_admin:
-            return render(request, 'error/sin_permisos.html', status=403)
+            return render(request, 'error/403.html', status=403)
 
         return view_func(request, *args, **kwargs)
     return _wrapped_view
@@ -24,7 +24,7 @@ def manager_or_admin_required(view_func):
     def _wrapped_view(request, *args, **kwargs):
         # If not even logged in, get out
         if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
+            return render(request, 'error/401.html', status=401)
 
         is_admin = request.user.is_admin
         is_manager = UserCompany.objects.all_with_deleted().filter(
@@ -36,7 +36,7 @@ def manager_or_admin_required(view_func):
         if is_admin or is_manager:
             return view_func(request, *args, **kwargs)
         else:
-            return render(request, 'error/sin_permisos.html', status=403)
+            return render(request, 'error/403.html', status=403)
 
     return _wrapped_view
 
@@ -51,7 +51,7 @@ def auditor_cannot_access(view_func):
 
         # Block auditors
         if request.user.is_auditor:
-            return render(request, 'error/sin_permisos.html', status=403)
+            return render(request, 'error/403.html', status=403)
 
         return view_func(request, *args, **kwargs)
 
@@ -63,13 +63,13 @@ def auditor_or_admin_required(view_func):
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
+            return render(request, 'error/401.html', status=401)
 
         # Allow only auditors and admins
         if request.user.is_auditor or request.user.is_admin:
             return view_func(request, *args, **kwargs)
         else:
-            return render(request, 'error/sin_permisos.html', status=403)
+            return render(request, 'error/403.html', status=403)
 
     return _wrapped_view
 
@@ -89,7 +89,7 @@ def manager_or_admin_with_delegation_check(view_func):
     def _wrapped_view(request, *args, **kwargs):
         # Step 1: Validate authentication and basic role (manager or admin)
         if not request.user.is_authenticated:
-            return render(request, 'error/sin_loguear.html', status=401)
+            return render(request, 'error/401.html', status=401)
 
         is_admin = request.user.is_admin
         is_manager = UserCompany.objects.all_with_deleted().filter(
@@ -99,7 +99,7 @@ def manager_or_admin_with_delegation_check(view_func):
         ).exists()
 
         if not (is_admin or is_manager):
-            return render(request, 'error/sin_permisos.html', status=403)
+            return render(request, 'error/403.html', status=403)
 
         # Step 2: If admin is delegating, validate delegated user has permissions
         if is_admin:

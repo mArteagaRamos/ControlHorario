@@ -103,10 +103,10 @@
     </div>
     
     <div id="resultados-actualizables" class="card bg-light shadow-sm border-0 mb-5 rounded-3" style="transition: opacity 0.2s ease;">
-        <div class="table-responsive table-scroll-container">
+        <div class="table-responsive table-scroll-container" id="logsTableContainer">
             <form id="exportForm" action="{% url 'exportar_logs' %}" method="POST">
                 {% csrf_token %}
-                <table class="table table-striped table-hover align-middle mb-0">
+                <table class="table table-striped table-hover align-middle mb-0" id="tablaMaestroLogs">
                     <thead class="table-dark">
                         <tr>
                             <th>
@@ -222,10 +222,10 @@
     </div>
 
     <div class="card bg-light shadow-sm border-0 mb-5 rounded-3">
-        <div class="table-responsive table-scroll-container">
+        <div class="table-responsive table-scroll-container" id="rechazadasTableContainer">
             <form id="exportFormRechazadas" action="{% url 'exportar_logs_rechazadas' %}" method="POST">
                 {% csrf_token %}
-                <table class="table table-striped table-hover align-middle mb-0">
+                <table class="table table-striped table-hover align-middle mb-0" id="tablaRechazadasLogs">
                     <thead class="table-dark">
                         <tr>
                             <th>
@@ -495,6 +495,25 @@
         </div>
     </div>
 </div>
+
+<!-- Script para inicializar la altura fija de tablas de paginación -->
+<script src="{% static 'js/modules/shared/pagination-height.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPaginationHeights({
+        '#tablaMaestroLogs': {
+            rowSelector: 'tbody tr.registro-row',
+            containerSelector: '#logsTableContainer',
+            fixedHeight: '280px'
+        },
+        '#tablaRechazadasLogs': {
+            rowSelector: 'tbody tr.rechazada-row',
+            containerSelector: '#rechazadasTableContainer',
+            fixedHeight: '280px'
+        }
+    });
+});
+</script>
 
 <!-- Import all manager logs modules -->
 <script type="module">

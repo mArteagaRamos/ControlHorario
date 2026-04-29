@@ -37,10 +37,14 @@
 
 /* --- ESTILOS DE LA TABLA Y SCROLL --- */
 .table-scroll-container {
-    max-height: 500px; 
+    max-height: 500px;
     overflow-y: auto;
     border-radius: 0.5rem;
-    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+}
+
+.table-scroll-container.has-fixed-height {
+    max-height: none;
+    height: var(--table-fixed-height, auto);
 }
 
 .table-scroll-container thead th {
