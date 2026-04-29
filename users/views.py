@@ -768,9 +768,8 @@ def switch_company(request, company_id):
 @never_cache
 def workday(request):
     from core.services import get_effective_context
-    # IMPORTANTE: Asegúrate de tener estas importaciones al principio de tu views.py
     from audit.models import AuditLog
-    from core.services import safe_dict # Ajustado la importación de safe_dict a donde parecía correcta originalmente
+    from core.services import safe_dict
     from uuid import uuid4
 
     delegation_context = get_effective_context(request)
@@ -839,7 +838,7 @@ def workday(request):
                     status='pending',
                 )
 
-                # --- INICIO AUDITORÍA (CREACIÓN) ---
+                # ---AUDITORÍA (CREACIÓN) ---
                 AuditLog.objects.create(
                     id=uuid4(),
                     table_name='timetracking_correctionrequest',
@@ -851,7 +850,6 @@ def workday(request):
                     reason="Nueva incidencia reportada",
                     source='web' # Añadido para el hash
                 )
-                # --- FIN AUDITORÍA ---
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
