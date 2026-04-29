@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import sys
 
 # Load environment variables from .env file
 load_dotenv()
@@ -198,3 +199,21 @@ CONTACT_FORM_RECIPIENTS = [
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+if 'test' in sys.argv:
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'test_db.sqlite3',
+    }
+    # 2. Desactivar el sistema de migraciones durante los tests.
+    # Esto fuerza a Django a crear las tablas leyendo tus modelos directamente.
+    class DisableMigrations:
+        def __contains__(self, item):
+            return True
+        def __getitem__(self, item):
+            return None
+           
+    MIGRATION_MODULES = DisableMigrations()
+ 
+    # 3. Usar nuestro TestRunner para quitar el "managed = False"
+    TEST_RUNNER = 'core.test_runner.ManagedModelTestRunner'

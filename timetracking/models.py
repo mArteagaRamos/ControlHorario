@@ -18,7 +18,7 @@ class TimeEntries(UppercaseNormalizationMixin, models.Model):
     id = models.UUIDField(primary_key=True)
     user = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='user_id')
     company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
-    date = models.DateField(default= timezone.now)
+    date = models.DateField(default= timezone.localdate)
     clock_in = models.DateTimeField()
     clock_out = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=EntryStatus.choices, default=EntryStatus.ONGOING)
