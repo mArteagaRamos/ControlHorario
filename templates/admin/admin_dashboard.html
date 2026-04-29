@@ -19,6 +19,23 @@
         color: white !important;
         border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
     }
+
+    /* Estilos para el paginador */
+    .pagination .page-link {
+        color: #1a1f2e;
+    }
+    
+    .pagination .page-link:hover {
+        color: #1a1f2e;
+        background-color: #e9ecef;
+    }
+    
+    .pagination .page-item.active .page-link,
+    .pagination .page-link.bg-corporate {
+        background-color: #1a1f2e !important;
+        border-color: #1a1f2e !important;
+        color: white !important;
+    }
 </style>
 
 <div class="container-fluid py-4">
@@ -211,13 +228,13 @@
                         </tr>
                     </thead>
                     <tbody id="tabla-todas-empresas">
-                        {% if total_companies == 0 %}
+                        {% if companies_page_obj.paginator.count == 0 %}
                         <tr>
                             <td colspan="5" class="text-center py-4 text-muted">No hay empresas registradas.</td>
                         </tr>
                         {% else %}
                         {% for company in all_companies %}
-                        <tr class="empresa-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                        <tr class="empresa-row">
                             <td data-label="Empresa">{{ company.name }}</td>
                             <td data-label="CIF / NIF">{{ company.tax_id|default:'--' }}</td>
                             <td data-label="Razón Social">{{ company.legal_name|default:'--' }}</td>
@@ -247,10 +264,22 @@
                 </table>
             </div>
 
-            {% if total_companies > 5 %}
-            <div class="text-center mt-3 d-flex justify-content-center">
-                <button class="std-btn-secondary" id="empresasShowMore">Ver Más</button>
-            </div>
+            {% if companies_page_obj.has_other_pages %}
+            <nav aria-label="Companies pagination" class="mt-3">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if companies_page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link shadow-sm" href="?page_companies={{ companies_page_obj.previous_page_number }}&page_workers={{ workers_page_obj.number }}">&laquo;</a></li>
+                    {% endif %}
+                    {% for num in companies_page_obj.paginator.page_range %}
+                        <li class="page-item {% if companies_page_obj.number == num %}active{% endif %}">
+                            <a class="page-link shadow-sm {% if companies_page_obj.number == num %}bg-corporate border-corporate text-white{% endif %}" href="?page_companies={{ num }}&page_workers={{ workers_page_obj.number }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if companies_page_obj.has_next %}
+                        <li class="page-item"><a class="page-link shadow-sm" href="?page_companies={{ companies_page_obj.next_page_number }}&page_workers={{ workers_page_obj.number }}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
         </div>
     </div>
@@ -275,13 +304,13 @@
                         </tr>
                     </thead>
                     <tbody id="tabla-todos-trabajadores">
-                        {% if total_workers == 0 %}
+                        {% if workers_page_obj.paginator.count == 0 %}
                         <tr>
                             <td colspan="6" class="text-center py-4 text-muted">No hay trabajadores registrados.</td>
                         </tr>
                         {% else %}
                         {% for worker in all_workers %}
-                        <tr class="worker-row" style="{% if forloop.counter > 5 %}display: none;{% endif %}">
+                        <tr class="worker-row">
                             <td data-label="Nombre">{{ worker.username }} {{ worker.surname }}</td>
                             <td data-label="Email">{{ worker.email }}</td>
                             <td data-label="DNI">{{ worker.dni }}</td>
@@ -313,18 +342,18 @@
                                             data-email="{{ worker.email }}"
                                             data-dni="{{ worker.dni }}"
                                             data-estado="{{ worker.status }}">
-                                        <i class="bi bi-pencil"></i> Editar
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-danger"
-                                            data-bs-toggle="modal" data-bs-target="#modalEliminarTrabajador"
-                                            data-id="{{ worker.id }}"
-                                            data-companies='{{ worker.companies_json }}'
-                                            data-nombrecompleto="{{ worker.username }} {{ worker.surname }}">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-sm {% if worker.companies %}btn-outline-success btn-select-worker{% else %}btn-outline-secondary disabled{% endif %}"
-                                            {% if worker.companies %}data-worker-id="{{ worker.id }}" data-companies='{{ worker.companies_json }}'{% else %}disabled{% endif %}>
-                                        <i class="bi bi-check-lg"></i> {% if worker.companies %}Seleccionar{% else %}Sin empresas{% endif %}
+                                         <i class="bi bi-pencil"></i> Editar
+                                     </button>
+                                     <button type="button" class="btn btn-sm btn-outline-danger"
+                                             data-bs-toggle="modal" data-bs-target="#modalEliminarTrabajador"
+                                             data-id="{{ worker.id }}"
+                                             data-companies='{{ worker.companies_json }}'
+                                             data-nombrecompleto="{{ worker.username }} {{ worker.surname }}">
+                                         <i class="bi bi-trash"></i>
+                                     </button>
+                                     <button type="button" class="btn btn-sm {% if worker.companies %}btn-outline-success btn-select-worker{% else %}btn-outline-secondary disabled{% endif %}"
+                                             {% if worker.companies %}data-worker-id="{{ worker.id }}" data-companies='{{ worker.companies_json }}'{% else %}disabled{% endif %}>
+                                         <i class="bi bi-check-lg"></i> {% if worker.companies %}Seleccionar{% else %}Sin empresas{% endif %}
                                     </button>
                                 </div>
                             </td>
@@ -335,10 +364,22 @@
                 </table>
             </div>
 
-            {% if total_workers > 5 %}
-            <div class="text-center mt-3 d-flex justify-content-center">
-                <button class="std-btn-secondary" id="trabajadoresShowMore">Ver Más</button>
-            </div>
+            {% if workers_page_obj.has_other_pages %}
+            <nav aria-label="Workers pagination" class="mt-3">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if workers_page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link shadow-sm" href="?page_companies={{ companies_page_obj.number }}&page_workers={{ workers_page_obj.previous_page_number }}">&laquo;</a></li>
+                    {% endif %}
+                    {% for num in workers_page_obj.paginator.page_range %}
+                        <li class="page-item {% if workers_page_obj.number == num %}active{% endif %}">
+                            <a class="page-link shadow-sm {% if workers_page_obj.number == num %}bg-corporate border-corporate text-white{% endif %}" href="?page_companies={{ companies_page_obj.number }}&page_workers={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endfor %}
+                    {% if workers_page_obj.has_next %}
+                        <li class="page-item"><a class="page-link shadow-sm" href="?page_companies={{ companies_page_obj.number }}&page_workers={{ workers_page_obj.next_page_number }}">&raquo;</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
             {% endif %}
         </div>
     </div>
