@@ -4,10 +4,9 @@ Este documento describe la suite completa de tests para la aplicación de contro
 
 ## 📋 Resumen de Tests
 
-Se han creado **41 test cases** cubriendo:
+Se han creado **34 test cases** cubriendo:
 - ✅ Modelos (TimeEntries y TimeEntryEvent)
 - ✅ Vistas (Clock-in, Clock-out, Pause)
-- ✅ Manager personalizado (SoftDelete)
 - ✅ Flujos de trabajo completos
 - ✅ Casos extremos y errores
 
@@ -127,26 +126,21 @@ class MyTest(TimeTrackingTestBase):
         pass
 ```
 
-### 2. **test_models.py** - Tests de Modelos (13 tests)
+### 2. **test_models.py** - Tests de Modelos (10 tests)
 
-#### TimeEntriesModelTest (6 tests)
+#### TimeEntriesModelTest (2 tests)
 | Test | Descripción |
-|------|-------------|
+|------|-----------|
 | `test_create_time_entry` | Crear una entrada básica |
-| `test_time_entry_total_seconds_display_ongoing` | Display sin duración |
-| `test_time_entry_total_seconds_display_with_duration` | Display con duración (HH:MM:SS) |
 | `test_entry_status_choices` | Todos los estados válidos |
-| `test_soft_delete_entry` | Soft delete funciona correctamente |
-| `test_restore_deleted_entry` | Restaurar entrada eliminada |
 
-#### TimeEntryEventModelTest (7 tests)
+#### TimeEntryEventModelTest (6 tests)
 | Test | Descripción |
-|------|-------------|
+|------|-----------|
 | `test_create_clock_in_event` | Crear evento de entrada |
 | `test_create_clock_out_event` | Crear evento de salida |
 | `test_create_pause_events` | Crear eventos de pausa |
 | `test_event_with_note` | Crear evento con nota |
-| `test_soft_delete_event` | Soft delete de eventos |
 
 ### 3. **test_views.py** - Tests de Vistas (9 tests)
 
@@ -173,26 +167,17 @@ Tests de flujos completos:
 | `test_complete_work_day_workflow` | Día completo: clock-in → pausa → clock-out |
 | `test_multiple_entries_per_user` | Usuario puede tener múltiples registros |
 
-### 5. **test_edge_cases.py** - Tests de Casos Extremos (8 tests)
+### 5. **test_edge_cases.py** - Tests de Casos Extremos (2 tests)
 
 Casos extremos y errores:
 
 | Test | Descripción |
-|------|-------------|
-| `test_total_seconds_calculation` | Cálculo correcto de segundos |
-| `test_entry_with_null_notes` | Campo notes puede ser null |
-| `test_entry_with_notes` | Campo notes puede tener valor |
+|------|-----------|
 | `test_entry_date_defaults_to_today` | Fecha por defecto es hoy |
 | `test_entry_status_transition` | Transiciones de estado válidas |
-| `test_event_without_actor` | Evento sin actor (auto-close) |
-| `test_zero_duration_entry` | Entrada con duración cero |
+| `test_total_seconds_calculation` | Cálculo correcto de segundos |
 | `test_very_long_entry` | Entrada muy larga (48+ horas) |
 
----
-
-## ⚠️ Nota Importante
-
-El archivo anterior `timetracking/tests.py` **ya no se usa**. Todos los tests están ahora en la carpeta `timetracking/tests/`. Django automáticamente descubrirá todos los archivos `test_*.py` dentro de esa carpeta.
 
 ---
 
@@ -202,10 +187,7 @@ El archivo anterior `timetracking/tests.py` **ya no se usa**. Todos los tests es
 - [x] Crear TimeEntries con todos los campos
 - [x] Crear TimeEntryEvent con todos los tipos
 - [x] Estados válidos del modelo
-- [x] Soft delete y restauración
-- [x] Propiedades calculadas (total_seconds_display)
 - [x] Relaciones entre modelos
-- [x] Campos opcionales (notes, actor)
 
 ### Vistas
 - [x] Clock-in exitoso
@@ -222,10 +204,7 @@ El archivo anterior `timetracking/tests.py` **ya no se usa**. Todos los tests es
 - [x] Transiciones de estado
 
 ### Edge Cases
-- [x] Campos null opcionales
-- [x] Valores por defecto
-- [x] Eventos sin actor
-- [x] Duración con minutos y segundos
+- [x] Entradas muy largas (48+ horas)
 
 ---
 
