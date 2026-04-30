@@ -28,7 +28,7 @@ class AuditLogModelTest(TestCase):
         
         self.assertIsNotNone(log.event_hash)
         self.assertIsNone(log.previous_hash)
-        print(f"  ✅ Éxito: Primer log creado con hash '{log.event_hash}' y previous_hash es None.")
+        print(f"  [OK] Éxito: Primer log creado con hash '{log.event_hash}' y previous_hash es None.")
 
     def test_cadena_de_hashes_consecutivos(self):
         print("\n TEST: Verificando la cadena de herencia de hashes...")
@@ -41,7 +41,7 @@ class AuditLogModelTest(TestCase):
         print(f"  -> Log 2 creado. Previous Hash: {log2.previous_hash}")
 
         self.assertEqual(log2.previous_hash, log1.event_hash)
-        print("  ✅ Éxito: El log 2 heredó perfectamente el hash del log 1.")
+        print("  [OK] Éxito: El log 2 heredó perfectamente el hash del log 1.")
 
     def test_inmutabilidad_del_registro(self):
         print("\n TEST: Verificando que no se puedan modificar los registros auditados...")
@@ -52,4 +52,4 @@ class AuditLogModelTest(TestCase):
         
         with self.assertRaises(PermissionError):
             log.save()
-        print("  ✅ Éxito: El sistema bloqueó la modificación lanzando un PermissionError.")
+        print("  [OK] Éxito: El sistema bloqueó la modificación lanzando un PermissionError.")

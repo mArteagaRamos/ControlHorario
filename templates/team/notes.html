@@ -1,0 +1,18 @@
+{% comment %}
+Minimal template for audit tests - Created for testing purposes
+{% endcomment %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notes</title>
+</head>
+<body>
+    <h1>Notes</h1>
+    {% for note in notes %}
+        <div class="note">
+            <h2>{{ note.title }}</h2>
+            <p>{{ note.body }}</p>
+        </div>
+    {% endfor %}
+</body>
+</html>

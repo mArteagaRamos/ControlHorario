@@ -39,7 +39,7 @@ class AuditViewsTest(TestCase):
         response = self.client.get(reverse('audit_dashboard'))
         
         self.assertNotEqual(response.status_code, 200) 
-        print(f"  ✅ Éxito: Acceso denegado. Código HTTP devuelto: {response.status_code}")
+        print(f"  [OK] Éxito: Acceso denegado. Código HTTP devuelto: {response.status_code}")
 
     def test_acceso_permitido_a_auditor(self):
         print("\n TEST: Intentando acceder al dashboard como auditor...")
@@ -48,7 +48,7 @@ class AuditViewsTest(TestCase):
         
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'audit/audit_dashboard.html')
-        print("  ✅ Éxito: Acceso concedido (HTTP 200) y plantilla correcta cargada.")
+        print("  [OK] Éxito: Acceso concedido (HTTP 200) y plantilla correcta cargada.")
 
     def test_traduccion_de_uuids_en_vista_fichajes(self):
         print("\n TEST: Comprobando traducción de UUID a Nombres Reales...")
@@ -65,4 +65,4 @@ class AuditViewsTest(TestCase):
 
         self.assertEqual(primer_log.after['Usuario'], "EMPLEADO")
         self.assertEqual(primer_log.after['Estado'], "Presente")
-        print("  ✅ Éxito: Los UUIDs se tradujeron perfectamente a texto entendible.")
+        print("  [OK] Éxito: Los UUIDs se tradujeron perfectamente a texto entendible.")
