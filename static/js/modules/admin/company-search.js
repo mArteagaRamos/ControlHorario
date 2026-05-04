@@ -1,18 +1,17 @@
 /**
  * Company Search Module
  * Maneja la búsqueda de empresas por CIF y autocomplete por nombre
- *
- * FASE 3: Extraer búsqueda de empresas
+ * REFACTORIZADO: Usa search-utils y ui-utils para reducir duplicación
  */
 
 import { getAdminConfig } from '../../utils/config.js';
-import { debounce } from '../../utils/debounce.js';
+import { createDebouncedSearch, renderSuggestions, setupClickOutsideListener, clearSuggestions } from '../../utils/search-utils.js';
+import { setFeedback, hideElement } from '../../utils/ui-utils.js';
 
 // DOM References
 let empresaCifInput = null;
 let empresaNombreInput = null;
 let empresaNombreSuggestions = null;
-let empresaNombreDebounceTimer = null;
 
 /**
  * Inicializa las referencias del DOM
@@ -31,98 +30,50 @@ async function searchCompanyByCif() {
     const feedback = document.getElementById('empresa-feedback');
 
     if (!taxId) {
-        feedback.textContent = 'Introduce un CIF / NIF.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Introduce un CIF / NIF.', 'danger');
         return;
     }
 
     try {
         const LOOKUP_COMPANY_URL = getAdminConfig('LOOKUP_COMPANY_URL');
-        const res = await fetch(`${LOOKUP_COMPANY_URL}?tax_id=${encodeURIComponent(taxId)}&include_created=true`);
+        const url = new URL(LOOKUP_COMPANY_URL, window.location.origin);
+        url.searchParams.set('tax_id', taxId);
+        url.searchParams.set('include_created', 'true');
+
+        const res = await fetch(url.toString());
         const data = await res.json();
 
         if (data.found) {
-            // Importar dinámicamente para evitar dependencia circular
             const { displayCompanyResults } = await import('./result-display.js');
             displayCompanyResults([data]);
-            feedback.textContent = 'Empresa encontrada.';
-            feedback.className = 'form-text text-success';
+            setFeedback(feedback, 'Empresa encontrada.', 'success');
         } else {
             clearResults();
-            feedback.textContent = 'No existe ninguna empresa con ese CIF.';
-            feedback.className = 'form-text text-danger';
+            setFeedback(feedback, 'No existe ninguna empresa con ese CIF.', 'danger');
         }
     } catch (error) {
         console.error('Error searching company by CIF:', error);
-        feedback.textContent = 'Error al buscar la empresa.';
-        feedback.className = 'form-text text-danger';
+        setFeedback(feedback, 'Error al buscar la empresa.', 'danger');
     }
 }
 
 /**
- * Busca empresas por nombre (autocomplete)
+ * Formatea item de empresa para sugerencias
  */
-async function searchCompanyByName(query) {
-    if (!query || query.length < 2) {
-        empresaNombreSuggestions.classList.add('d-none');
-        document.getElementById('empresa-feedback').textContent = '';
-        return;
-    }
-
-    try {
-        const LOOKUP_COMPANY_URL = getAdminConfig('LOOKUP_COMPANY_URL');
-        const res = await fetch(`${LOOKUP_COMPANY_URL}?name=${encodeURIComponent(query)}&include_created=true`);
-        const data = await res.json();
-        const results = data.results || [];
-
-        empresaNombreSuggestions.innerHTML = '';
-
-        if (results.length === 0) {
-            empresaNombreSuggestions.classList.add('d-none');
-            document.getElementById('empresa-feedback').textContent = 'Sin resultados para esa búsqueda.';
-            document.getElementById('empresa-feedback').className = 'form-text text-warning';
-            return;
-        }
-
-        document.getElementById('empresa-feedback').textContent = '';
-        results.forEach(company => {
-            const li = document.createElement('li');
-            li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-            li.style.cursor = 'pointer';
-            li.innerHTML = `
-                <span>
-                    <strong>${company.name}</strong>
-                    <small class="text-muted ms-2">${company.legal_name}</small>
-                </span>
-            `;
-            li.addEventListener('click', async () => {
-                const { displayCompanyResults } = await import('./result-display.js');
-                displayCompanyResults([company]);
-                empresaNombreInput.value = company.name;
-                empresaNombreSuggestions.classList.add('d-none');
-                document.getElementById('empresa-feedback').textContent = 'Empresa seleccionada.';
-                document.getElementById('empresa-feedback').className = 'form-text text-success';
-            });
-            empresaNombreSuggestions.appendChild(li);
-        });
-
-        empresaNombreSuggestions.classList.remove('d-none');
-    } catch (error) {
-        console.error('Error searching company by name:', error);
-        empresaNombreSuggestions.classList.add('d-none');
-        document.getElementById('empresa-feedback').textContent = 'Error al buscar empresas.';
-        document.getElementById('empresa-feedback').className = 'form-text text-danger';
-    }
+function formatCompanyItem(company) {
+    return `
+        <span>
+            <strong>${company.name}</strong>
+            <small class="text-muted ms-2">${company.legal_name}</small>
+        </span>
+    `;
 }
 
 /**
  * Limpia los resultados
  */
 export function clearResults() {
-    const sectionResultados = document.getElementById('section-resultados');
-    if (sectionResultados) {
-        sectionResultados.classList.add('d-none');
-    }
+    hideElement(document.getElementById('section-resultados'));
 }
 
 /**
@@ -131,24 +82,55 @@ export function clearResults() {
 export function initializeCompanySearch() {
     initializeDOMReferences();
 
+    const LOOKUP_COMPANY_URL = getAdminConfig('LOOKUP_COMPANY_URL');
+    const feedback = document.getElementById('empresa-feedback');
+
     // Búsqueda por CIF
     document.getElementById('btn-buscar-empresa-cif')?.addEventListener('click', searchCompanyByCif);
 
-    // Búsqueda por nombre (autocomplete con debounce)
+    // Búsqueda por nombre (autocomplete con debounce reutilizable)
+    const performSearch = createDebouncedSearch(
+        LOOKUP_COMPANY_URL,
+        async (data) => {
+            const results = data.results || [];
+
+            if (results.length === 0) {
+                clearSuggestions(empresaNombreSuggestions);
+                setFeedback(feedback, 'Sin resultados para esa búsqueda.', 'warning');
+                return;
+            }
+
+            setFeedback(feedback, '', '');
+            renderSuggestions(results, empresaNombreSuggestions, formatCompanyItem, async (company) => {
+                const { displayCompanyResults } = await import('./result-display.js');
+                displayCompanyResults([company]);
+                empresaNombreInput.value = company.name;
+                setFeedback(feedback, 'Empresa seleccionada.', 'success');
+            });
+        },
+        (error) => {
+            console.error('Error searching company by name:', error);
+            clearSuggestions(empresaNombreSuggestions);
+            setFeedback(feedback, 'Error al buscar empresas.', 'danger');
+        },
+        300
+    );
+
     empresaNombreInput?.addEventListener('input', () => {
-        clearTimeout(empresaNombreDebounceTimer);
         const query = empresaNombreInput.value.trim();
-        empresaNombreDebounceTimer = setTimeout(() => {
-            searchCompanyByName(query);
-        }, 300);
+        if (!query || query.length < 2) {
+            clearSuggestions(empresaNombreSuggestions);
+            setFeedback(feedback, '', '');
+            return;
+        }
+        performSearch(query);
     });
 
-    // Cerrar sugerencias al hacer click fuera
-    document.addEventListener('click', (e) => {
-        if (!empresaNombreInput?.contains(e.target) && !empresaNombreSuggestions?.contains(e.target)) {
-            empresaNombreSuggestions?.classList.add('d-none');
-        }
+    // Cerrar sugerencias al hacer click fuera (usa función compartida)
+    setupClickOutsideListener(empresaNombreInput, empresaNombreSuggestions, () => {
+        empresaNombreSuggestions.innerHTML = '';
     });
 
     console.log('[CompanySearch] Initialized');
 }
+

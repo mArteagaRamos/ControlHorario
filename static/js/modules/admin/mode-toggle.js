@@ -1,9 +1,10 @@
 /**
  * Mode Toggle Module
  * Maneja el toggle entre modo empresa y modo trabajador
- *
- * FASE 5: Extraer UI (Toggles)
+ * REFACTORIZADO: Usa ui-utils para reducir duplicación
  */
+
+import { toggleExclusiveButtons, hideElement, showElement } from '../../utils/ui-utils.js';
 
 /**
  * Estado global del modo actual
@@ -23,13 +24,10 @@ function getDOMReferences() {
 }
 
 /**
- * Limpia resultados (delegado a otro módulo)
+ * Limpia resultados
  */
 function clearResultsWrapper() {
-    const sectionResultados = document.getElementById('section-resultados');
-    if (sectionResultados) {
-        sectionResultados.classList.add('d-none');
-    }
+    hideElement(document.getElementById('section-resultados'));
 }
 
 /**
@@ -37,13 +35,12 @@ function clearResultsWrapper() {
  */
 function switchToCompanyMode(refs) {
     currentTipo = 'empresa';
-    refs.btnTipoEmpresa.classList.add('btn-primary');
-    refs.btnTipoEmpresa.classList.remove('btn-outline-primary');
-    refs.btnTipoTrabajador.classList.add('btn-outline-primary');
-    refs.btnTipoTrabajador.classList.remove('btn-primary');
 
-    refs.sectionEmpresa.classList.remove('d-none');
-    refs.sectionTrabajador.classList.add('d-none');
+    // Usar utilidad compartida para toggle de botones
+    toggleExclusiveButtons(refs.btnTipoEmpresa, refs.btnTipoTrabajador, true);
+
+    showElement(refs.sectionEmpresa);
+    hideElement(refs.sectionTrabajador);
     clearResultsWrapper();
 }
 
@@ -52,13 +49,12 @@ function switchToCompanyMode(refs) {
  */
 function switchToWorkerMode(refs) {
     currentTipo = 'trabajador';
-    refs.btnTipoTrabajador.classList.add('btn-primary');
-    refs.btnTipoTrabajador.classList.remove('btn-outline-primary');
-    refs.btnTipoEmpresa.classList.add('btn-outline-primary');
-    refs.btnTipoEmpresa.classList.remove('btn-primary');
 
-    refs.sectionEmpresa.classList.add('d-none');
-    refs.sectionTrabajador.classList.remove('d-none');
+    // Usar utilidad compartida para toggle de botones
+    toggleExclusiveButtons(refs.btnTipoEmpresa, refs.btnTipoTrabajador, false);
+
+    hideElement(refs.sectionEmpresa);
+    showElement(refs.sectionTrabajador);
     clearResultsWrapper();
 }
 
@@ -66,10 +62,8 @@ function switchToWorkerMode(refs) {
  * Inicializa el estado por defecto
  */
 function initializeState(refs) {
-    refs.btnTipoEmpresa.classList.add('btn-primary');
-    refs.btnTipoEmpresa.classList.remove('btn-outline-primary');
-    refs.btnTipoTrabajador.classList.add('btn-outline-primary');
-    refs.btnTipoTrabajador.classList.remove('btn-primary');
+    // Usar utilidad compartida para establecer estado inicial
+    toggleExclusiveButtons(refs.btnTipoEmpresa, refs.btnTipoTrabajador, true);
 }
 
 /**

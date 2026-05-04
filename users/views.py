@@ -306,7 +306,7 @@ def logout_view(request):
 def _company_to_dict(company, include_created=False):
     result = {
         'id':         str(company.id),
-        'name':       company.name.title,
+        'name':       company.name.title(),
         'legal_name': company.legal_name,
         'tax_id':     company.tax_id,
     }
@@ -364,8 +364,8 @@ def _user_to_dict(user, include_companies=False):
     """Serializes a Users instance to a dict for JSON responses."""
     result = {
         'id': str(user.id),
-        'username': user.username.title,
-        'surname':  user.surname.title,
+        'username': user.username.title(),
+        'surname':  user.surname.title(),
         'dni':      user.dni,
         'email':    user.email,
         'status':   user.status,
@@ -373,7 +373,7 @@ def _user_to_dict(user, include_companies=False):
     if include_companies:
         companies = UserCompany.objects.filter(user=user).select_related('company')
         result['companies'] = [
-            {'id': str(c.company.id), 'name': c.company.name.title, 'tax_id': c.company.tax_id or '--'}
+            {'id': str(c.company.id), 'name': c.company.name.title(), 'tax_id': c.company.tax_id or '--'}
             for c in companies
         ]
     return result
@@ -913,18 +913,28 @@ def workday(request):
         return redirect('workday')
 
     # ── GET: build data for the template ──────────────────────────────────
-    entries = TimeEntries.objects.filter(
+    entries_list = TimeEntries.objects.filter(
         user=user,
         company=company,
-    ).order_by('-date', '-clock_in')[:20]
+    ).order_by('-date', '-clock_in')
 
-    correction_requests = CorrectionRequests.objects.filter(
+    correction_requests_list = CorrectionRequests.objects.filter(
         requester=user,
         time_entry__company=company,
-    ).order_by('-request_date')[:20]
+    ).order_by('-request_date')
+
+    # Pagination for entries
+    paginator_entries = Paginator(entries_list, 10)
+    page_entries = request.GET.get('page_entries', 1)
+    entries_page_obj = paginator_entries.get_page(page_entries)
+
+    # Pagination for requests
+    paginator_requests = Paginator(correction_requests_list, 10)
+    page_requests = request.GET.get('page_requests', 1)
+    requests_page_obj = paginator_requests.get_page(page_requests)
 
     entry_rows = []
-    for e in entries:
+    for e in entries_page_obj:
         worked_seconds = compute_worked_seconds(e)
         hours = worked_seconds // 3600
         minutes = (worked_seconds % 3600) // 60
@@ -939,7 +949,7 @@ def workday(request):
         })
 
     request_rows = []
-    for r in correction_requests:
+    for r in requests_page_obj:
         entry_date = r.time_entry.date if r.time_entry else None
         request_rows.append({
             'id': r.id,
@@ -956,6 +966,8 @@ def workday(request):
     context = {
         'entry_rows': entry_rows,
         'request_rows': request_rows,
+        'entries_page_obj': entries_page_obj,
+        'requests_page_obj': requests_page_obj,
     }
     context.update(delegation_context)
 
