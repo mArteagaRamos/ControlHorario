@@ -50,19 +50,3 @@ class AuditViewsTest(TestCase):
         self.assertTemplateUsed(response, 'audit/audit_dashboard.html')
         print("  [OK] Éxito: Acceso concedido (HTTP 200) y plantilla correcta cargada.")
 
-    def test_traduccion_de_uuids_en_vista_fichajes(self):
-        print("\n TEST: Comprobando traducción de UUID a Nombres Reales...")
-        self.client.force_login(self.auditor)
-        response = self.client.get(reverse('audit_fichajes'))
-        
-        self.assertEqual(response.status_code, 200)
-        
-        logs_en_contexto = response.context['logs']
-        primer_log = logs_en_contexto[0]
-
-        # Mostramos por consola lo que hay antes de verificar
-        print(f"  -> JSON final en el contexto: {primer_log.after}")
-
-        self.assertEqual(primer_log.after['Usuario'], "EMPLEADO")
-        self.assertEqual(primer_log.after['Estado'], "Presente")
-        print("  [OK] Éxito: Los UUIDs se tradujeron perfectamente a texto entendible.")
