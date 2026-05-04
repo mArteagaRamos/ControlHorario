@@ -117,16 +117,13 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'alumnos_practica_2026',
-        'USER': 'usuario',
-        'PASSWORD': 'password',
-        'HOST': '192.168.0.111',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME'),
+        'USER': os.environ.get('DB_USER'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),
+        'HOST': os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT'),
         'OPTIONS': {
             'options': '-c search_path=control_horario'
-        },
-        'TEST': {
-            'NAME': 'test_time_tracking',  
         },
     }
 }

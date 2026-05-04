@@ -339,6 +339,8 @@ def api_leave_review(request, leave_id):
     note   = data.get('note', '')
     note   = note.strip() if note else None
  
+    #todo: Validar estado de la solicitud antes de aprobar/rechazar (ej: no solapamientos aprobados, etc)
+
     if action == 'approve':
 
         new_status  = LeaveRequest.LeaveStatus.APPROVED
