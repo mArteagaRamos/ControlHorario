@@ -86,7 +86,7 @@ class UsersManager(SoftDeleteManager):
 
     def normalize_email(self, email):
         """Normalize email using Django's built-in method"""
-        return BaseUserManager.normalize_email(BaseUserManager, email)
+        return BaseUserManager.normalize_email(email)
 
     def get_by_natural_key(self, email):
         """Get user by email (natural key)"""

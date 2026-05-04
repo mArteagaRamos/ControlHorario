@@ -207,7 +207,6 @@ if 'test' in sys.argv:
         'NAME': BASE_DIR / 'test_db.sqlite3',
     }
 
-    # 2. Desactivar migraciones para forzar la creación directa desde modelos
     class DisableMigrations:
         def __contains__(self, item):
             return True

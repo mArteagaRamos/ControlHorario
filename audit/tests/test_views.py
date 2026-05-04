@@ -189,16 +189,6 @@ class DashboardAndTeamViewsTest(TestCase):
             tax_id="B12345678"
         )
         
-        self.settings = CompanySettings.objects.create(
-            company=self.company,
-            work_start=time(9, 0),
-            work_end=time(18, 0),
-            max_tolerance=timedelta(minutes=15),
-            weekend_days=[5, 6],
-            auto_close_hours=2,
-            holidays=[]
-        )
-        
         self.admin_user = Users.objects.create_user(
             email="admin@test.com",
             username="admin_global",
@@ -260,6 +250,18 @@ class DashboardAndTeamViewsTest(TestCase):
 
     def test_entity_info_post_actualizar_datos_y_auditoria(self):
         print("\n[TEST] Verificando actualización de empresa y auditoría de jornada...")
+        
+        
+        self.settings = CompanySettings.objects.create(
+            company=self.company,
+            work_start=time(9, 0),
+            work_end=time(18, 0),
+            max_tolerance=timedelta(minutes=15),
+            weekend_days=[5, 6],
+            auto_close_hours=2,
+            holidays=[]
+        )
+        
         self.client.force_login(self.admin_user)
         
         session = self.client.session
@@ -593,6 +595,7 @@ class UserViewsAuditTest(TestCase):
             id=uuid.uuid4(),
             email="admin@test.com",
             username="admin_unificado",
+            dni="33333333C",
             password=self.password,
             is_admin=True
         )
@@ -608,11 +611,13 @@ class UserViewsAuditTest(TestCase):
             id=uuid.uuid4(),
             email="empleado@test.com",
             username="empleado",
+            dni="44444444D",
             password=self.password,
             is_admin=False
         )
         
         UserCompany.objects.create(
+            id=uuid.uuid4(),
             user=self.employee, 
             company=self.company, 
             role=UserCompany.RoleChoices.EMPLOYEE

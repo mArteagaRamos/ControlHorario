@@ -1,12 +1,27 @@
 # admin/models.py
 
 import uuid
+import sys
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from core.model_normalization import UppercaseNormalizationMixin
 from core.managers import SoftDeleteManager
 from users.models import Companies
+
+
+# Detectar si estamos ejecutando tests
+is_testing = 'test' in sys.argv
+
+# Elegir el tipo de campo según el modo
+if is_testing:
+    # En tests con SQLite, usar JSONField (compatible)
+    weekend_days_field = models.JSONField(default=list, blank=True)
+    holidays_field = models.JSONField(default=list, blank=True)
+else:
+    # En producción con PostgreSQL, usar ArrayField
+    weekend_days_field = ArrayField(models.IntegerField(), default=list, blank=True)
+    holidays_field = ArrayField(models.DateField(), default=list, blank=True)
 
 
 class CompanySettings(UppercaseNormalizationMixin, models.Model):
@@ -16,8 +31,8 @@ class CompanySettings(UppercaseNormalizationMixin, models.Model):
     work_end = models.TimeField(default='15:00:00')
     max_tolerance = models.DurationField(default='00:15:00')
     auto_close_hours = models.IntegerField(default=12)
-    weekend_days = ArrayField(models.IntegerField(), default=list, blank=True)
-    holidays = ArrayField(models.DateField(), default=list, blank=True)
+    weekend_days = weekend_days_field
+    holidays = holidays_field
     updated_at = models.DateTimeField(default=timezone.now)
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
