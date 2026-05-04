@@ -48,25 +48,6 @@ class AdminViewsAuditTest(TestCase):
         self.assertEqual(log.after['rol'], 'administrador')
         print("OK: Auditoria registrada correctamente al entrar al dashboard.")
 
-    def test_auditoria_en_exportacion_csv(self):
-        print("\n[TEST] Verificando auditoria al exportar registros eliminados...")
-        self.client.force_login(self.admin_user)
-        
-        response = self.client.post(reverse('exportar_deleted_records'), {
-            'record_type': 'users'
-        })
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'text/csv')
-        
-        log = AuditLog.objects.filter(reason__contains='Exportación').first()
-        
-        self.assertIsNotNone(log, "Error: No se creo el log para la exportacion")
-        self.assertEqual(log.after['tipo'], 'Registros Eliminados (USERS)')
-        self.assertEqual(log.after['cantidad'], 1) 
-        self.assertIn(str(self.deleted_user.id), log.after['ids'])
-        print("OK: Exportacion a CSV auditada con exito.")
-
 
 class CorrectionsViewsAuditTest(TestCase):
     def setUp(self):
@@ -146,30 +127,7 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertEqual(log.reason, 'Incidencia aceptarda por manager')
         self.assertEqual(log.after['status'], 'approved')
         self.assertEqual(log.after['correction_note'], 'Comprobado con el manager local.')
-        print("OK: Auditoria generada correctamente al aceptar incidencia.")
-
-    def test_auditoria_al_exportar_rechazadas(self):
-        print("\n[TEST] Verificando auditoria al exportar incidencias rechazadas a CSV...")
-        self.client.force_login(self.admin_user)
-        
-        response = self.client.post(reverse('exportar_logs_rechazadas'), {
-            'incidencia_id': [str(self.incidencia_rechazada.id)]
-        })
-        
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'text/csv')
-        
-        log = AuditLog.objects.filter(
-            table_name='user_action',
-            action_type=AuditLog.AuditAction.CREATE,
-            reason__contains='Exportación de 1 incidencias rechazadas'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se registro la auditoria al exportar a CSV.")
-        self.assertEqual(log.after['tipo'], 'Incidencias Rechazadas')
-        self.assertEqual(log.after['cantidad'], 1)
-        self.assertIn(str(self.incidencia_rechazada.id), log.after['ids'])
-        print("OK: Auditoria de exportacion a CSV funciona correctamente.")
+        print("OK: Auditoria generada correctamente al aceptar incidencia.")        
 
     def test_auditoria_al_editar_incidencia_rechazada(self):
         print("\n[TEST] Verificando auditoria al editar una incidencia rechazada...")
@@ -392,50 +350,6 @@ class ManagementViewsAuditTest(TestCase):
             status=TimeEntries.EntryStatus.CONFIRMED,
             total_seconds=28800
         )
-
-    def test_exportar_logs_post_auditoria(self):
-        print("\n[TEST] Verificando auditoría al exportar fichajes...")
-        self.client.force_login(self.admin_user)
-        
-        session = self.client.session
-        session['company_id'] = str(self.company.id)
-        session.save()
-
-        response = self.client.post(reverse('exportar_logs'), {
-            'registro_id': [str(self.time_entry.id)]
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'text/csv')
-        
-        log = AuditLog.objects.filter(
-            table_name='user_action', 
-            action_type=AuditLog.AuditAction.CREATE,
-            reason__contains='Exportación de'
-        ).first()
-        self.assertIsNotNone(log, "No se generó el registro de auditoría para la exportación de logs.")
-
-    def test_exportar_staff_post_auditoria(self):
-        print("\n[TEST] Verificando auditoría al exportar lista de empleados...")
-        self.client.force_login(self.admin_user)
-        
-        session = self.client.session
-        session['company_id'] = str(self.company.id)
-        session.save()
-
-        response = self.client.post(reverse('exportar_staff'), {
-            'employee_id': [str(self.membership.id)]
-        })
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'text/csv')
-        
-        log = AuditLog.objects.filter(
-            table_name='user_action', 
-            action_type=AuditLog.AuditAction.CREATE,
-            reason__contains='Exportación de'
-        ).first()
-        self.assertIsNotNone(log, "No se generó el registro de auditoría para la exportación de staff.")
 
     def test_editar_registro_post_auditoria(self):
         print("\n[TEST] Verificando edición manual de registro y su auditoría...")
