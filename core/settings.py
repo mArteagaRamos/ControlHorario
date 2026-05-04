@@ -201,12 +201,13 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 if 'test' in sys.argv:
+    # 1. Usar SQLite en memoria/archivo local para los tests
     DATABASES['default'] = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'test_db.sqlite3',
     }
-    # 2. Desactivar el sistema de migraciones durante los tests. 
-    # Esto fuerza a Django a crear las tablas leyendo tus modelos directamente.
+
+    # 2. Desactivar migraciones para forzar la creación directa desde modelos
     class DisableMigrations:
         def __contains__(self, item):
             return True
@@ -215,5 +216,5 @@ if 'test' in sys.argv:
             
     MIGRATION_MODULES = DisableMigrations()
 
-    # 3. Usar nuestro TestRunner para quitar el "managed = False"
+    # 3. Usar tu TestRunner personalizado
     TEST_RUNNER = 'core.test_runner.ManagedModelTestRunner'
