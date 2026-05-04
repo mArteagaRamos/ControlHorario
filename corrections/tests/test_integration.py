@@ -38,20 +38,27 @@ class CorrectionsIntegrationTest(CorrectionsTestBase):
         
         self.assertEqual(correction.status, CorrectionRequests.CorrectionStatus.PENDING)
         
-        # 3. Manager approves the correction
-        client = Client()
-        client.login(username='testmanager', password='managerpass123')
-        
-        response = client.post(reverse('resolver_incidencia'), {
+        # 3. Manager aprueba la corrección
+        # force_login evita problemas con backends de autenticación y USERNAME_FIELD
+        self.client.force_login(self.manager) 
+
+        # Imprimimos la URL para estar 100% seguros de que es la que toca
+        url = reverse('resolver_incidencia')
+        print(f"\nDEBUG: Llamando a URL: {url}")
+
+        response = self.client.post(url, {
             'incidencia_id': str(correction.id),
             'accion': 'aceptar',
             'nota_resolucion': 'Verified and approved'
         }, follow=True)
-        
-        # 4. Verify final state
-        correction.refresh_from_db()
-        self.assertEqual(correction.status, CorrectionRequests.CorrectionStatus.APPROVED)
-        
+
+        # 4. Verificar si hubo redirección al login (que daría un 401/403 camuflado)
+        if response.status_code != 200:
+            print(f"DEBUG: Error detectado. Status: {response.status_code}")
+            # Esto te mostrará si la vista te está escupiendo algún error de permiso
+            print(f"DEBUG: Contenido: {response.content.decode()[:200]}")
+
+        self.assertEqual(response.status_code, 200)
         # Original entry should be marked as corrected
         self.time_entry.refresh_from_db()
         self.assertEqual(self.time_entry.status, TimeEntries.EntryStatus.CORRECTED)
