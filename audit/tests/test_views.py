@@ -409,29 +409,39 @@ class ManagementViewsAuditTest(TestCase):
         self.assertIsNotNone(log, "No se generó el registro de auditoría para la anulación del fichaje.")
 
 class TimeTrackingViewsAuditTest(TestCase):
+    """
+    Suite de pruebas para verificar la correcta generación de logs de auditoría 
+    durante el ciclo de vida completo de un registro de tiempo (Time Tracking).
+    
+    El flujo evalúa los 4 estados principales simulando peticiones HTTP reales:
+    1. Fichaje de entrada (Clock-in)
+    2. Inicio de pausa (Pause Start)
+    3. Fin de pausa (Pause End)
+    4. Fichaje de salida (Clock-out)
+    """
+
     def setUp(self):
-        print("\n[SETUP] Preparando base de datos temporal para TimeTrackingViewsAuditTest...")
+
         self.client = Client()
         
-        # 1. Crear empresa
+        # 1. Creación de la empresa base
         self.company = Companies.objects.create(
             id=uuid.uuid4(),
             name="Empresa Timetracking SA"
         )
         
-        # 2. Crear empleado para fichar
+        # 2. Creación del usuario (empleado) que realizará los fichajes
         self.employee = Users.objects.create(
             id=uuid.uuid4(),
             username="empleado_reloj",
             email="reloj@test.com",
             dni="44444444E",
             is_admin=False
-            # Asegúrate de que no esté en status INACTIVE, 
-            # ya que tu view bloquea los fichajes en ese caso
         )
         self.employee.set_password("testpassword123")
         self.employee.save()
 
+        # 3. Vinculación del empleado con la empresa
         UserCompany.objects.create(
             id=uuid.uuid4(),
             user=self.employee, 
@@ -440,130 +450,106 @@ class TimeTrackingViewsAuditTest(TestCase):
         )
 
     def _setup_session(self):
-        """Helper para loguear y setear la empresa en sesión"""
+
         self.client.force_login(self.employee)
         session = self.client.session
         session['company_id'] = str(self.company.id)
         session.save()
+        print("  -> Sesión configurada y usuario autenticado.")
 
-    def test_auditoria_clock_in(self):
-        print("\n[TEST] Verificando auditoría al registrar entrada (Clock-in)...")
+    def test_auditoria_ciclo_completo_fichaje(self):
+        """
+        Verifica que cada acción del ciclo de fichaje genera el registro de 
+        auditoría (AuditLog) correspondiente, con los campos exactos esperados.
+        """
+        print("\n[TEST INICIO] Ejecutando ciclo completo de auditoría de fichajes...")
         self._setup_session()
-
-        # Ajusta 'time_entries' si tu urls.py tiene otro nombre para esta view
-        response = self.client.post(reverse('time_entries'), {
-            'action': 'clock_in'
-        })
-
-        self.assertEqual(response.status_code, 302)
         
-        log = AuditLog.objects.filter(
-            user=self.employee,
-            table_name='timetracking_registro',
-            action_type=AuditLog.AuditAction.CREATE,
-            reason='Fichaje de entrada (Clock-in)'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se generó el log de auditoría para el Clock-in.")
-        self.assertEqual(log.source, 'web')
+        url = reverse('time_entries')
+        active_entry_id = None # Variable para almacenar el ID del fichaje durante el ciclo
 
-    def test_auditoria_pause_start(self):
-        print("\n[TEST] Verificando auditoría al iniciar una pausa...")
-        self._setup_session()
+        # PASO 1: CLOCK IN (Entrada)
+        with self.subTest("Paso 1: Fichaje de entrada (Clock-in)"):
+            print("  -> [Paso 1] Simulando petición POST para 'clock_in'...")
+            response = self.client.post(url, {'action': 'clock_in'})
+            
+            # Verificamos que la vista responde correctamente (ej. redirección)
+            self.assertEqual(response.status_code, 302)
+            
+            # Buscamos el log de auditoría generado por esta acción específica
+            log_in = AuditLog.objects.filter(
+                user=self.employee,
+                table_name='timetracking_registro',
+                action_type=AuditLog.AuditAction.CREATE,
+                reason='Fichaje de entrada (Clock-in)'
+            ).order_by('-id').first() 
+            
+            # Validaciones del log
+            self.assertIsNotNone(log_in, "Fallo: No se encontró el AuditLog para Clock-in.")
+            self.assertEqual(log_in.source, 'web')
+            
+            # Guardamos el ID del registro de tiempo recién creado. 
+            # Lo necesitaremos para validar el Clock-out al final.
+            active_entry_id = log_in.record_id 
+            print(f"     OK: Log de Clock-in validado (Record ID: {active_entry_id})")
 
-        # Creamos un fichaje activo reciente para poder pausarlo
-        active_entry = TimeEntries.objects.create(
-            id=uuid.uuid4(),
-            user=self.employee,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now() - timedelta(hours=2),
-            status=TimeEntries.EntryStatus.ONGOING
-        )
+        # PASO 2: PAUSE START (Inicio de pausa)
+        with self.subTest("Paso 2: Inicio de pausa"):
+            print("  -> [Paso 2] Simulando petición POST para 'pause_start'...")
+            response = self.client.post(url, {'action': 'pause_start'})
+            self.assertEqual(response.status_code, 302)
+            
+            log_pause_start = AuditLog.objects.filter(
+                user=self.employee,
+                table_name='timetracking_pausa',
+                action_type=AuditLog.AuditAction.CREATE,
+                reason='Inicio de pausa'
+            ).order_by('-id').first()
+            
+            self.assertIsNotNone(log_pause_start, "Fallo: No se encontró el AuditLog para inicio de pausa.")
+            # Verificamos que el payload guardado en 'after' contenga los datos del evento
+            self.assertIn('event_type', log_pause_start.after)
+            print("     OK: Log de Inicio de Pausa validado.")
 
-        response = self.client.post(reverse('time_entries'), {
-            'action': 'pause_start'
-        })
+        # PASO 3: PAUSE END (Fin de pausa)
+        with self.subTest("Paso 3: Fin de pausa"):
+            print("  -> [Paso 3] Simulando petición POST para 'pause_end'...")
+            response = self.client.post(url, {'action': 'pause_end'})
+            self.assertEqual(response.status_code, 302)
+            
+            log_pause_end = AuditLog.objects.filter(
+                user=self.employee,
+                table_name='timetracking_pausa',
+                action_type=AuditLog.AuditAction.CREATE,
+                reason='Fin de pausa'
+            ).order_by('-id').first()
+            
+            self.assertIsNotNone(log_pause_end, "Fallo: No se encontró el AuditLog para fin de pausa.")
+            print("     OK: Log de Fin de Pausa validado.")
 
-        self.assertEqual(response.status_code, 302)
-        
-        log = AuditLog.objects.filter(
-            user=self.employee,
-            table_name='timetracking_pausa',
-            action_type=AuditLog.AuditAction.CREATE,
-            reason='Inicio de pausa'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se generó el log de auditoría al iniciar la pausa.")
-        self.assertIn('event_type', log.after) # Verifica que capturó el payload del evento
-
-    def test_auditoria_pause_end(self):
-        print("\n[TEST] Verificando auditoría al finalizar una pausa...")
-        self._setup_session()
-
-        # Creamos fichaje activo y un evento de pausa previo
-        active_entry = TimeEntries.objects.create(
-            id=uuid.uuid4(),
-            user=self.employee,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now() - timedelta(hours=3),
-            status=TimeEntries.EntryStatus.ONGOING
-        )
-        TimeEntryEvent.objects.create(
-            id=uuid.uuid4(),
-            time_entry=active_entry,
-            event_type=TimeEntryEvent.EventType.PAUSE_START,
-            timestamp=timezone.now() - timedelta(minutes=30),
-            actor=self.employee
-        )
-
-        response = self.client.post(reverse('time_entries'), {
-            'action': 'pause_end'
-        })
-
-        self.assertEqual(response.status_code, 302)
-        
-        log = AuditLog.objects.filter(
-            user=self.employee,
-            table_name='timetracking_pausa',
-            action_type=AuditLog.AuditAction.CREATE,
-            reason='Fin de pausa'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se generó el log de auditoría al finalizar la pausa.")
-
-    def test_auditoria_clock_out(self):
-        print("\n[TEST] Verificando auditoría al registrar salida (Clock-out)...")
-        self._setup_session()
-
-        # Creamos un fichaje activo reciente
-        active_entry = TimeEntries.objects.create(
-            id=uuid.uuid4(),
-            user=self.employee,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now() - timedelta(hours=4),
-            status=TimeEntries.EntryStatus.ONGOING
-        )
-
-        response = self.client.post(reverse('time_entries'), {
-            'action': 'clock_out'
-        })
-
-        self.assertEqual(response.status_code, 302)
-        
-        log = AuditLog.objects.filter(
-            user=self.employee,
-            table_name='timetracking_registro',
-            record_id=str(active_entry.id),
-            action_type=AuditLog.AuditAction.UPDATE,
-            reason='Fichaje de salida (Clock-out)'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se generó el log de auditoría para el Clock-out.")
-        self.assertIsNotNone(log.before, "Error: El payload 'before' está vacío en el update.")
-        self.assertEqual(log.after['status'], TimeEntries.EntryStatus.CONFIRMED)
+        # PASO 4: CLOCK OUT (Salida)
+        with self.subTest("Paso 4: Fichaje de salida (Clock-out)"):
+            print("  -> [Paso 4] Simulando petición POST para 'clock_out'...")
+            response = self.client.post(url, {'action': 'clock_out'})
+            self.assertEqual(response.status_code, 302)
+            
+            # Para la salida, buscamos un UPDATE sobre el registro de entrada original
+            log_out = AuditLog.objects.filter(
+                user=self.employee,
+                table_name='timetracking_registro',
+                record_id=str(active_entry_id),
+                action_type=AuditLog.AuditAction.UPDATE,
+                reason='Fichaje de salida (Clock-out)'
+            ).order_by('-id').first()
+            
+            # Validaciones de que se guardó el antes y el después correctamente
+            self.assertIsNotNone(log_out, "Fallo: No se encontró el AuditLog para Clock-out.")
+            self.assertIsNotNone(log_out.before, "Fallo: El estado previo ('before') no se registró.")
+            # Verificamos que el estado final en el log refleje que el registro está confirmado/cerrado
+            self.assertEqual(log_out.after['status'], TimeEntries.EntryStatus.CONFIRMED)
+            print("     OK: Log de Clock-out validado (Cambio de estado guardado).")
+            
+        print("\n[TEST FIN] Ciclo completo de fichaje auditado correctamente.")
 
 class UserViewsAuditTest(TestCase):
     def setUp(self):
