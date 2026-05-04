@@ -41,16 +41,16 @@
   <h2 class="home-greeting">
     {% now "H" as current_hour %}
     {% if current_hour|add:"0" < 12 %}
-      Buenos días
+      Buenos días,
     {% elif current_hour|add:"0" < 20 %}
-      Buenas tardes
+      Buenas tardes,
     {% else %}
-      Buenas noches
+      Buenas noches,
     {% endif %}
     {% if is_delegating %}
-      <span class="home-username">, {{ delegated_user_name }}</span>
+      <span class="home-username"> {{ delegated_user_name }}</span>
     {% elif request.user.is_authenticated %}
-      <span class="home-username">, {{ request.user.username.title }}</span>
+      <span class="home-username"> {{ request.user.username.title }}</span>
     {% endif %}
   </h2>
   {% if active_entry %}
