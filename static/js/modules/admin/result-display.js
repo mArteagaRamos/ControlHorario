@@ -5,6 +5,8 @@
  * FASE 3: Extraer funciones de display
  */
 
+import { getAdminConfig } from '../../utils/config.js';
+
 /**
  * Muestra los resultados de empresas en la tabla
  */
@@ -71,6 +73,10 @@ export function displayWorkerResults(workers) {
 
     tbody.innerHTML = '';
 
+    // Obtener SELECT_WORKER_URL desde config
+    const selectWorkerUrl = getAdminConfig('SELECT_WORKER_URL');
+    console.log('[displayWorkerResults] SELECT_WORKER_URL:', selectWorkerUrl);
+
     workers.forEach(worker => {
         const tr = document.createElement('tr');
         tr.className = 'data-row';
@@ -94,7 +100,7 @@ export function displayWorkerResults(workers) {
         const selectButtonText = isDisabledSelect ? 'Sin empresas' : 'Seleccionar';
         const selectButtonDataAttrs = isDisabledSelect
             ? ''
-            : `data-worker-id="${worker.id}" data-companies='${JSON.stringify(companies)}'`;
+            : `data-worker-id="${worker.id}" data-companies='${JSON.stringify(companies)}' data-select-url="${selectWorkerUrl}"`;
         const selectButtonDisabled = isDisabledSelect ? 'disabled' : '';
 
         tr.innerHTML = `

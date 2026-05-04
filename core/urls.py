@@ -96,7 +96,6 @@ urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
 
     path('admin/', admin_views.admin_dashboard, name='admin_dashboard'),
-    path('admin/company-info/', management_views.entity_info, name='manager_entity_info'),
 
     # Soft Delete Management
     path('admin/deleted-records/', admin_views.deleted_records, name='deleted_records'),

@@ -125,6 +125,9 @@ DATABASES = {
         'OPTIONS': {
             'options': '-c search_path=control_horario'
         },
+        'TEST': {
+            'NAME': 'test_time_tracking',  
+        },
     }
 }
 

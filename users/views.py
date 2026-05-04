@@ -357,7 +357,10 @@ def _user_to_dict(user, include_companies=False):
         'status':   user.status,
     }
     if include_companies:
-        companies = UserCompany.objects.filter(user=user).select_related('company')
+        companies = UserCompany.objects.filter(
+            user=user,
+            deleted_at__isnull=True  # Solo membresías activas
+        ).select_related('company')
         result['companies'] = [
             {'id': str(c.company.id), 'name': c.company.name.title(), 'tax_id': c.company.tax_id or '--'}
             for c in companies
