@@ -1,11 +1,16 @@
 import uuid
-from datetime import timedelta
+from datetime import time, timedelta
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
-from users.models import Users, Companies
+
+# Importación de Modelos
+from users.models import Users, Companies, UserCompany
+from admin.models import CompanySettings
 from audit.models import AuditLog
-from timetracking.models import TimeEntries
+from dashboard.models import Note
+from timetracking.models import TimeEntries, TimeEntryEvent
+from corrections.models import LeaveRequest
 from corrections.models import CorrectionRequests
 
 class AdminViewsAuditTest(TestCase):
@@ -14,7 +19,6 @@ class AdminViewsAuditTest(TestCase):
         self.client = Client()
         
         # 1. Creamos el usuario administrador
-        # Se asignan permisos para saltar el decorador @admin_only_required
         self.admin_user = Users.objects.create(
             username="super_jefe",
             email="admin@test.com",
@@ -34,12 +38,9 @@ class AdminViewsAuditTest(TestCase):
         print("\n[TEST] Verificando que el acceso al dashboard genera log de auditoria...")
         self.client.force_login(self.admin_user)
         
-        # Realizamos la peticion GET a la vista del panel
         response = self.client.get(reverse('admin_dashboard'))
-        
         self.assertEqual(response.status_code, 200)
         
-        # Verificamos que se haya creado el log correspondiente en la tabla AuditLog
         log = AuditLog.objects.filter(user=self.admin_user, table_name='user_action').first()
         
         self.assertIsNotNone(log, "Error: No se encontro el registro de auditoria")
@@ -51,22 +52,17 @@ class AdminViewsAuditTest(TestCase):
         print("\n[TEST] Verificando auditoria al exportar registros eliminados...")
         self.client.force_login(self.admin_user)
         
-        # Simulamos la exportacion mediante POST
         response = self.client.post(reverse('exportar_deleted_records'), {
             'record_type': 'users'
         })
         
-        # Comprobamos que la respuesta es exitosa y devuelve un CSV
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'text/csv')
         
-        # Buscamos el log generado por la accion de exportar
         log = AuditLog.objects.filter(reason__contains='Exportación').first()
         
         self.assertIsNotNone(log, "Error: No se creo el log para la exportacion")
         self.assertEqual(log.after['tipo'], 'Registros Eliminados (USERS)')
-        
-        # Verificamos que el conteo de registros en el log coincide con los datos (1 usuario eliminado)
         self.assertEqual(log.after['cantidad'], 1) 
         self.assertIn(str(self.deleted_user.id), log.after['ids'])
         print("OK: Exportacion a CSV auditada con exito.")
@@ -77,13 +73,11 @@ class CorrectionsViewsAuditTest(TestCase):
         print("\n[SETUP] Preparando BD temporal para CorrectionsViewsAuditTest...")
         self.client = Client()
         
-        # 1. Crear empresa de prueba
         self.company = Companies.objects.create(
             id=uuid.uuid4(), 
             name="Tech Corp Audit"
         )
         
-        # 2. Crear usuario administrador
         self.admin_user = Users.objects.create(
             id=uuid.uuid4(),
             username="admin_correcciones",
@@ -92,7 +86,6 @@ class CorrectionsViewsAuditTest(TestCase):
             is_admin=True 
         )
         
-        # 3. Crear empleado base
         self.employee = Users.objects.create(
             id=uuid.uuid4(),
             username="empleado_base",
@@ -100,7 +93,6 @@ class CorrectionsViewsAuditTest(TestCase):
             dni="66666666D"
         )
         
-        # 4. Crear un fichaje original sobre el que solicitar correcciones
         self.time_entry = TimeEntries.objects.create(
             id=uuid.uuid4(),
             user=self.employee,
@@ -112,7 +104,6 @@ class CorrectionsViewsAuditTest(TestCase):
             total_seconds=25200
         )
         
-        # 5. Crear una incidencia pendiente
         self.incidencia_pendiente = CorrectionRequests.objects.create(
             id=uuid.uuid4(),
             requester=self.employee,
@@ -123,7 +114,6 @@ class CorrectionsViewsAuditTest(TestCase):
             status='pending'
         )
         
-        # 6. Crear una incidencia previamente rechazada
         self.incidencia_rechazada = CorrectionRequests.objects.create(
             id=uuid.uuid4(),
             requester=self.employee,
@@ -144,10 +134,8 @@ class CorrectionsViewsAuditTest(TestCase):
             'nota_resolucion': 'Comprobado con el manager local.'
         })
         
-        # Verificamos la redireccion esperada
         self.assertEqual(response.status_code, 302)
         
-        # Comprobamos que el AuditLog fue generado
         log = AuditLog.objects.filter(
             table_name='timetracking_correctionrequest',
             record_id=str(self.incidencia_pendiente.id),
@@ -171,7 +159,6 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'text/csv')
         
-        # Comprobamos el AuditLog
         log = AuditLog.objects.filter(
             table_name='user_action',
             action_type=AuditLog.AuditAction.CREATE,
@@ -188,7 +175,6 @@ class CorrectionsViewsAuditTest(TestCase):
         print("\n[TEST] Verificando auditoria al editar una incidencia rechazada...")
         self.client.force_login(self.admin_user)
         
-        # CORRECCIÓN: Usar strftime para generar un formato amigable para el formulario
         nuevo_inicio = (timezone.now() - timedelta(hours=5)).strftime('%Y-%m-%d %H:%M:%S')
         nuevo_fin = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -232,3 +218,704 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertIsNotNone(log.after['deleted_at'], "Error: El payload JSON no registro el borrado logico.")
         self.assertEqual(log.reason, 'Eliminación (soft-delete) de incidencia rechazada')
         print("OK: Eliminacion de incidencia rechazada auditada de forma segura.")
+
+
+class DashboardAndTeamViewsTest(TestCase):
+    def setUp(self):
+        print("\n[SETUP] Preparando base de datos temporal para DashboardAndTeamViewsTest...")
+        self.client = Client()
+        
+        self.company = Companies.objects.create(
+            id=uuid.uuid4(),
+            name="Empresa Test SA",
+            tax_id="B12345678"
+        )
+        
+        self.settings = CompanySettings.objects.create(
+            company=self.company,
+            work_start=time(9, 0),
+            work_end=time(18, 0),
+            max_tolerance=timedelta(minutes=15),
+            weekend_days=[5, 6],
+            auto_close_hours=2,
+            holidays=[]
+        )
+        
+        self.admin_user = Users.objects.create_user(
+            email="admin@test.com",
+            username="admin_global",
+            dni="12345678A",
+            password="testpassword123",
+            id=uuid.uuid4(),
+            is_admin=True
+        )
+        UserCompany.objects.create(
+            id=uuid.uuid4(),
+            user=self.admin_user, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.MANAGER
+        )
+        
+        self.employee = Users.objects.create_user(
+            email="empleado@test.com",
+            username="empleado_raso",
+            dni="87654321B",
+            password="testpassword123",
+            id=uuid.uuid4(),
+            is_admin=False
+        )
+        UserCompany.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.EMPLOYEE
+        )
+
+    # ── TESTS DE CALENDARIO (CALENDAR) ──────────────────────────────────────────
+
+    def test_calendar_post_crear_solicitud_y_auditoria(self):
+        print("\n[TEST] Verificando solicitud de ausencia desde el calendario...")
+        self.client.force_login(self.employee)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        start_date = timezone.now().date().strftime('%Y-%m-%d')
+        end_date = (timezone.now().date() + timedelta(days=2)).strftime('%Y-%m-%d')
+
+        response = self.client.post(reverse('calendar'), {
+            'leave_type': 'annual',
+            'leave_reason': 'Vacaciones de verano',
+            'start_date': start_date,
+            'end_date': end_date,
+            'reason_note': 'Necesito descanso'
+        })
+        
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(LeaveRequest.objects.filter(user=self.employee, leave_type='annual').exists())
+        
+        log = AuditLog.objects.filter(user=self.employee, action_type=AuditLog.AuditAction.CREATE).first()
+        self.assertIsNotNone(log, "No se generó el registro de auditoría para la ausencia.")
+
+    # ── TESTS DE INFORMACIÓN DE ENTIDAD (ENTITY_INFO) ───────────────────────────
+
+    def test_entity_info_post_actualizar_datos_y_auditoria(self):
+        print("\n[TEST] Verificando actualización de empresa y auditoría de jornada...")
+        self.client.force_login(self.admin_user)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        response = self.client.post(reverse('manager_entity_info'), {
+            'name': 'Empresa Editada SA',
+            'legal_name': 'Empresa Editada Sociedad Anonima',
+            'tax_id': 'B12345678',
+            'work_start': '08:00:00',
+            'work_end': '15:00:00',
+            'max_tolerance': '30',
+            'auto_close_hours': '4',
+            'weekend_days': ['5', '6']
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        self.company.refresh_from_db()
+        self.settings.refresh_from_db()
+        
+        self.assertIn(self.company.name, ['Empresa Editada SA', 'Empresa Editada Sa'])
+        self.assertEqual(str(self.settings.work_start), '08:00:00')
+        self.assertEqual(self.settings.auto_close_hours, 4)
+
+        log_jornada = AuditLog.objects.filter(
+            table_name='company_settings',
+            reason__contains='Modificación de jornada laboral'
+        ).first()
+        self.assertIsNotNone(log_jornada, "Error: No se auditó el cambio de jornada.")
+        
+        log_cierre = AuditLog.objects.filter(
+            table_name='company_settings',
+            reason__contains='Modificación de cierre automático'
+        ).first()
+        self.assertIsNotNone(log_cierre, "Error: No se auditó el cambio de cierre automático.")
+
+class ManagementViewsAuditTest(TestCase):
+    def setUp(self):
+        print("\n[SETUP] Preparando base de datos temporal para ManagementViewsAuditTest...")
+        self.client = Client()
+        
+        self.company = Companies.objects.create(
+            id=uuid.uuid4(),
+            name="Empresa Management SA",
+            tax_id="M12345678"
+        )
+        
+        self.admin_user = Users.objects.create_user(
+            email="manager@test.com",
+            username="admin_management",
+            dni="11111111A",
+            password="testpassword123",
+            id=uuid.uuid4(),
+            is_admin=True
+        )
+        UserCompany.objects.create(
+            id=uuid.uuid4(),
+            user=self.admin_user, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.MANAGER
+        )
+        
+        self.employee = Users.objects.create_user(
+            email="empleado_mgmt@test.com",
+            username="empleado_management",
+            dni="22222222B",
+            password="testpassword123",
+            id=uuid.uuid4(),
+            is_admin=False
+        )
+        self.membership = UserCompany.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.EMPLOYEE
+        )
+
+        # Fichaje necesario para poder editarlo/anularlo o exportarlo
+        self.time_entry = TimeEntries.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee,
+            company=self.company,
+            date=timezone.now().date(),
+            clock_in=timezone.now() - timedelta(hours=8),
+            clock_out=timezone.now(),
+            status=TimeEntries.EntryStatus.CONFIRMED,
+            total_seconds=28800
+        )
+
+    def test_exportar_logs_post_auditoria(self):
+        print("\n[TEST] Verificando auditoría al exportar fichajes...")
+        self.client.force_login(self.admin_user)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        response = self.client.post(reverse('exportar_logs'), {
+            'registro_id': [str(self.time_entry.id)]
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        
+        log = AuditLog.objects.filter(
+            table_name='user_action', 
+            action_type=AuditLog.AuditAction.CREATE,
+            reason__contains='Exportación de'
+        ).first()
+        self.assertIsNotNone(log, "No se generó el registro de auditoría para la exportación de logs.")
+
+    def test_exportar_staff_post_auditoria(self):
+        print("\n[TEST] Verificando auditoría al exportar lista de empleados...")
+        self.client.force_login(self.admin_user)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        response = self.client.post(reverse('exportar_staff'), {
+            'employee_id': [str(self.membership.id)]
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/csv')
+        
+        log = AuditLog.objects.filter(
+            table_name='user_action', 
+            action_type=AuditLog.AuditAction.CREATE,
+            reason__contains='Exportación de'
+        ).first()
+        self.assertIsNotNone(log, "No se generó el registro de auditoría para la exportación de staff.")
+
+    def test_editar_registro_post_auditoria(self):
+        print("\n[TEST] Verificando edición manual de registro y su auditoría...")
+        self.client.force_login(self.admin_user)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        hoy = timezone.now().strftime('%Y-%m-%d')
+        clock_in = f"{hoy}T09:00"
+        clock_out = f"{hoy}T17:00"
+
+        response = self.client.post(reverse('editar_registro'), {
+            'registro_id': str(self.time_entry.id),
+            'clock_in': clock_in,
+            'clock_out': clock_out
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        self.time_entry.refresh_from_db()
+        self.assertEqual(self.time_entry.status, TimeEntries.EntryStatus.CORRECTED)
+        
+        log = AuditLog.objects.filter(
+            table_name='timetracking_timeentries',
+            action_type='update',
+            reason__contains='Edición manual de fichaje'
+        ).first()
+        self.assertIsNotNone(log, "No se generó el registro de auditoría para la edición del fichaje.")
+
+    def test_anular_registro_post_auditoria(self):
+        print("\n[TEST] Verificando anulación de registro y su auditoría...")
+        self.client.force_login(self.admin_user)
+        
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+        response = self.client.post(reverse('anular_registro'), {
+            'registro_id': str(self.time_entry.id)
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        self.time_entry.refresh_from_db()
+        self.assertEqual(self.time_entry.status, 'voided')
+        self.assertIsNotNone(self.time_entry.deleted_at)
+        
+        log = AuditLog.objects.filter(
+            table_name='timetracking_timeentries',
+            action_type='voided',
+            reason__contains='Anulación directa de registro'
+        ).first()
+        self.assertIsNotNone(log, "No se generó el registro de auditoría para la anulación del fichaje.")
+
+class TimeTrackingViewsAuditTest(TestCase):
+    def setUp(self):
+        print("\n[SETUP] Preparando base de datos temporal para TimeTrackingViewsAuditTest...")
+        self.client = Client()
+        
+        # 1. Crear empresa
+        self.company = Companies.objects.create(
+            id=uuid.uuid4(),
+            name="Empresa Timetracking SA"
+        )
+        
+        # 2. Crear empleado para fichar
+        self.employee = Users.objects.create(
+            id=uuid.uuid4(),
+            username="empleado_reloj",
+            email="reloj@test.com",
+            dni="44444444E",
+            is_admin=False
+            # Asegúrate de que no esté en status INACTIVE, 
+            # ya que tu view bloquea los fichajes en ese caso
+        )
+        self.employee.set_password("testpassword123")
+        self.employee.save()
+
+        UserCompany.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.EMPLOYEE
+        )
+
+    def _setup_session(self):
+        """Helper para loguear y setear la empresa en sesión"""
+        self.client.force_login(self.employee)
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+    def test_auditoria_clock_in(self):
+        print("\n[TEST] Verificando auditoría al registrar entrada (Clock-in)...")
+        self._setup_session()
+
+        # Ajusta 'time_entries' si tu urls.py tiene otro nombre para esta view
+        response = self.client.post(reverse('time_entries'), {
+            'action': 'clock_in'
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_registro',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason='Fichaje de entrada (Clock-in)'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se generó el log de auditoría para el Clock-in.")
+        self.assertEqual(log.source, 'web')
+
+    def test_auditoria_pause_start(self):
+        print("\n[TEST] Verificando auditoría al iniciar una pausa...")
+        self._setup_session()
+
+        # Creamos un fichaje activo reciente para poder pausarlo
+        active_entry = TimeEntries.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee,
+            company=self.company,
+            date=timezone.localdate(),
+            clock_in=timezone.now() - timedelta(hours=2),
+            status=TimeEntries.EntryStatus.ONGOING
+        )
+
+        response = self.client.post(reverse('time_entries'), {
+            'action': 'pause_start'
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_pausa',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason='Inicio de pausa'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se generó el log de auditoría al iniciar la pausa.")
+        self.assertIn('event_type', log.after) # Verifica que capturó el payload del evento
+
+    def test_auditoria_pause_end(self):
+        print("\n[TEST] Verificando auditoría al finalizar una pausa...")
+        self._setup_session()
+
+        # Creamos fichaje activo y un evento de pausa previo
+        active_entry = TimeEntries.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee,
+            company=self.company,
+            date=timezone.localdate(),
+            clock_in=timezone.now() - timedelta(hours=3),
+            status=TimeEntries.EntryStatus.ONGOING
+        )
+        TimeEntryEvent.objects.create(
+            id=uuid.uuid4(),
+            time_entry=active_entry,
+            event_type=TimeEntryEvent.EventType.PAUSE_START,
+            timestamp=timezone.now() - timedelta(minutes=30),
+            actor=self.employee
+        )
+
+        response = self.client.post(reverse('time_entries'), {
+            'action': 'pause_end'
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_pausa',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason='Fin de pausa'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se generó el log de auditoría al finalizar la pausa.")
+
+    def test_auditoria_clock_out(self):
+        print("\n[TEST] Verificando auditoría al registrar salida (Clock-out)...")
+        self._setup_session()
+
+        # Creamos un fichaje activo reciente
+        active_entry = TimeEntries.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee,
+            company=self.company,
+            date=timezone.localdate(),
+            clock_in=timezone.now() - timedelta(hours=4),
+            status=TimeEntries.EntryStatus.ONGOING
+        )
+
+        response = self.client.post(reverse('time_entries'), {
+            'action': 'clock_out'
+        })
+
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_registro',
+            record_id=str(active_entry.id),
+            action_type=AuditLog.AuditAction.UPDATE,
+            reason='Fichaje de salida (Clock-out)'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se generó el log de auditoría para el Clock-out.")
+        self.assertIsNotNone(log.before, "Error: El payload 'before' está vacío en el update.")
+        self.assertEqual(log.after['status'], TimeEntries.EntryStatus.CONFIRMED)
+
+class UserViewsAuditTest(TestCase):
+    def setUp(self):
+        print("\n[SETUP] Preparando base de datos temporal para UserViewsAuditTest...")
+        self.client = Client()
+        self.password = "password_segura_123"
+        
+        # ── 1. Datos para tests de Auth ──
+        self.active_user = Users.objects.create_user(
+            id=uuid.uuid4(),
+            email="activo@test.com",
+            username="usuario_activo",
+            dni="11111111A",
+            password=self.password,
+            status=Users.StatusChoices.ACTIVE
+        )
+        
+        self.suspended_user = Users.objects.create_user(
+            id=uuid.uuid4(),
+            email="suspendido@test.com",
+            username="usuario_suspendido",
+            dni="22222222B",
+            password=self.password,
+            status='suspended' # Asegúrate de usar el valor real de tus choices
+        )
+
+        # ── 2. Datos para test de Registro Unificado ──
+        self.admin_user = Users.objects.create_user(
+            id=uuid.uuid4(),
+            email="admin@test.com",
+            username="admin_unificado",
+            password=self.password,
+            is_admin=True
+        )
+        
+        self.company = Companies.objects.create(
+            id=uuid.uuid4(),
+            name="Empresa Original",
+            tax_id="A12345678"
+        )
+
+        # ── 3. Datos para tests de Workday (Empleado, Fichajes e Incidencias) ──
+        self.employee = Users.objects.create_user(
+            id=uuid.uuid4(),
+            email="empleado@test.com",
+            username="empleado",
+            password=self.password,
+            is_admin=False
+        )
+        
+        UserCompany.objects.create(
+            user=self.employee, 
+            company=self.company, 
+            role=UserCompany.RoleChoices.EMPLOYEE
+        )
+
+        self.time_entry = TimeEntries.objects.create(
+            id=uuid.uuid4(),
+            user=self.employee,
+            company=self.company,
+            date=timezone.now().date(),
+            clock_in=timezone.now() - timedelta(hours=8),
+            clock_out=timezone.now(),
+            status=TimeEntries.EntryStatus.CONFIRMED,
+            total_seconds=28800
+        )
+        
+        self.correction_request = CorrectionRequests.objects.create(
+            id=uuid.uuid4(),
+            time_entry=self.time_entry,
+            requester=self.employee,
+            reason="Prueba inicial",
+            new_clock_in=timezone.now() - timedelta(hours=8),
+            status='pending'
+        )
+
+    # ── Utilidad para iniciar sesión en los tests de Workday ──
+    def _setup_employee_session(self):
+        self.client.force_login(self.employee)
+        session = self.client.session
+        session['company_id'] = str(self.company.id)
+        session.save()
+
+    # ==========================================
+    # TESTS DE AUTENTICACIÓN (LOGIN/LOGOUT)
+    # ==========================================
+
+    def test_login_exitoso_auditoria(self):
+        print("\n[TEST] Verificando auditoría al hacer login exitoso...")
+        self.client.post(reverse('login'), {
+            'step': 'credentials',
+            'username': 'activo@test.com',
+            'password': self.password
+        })
+        
+        log = AuditLog.objects.filter(
+            table_name='user_action',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason='Login exitoso'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito el login exitoso.")
+        self.assertEqual(log.user, self.active_user)
+
+    def test_login_fallido_auditoria(self):
+        print("\n[TEST] Verificando auditoría al hacer login fallido (contraseña incorrecta)...")
+        self.client.post(reverse('login'), {
+            'step': 'credentials',
+            'username': 'activo@test.com',
+            'password': 'password_incorrecta'
+        })
+        
+        log = AuditLog.objects.filter(
+            table_name='user_action',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason__contains='Intento de login fallido'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito el intento de login fallido.")
+        self.assertIsNone(log.user)
+
+    def test_login_suspendido_auditoria(self):
+        print("\n[TEST] Verificando auditoría de login con cuenta suspendida...")
+        self.client.post(reverse('login'), {
+            'step': 'credentials',
+            'username': 'suspendido@test.com',
+            'password': self.password
+        })
+        
+        log = AuditLog.objects.filter(
+            table_name='user_action',
+            reason='Intento de login: cuenta suspendida'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito el intento de login de cuenta suspendida.")
+
+    def test_logout_auditoria(self):
+        print("\n[TEST] Verificando auditoría al hacer logout...")
+        self.client.force_login(self.active_user)
+        self.client.get(reverse('logout'))
+        
+        log = AuditLog.objects.filter(
+            user=self.active_user,
+            table_name='user_action',
+            reason='Logout'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito el cierre de sesión.")
+
+    # ==========================================
+    # TESTS DE REGISTRO UNIFICADO
+    # ==========================================
+
+    def test_actualizar_empresa_auditoria(self):
+        print("\n[TEST] Verificando auditoría al actualizar empresa desde el registro unificado...")
+        self.client.force_login(self.admin_user)
+        
+        self.client.post(reverse('register_unified'), {
+            'company_mode': 'create',
+            'worker_action': 'create',
+            'name': 'Empresa Actualizada SA',
+            'legal_name': 'Empresa Actualizada Legal',
+            'tax_id': 'A12345678', # Coincide con la empresa creada en setUp
+            'email': 'nuevo_trabajador@test.com',
+            'role': UserCompany.RoleChoices.EMPLOYEE
+        })
+        
+        log = AuditLog.objects.filter(
+            table_name='company_settings',
+            action_type='update',
+            reason='Actualización de datos de empresa en registro unificado'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito la actualización de la empresa en el registro unificado.")
+        self.assertEqual(log.after['name'], 'Empresa Actualizada SA')
+
+    # ==========================================
+    # TESTS DE WORKDAY Y EXPORTACIONES
+    # ==========================================
+
+    def test_solicitar_correccion_auditoria(self):
+        print("\n[TEST] Verificando auditoría al solicitar una nueva corrección...")
+        self._setup_employee_session()
+        
+        # Fichaje sin incidencias para evitar el bloqueo de "incidencia existente"
+        fichaje_limpio = TimeEntries.objects.create(
+            id=uuid.uuid4(), user=self.employee, company=self.company,
+            date=timezone.now().date(), clock_in=timezone.now(), status=TimeEntries.EntryStatus.CONFIRMED
+        )
+
+        response = self.client.post(reverse('workday'), {
+            'action': 'request_correction',
+            'entry_id': str(fichaje_limpio.id),
+            'reason': 'Se me olvido fichar salida',
+            'new_clock_in': (timezone.now() - timedelta(hours=5)).strftime('%Y-%m-%dT%H:%M'),
+            'new_clock_out': timezone.now().strftime('%Y-%m-%dT%H:%M')
+        })
+        
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_correctionrequest',
+            action_type='create',
+            reason='Nueva incidencia reportada'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito la creación de la incidencia.")
+
+    def test_editar_correccion_auditoria(self):
+        print("\n[TEST] Verificando auditoría al editar una corrección existente...")
+        self._setup_employee_session()
+        
+        response = self.client.post(reverse('workday'), {
+            'action': 'edit_correction',
+            'request_id': str(self.correction_request.id),
+            'reason': 'Corrijo la hora que me he equivocado',
+            'new_clock_in': (timezone.now() - timedelta(hours=6)).strftime('%Y-%m-%dT%H:%M'),
+            'new_clock_out': timezone.now().strftime('%Y-%m-%dT%H:%M')
+        })
+        
+        self.assertEqual(response.status_code, 302)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='timetracking_correctionrequest',
+            record_id=str(self.correction_request.id),
+            action_type='update',
+            reason='Edición de datos de la incidencia por el usuario'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito la edición de la incidencia.")
+        self.assertEqual(log.after['reason'], 'Corrijo la hora que me he equivocado')
+
+    def test_exportar_entradas_workday_auditoria(self):
+        print("\n[TEST] Verificando auditoría al exportar fichajes personales...")
+        self._setup_employee_session()
+        
+        response = self.client.post(reverse('exportar_workday_entries'), {
+            'entry_id': [str(self.time_entry.id)]
+        })
+        
+        self.assertEqual(response.status_code, 200)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='user_action',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason__contains='Exportación de 1 fichajes personales'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito la exportación de fichajes personales.")
+
+    def test_exportar_solicitudes_workday_auditoria(self):
+        print("\n[TEST] Verificando auditoría al exportar solicitudes personales...")
+        self._setup_employee_session()
+        
+        response = self.client.post(reverse('exportar_workday_requests'), {
+            'request_id': [str(self.correction_request.id)]
+        })
+        
+        self.assertEqual(response.status_code, 200)
+        
+        log = AuditLog.objects.filter(
+            user=self.employee,
+            table_name='user_action',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason__contains='Exportación de 1 solicitudes de corrección'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se audito la exportación de solicitudes de corrección.")
