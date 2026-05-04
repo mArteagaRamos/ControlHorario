@@ -8,8 +8,7 @@ from django.utils import timezone
 from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
 from audit.models import AuditLog
-from dashboard.models import Note
-from timetracking.models import TimeEntries, TimeEntryEvent
+from timetracking.models import TimeEntries
 from corrections.models import LeaveRequest
 from corrections.models import CorrectionRequests
 
