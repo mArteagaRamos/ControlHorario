@@ -552,12 +552,13 @@ class TimeTrackingViewsAuditTest(TestCase):
         print("\n[TEST FIN] Ciclo completo de fichaje auditado correctamente.")
 
 class UserViewsAuditTest(TestCase):
+    
     def setUp(self):
-        print("\n[SETUP] Preparando base de datos temporal para UserViewsAuditTest...")
+
+        print("[SETUP] Inicializando entorno para test de autenticación...")
         self.client = Client()
         self.password = "password_segura_123"
         
-        # ── 1. Datos para tests de Auth ──
         self.active_user = Users.objects.create_user(
             id=uuid.uuid4(),
             email="activo@test.com",
@@ -566,125 +567,63 @@ class UserViewsAuditTest(TestCase):
             password=self.password,
             status=Users.StatusChoices.ACTIVE
         )
-        
-        self.suspended_user = Users.objects.create_user(
-            id=uuid.uuid4(),
-            email="suspendido@test.com",
-            username="usuario_suspendido",
-            dni="22222222B",
-            password=self.password,
-            status='suspended' # Asegúrate de usar el valor real de tus choices
-        )
 
-        # ── 2. Datos para test de Registro Unificado ──
-        self.admin_user = Users.objects.create_user(
-            id=uuid.uuid4(),
-            email="admin@test.com",
-            username="admin_unificado",
-            dni="33333333C",
-            password=self.password,
-            is_admin=True
-        )
-        
-        self.company = Companies.objects.create(
-            id=uuid.uuid4(),
-            name="Empresa Original",
-            tax_id="A12345678"
-        )
-
-        # ── 3. Datos para tests de Workday (Empleado, Fichajes e Incidencias) ──
-        self.employee = Users.objects.create_user(
-            id=uuid.uuid4(),
-            email="empleado@test.com",
-            username="empleado",
-            dni="44444444D",
-            password=self.password,
-            is_admin=False
-        )
-        
-        UserCompany.objects.create(
-            id=uuid.uuid4(),
-            user=self.employee, 
-            company=self.company, 
-            role=UserCompany.RoleChoices.EMPLOYEE
-        )
-
-        self.time_entry = TimeEntries.objects.create(
-            id=uuid.uuid4(),
-            user=self.employee,
-            company=self.company,
-            date=timezone.now().date(),
-            clock_in=timezone.now() - timedelta(hours=8),
-            clock_out=timezone.now(),
-            status=TimeEntries.EntryStatus.CONFIRMED,
-            total_seconds=28800
-        )
-        
-        self.correction_request = CorrectionRequests.objects.create(
-            id=uuid.uuid4(),
-            time_entry=self.time_entry,
-            requester=self.employee,
-            reason="Prueba inicial",
-            new_clock_in=timezone.now() - timedelta(hours=8),
-            status='pending'
-        )
-
-    # ── Utilidad para iniciar sesión en los tests de Workday ──
-    def _setup_employee_session(self):
-        self.client.force_login(self.employee)
-        session = self.client.session
-        session['company_id'] = str(self.company.id)
-        session.save()
-
-    # ==========================================
     # TESTS DE AUTENTICACIÓN (LOGIN/LOGOUT)
-    # ==========================================
-
-    def test_login_exitoso_auditoria(self):
-        print("\n[TEST] Verificando auditoría al hacer login exitoso...")
-        self.client.post(reverse('login'), {
-            'step': 'credentials',
-            'username': 'activo@test.com',
-            'password': self.password
-        })
+    def test_1_auditoria_login_fallido(self):
+        print("[TEST 1] Inicio: Verificación de auditoría para login fallido.")
         
-        log = AuditLog.objects.filter(
-            table_name='user_action',
-            action_type=AuditLog.AuditAction.CREATE,
-            reason='Login exitoso'
-        ).first()
-        
-        self.assertIsNotNone(log, "Error: No se audito el login exitoso.")
-        self.assertEqual(log.user, self.active_user)
-
-    def test_login_fallido_auditoria(self):
-        print("\n[TEST] Verificando auditoría al hacer login fallido (contraseña incorrecta)...")
+        print("  -> Acción: Enviando petición POST con contraseña incorrecta...")
         self.client.post(reverse('login'), {
             'step': 'credentials',
             'username': 'activo@test.com',
             'password': 'password_incorrecta'
         })
         
+        print("  -> Validación: Consultando base de datos de auditoría...")
         log = AuditLog.objects.filter(
             table_name='user_action',
             action_type=AuditLog.AuditAction.CREATE,
             reason__contains='Intento de login fallido'
         ).first()
         
-        self.assertIsNotNone(log, "Error: No se audito el intento de login fallido.")
-        self.assertIsNone(log.user)
+        self.assertIsNotNone(log, "Error: No se auditó el intento de login fallido.")
+        self.assertIsNone(log.user, "Error: El log no debería asignar usuario en un fallo.")
+        
+        print("[TEST 1] Éxito: Auditoría de login fallido registrada correctamente.")
 
-    def test_logout_auditoria(self):
-        print("\n[TEST] Verificando auditoría al hacer logout...")
-        self.client.force_login(self.active_user)
+
+    def test_2_auditoria_flujo_login_y_logout_exitoso(self):
+        print("[TEST 2] Inicio: Verificación de flujo completo (Login exitoso -> Logout).")
+        
+        # --- PASO 1: Login Exitoso ---
+        print("  -> Paso 1 [Login]: Enviando petición POST con credenciales correctas...")
+        self.client.post(reverse('login'), {
+            'step': 'credentials',
+            'username': 'activo@test.com',
+            'password': self.password
+        })
+        
+        print("  -> Paso 1 [Validación]: Comprobando registro de auditoría de login...")
+        log_login = AuditLog.objects.filter(
+            table_name='user_action',
+            action_type=AuditLog.AuditAction.CREATE,
+            reason='Login exitoso'
+        ).first()
+        
+        self.assertIsNotNone(log_login, "Error: No se auditó el login exitoso.")
+        self.assertEqual(log_login.user, self.active_user)
+        print("     [OK] Login exitoso auditado y vinculado al usuario.")
+
+        # --- PASO 2: Logout ---
+        print("  -> Paso 2 [Logout]: Solicitando cierre de sesión mediante GET...")
         self.client.get(reverse('logout'))
         
-        log = AuditLog.objects.filter(
+        print("  -> Paso 2 [Validación]: Comprobando registro de auditoría de logout...")
+        log_logout = AuditLog.objects.filter(
             user=self.active_user,
             table_name='user_action',
             reason='Logout'
         ).first()
         
-        self.assertIsNotNone(log, "Error: No se audito el cierre de sesión.")
-
-    
+        self.assertIsNotNone(log_logout, "Error: No se auditó el cierre de sesión.")
+        print("[TEST 2] Éxito: Flujo completo de auditoría registrado correctamente.")
