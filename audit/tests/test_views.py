@@ -17,8 +17,9 @@ class AdminViewsAuditTest(TestCase):
     
     @classmethod
     def setUpTestData(cls):
-
-        print("[SETUP] Generando BD temporal para AdminViewsAuditTest...")
+        print("\n\n" + "█"*70)
+        print(" 3.1. TESTS DE VISTAS ADMIN (AdminViewsAuditTest)")
+        print("█"*70)
         
         cls.admin_user = Users.objects.create(
             id=uuid.uuid4(),
@@ -27,16 +28,14 @@ class AdminViewsAuditTest(TestCase):
             dni="99999999X",
             is_admin=True, 
         )
+        print("  -> Usuario Admin creado. Setup finalizado.")
 
     def setUp(self):
-
         self.client = Client()
         self.client.force_login(self.admin_user)
 
-    # TESTS DE PANEL DE ADMINISTRACIÓN
     def test_1_auditoria_en_admin_dashboard(self):
-        print("[TEST 1] Inicio: Verificando que el acceso al dashboard genera log de auditoría.")
-        
+        print("\n[TEST 1] Inicio: Verificando que el acceso al dashboard genera log de auditoría.")
         print("  -> Acción: Ejecutando GET hacia el dashboard de administración...")
         response = self.client.get(reverse('admin_dashboard'))
         
@@ -51,15 +50,16 @@ class AdminViewsAuditTest(TestCase):
         self.assertIsNotNone(log, "Error: No se encontró el registro de auditoría tras el acceso.")
         self.assertEqual(log.reason, 'Acceso al panel de administración')
         self.assertEqual(log.after['rol'], 'administrador')
-        
-        print("[TEST 1] Éxito: Auditoría registrada correctamente al entrar al dashboard.\n")
+        print("  [OK] Éxito: Auditoría registrada correctamente al entrar al dashboard.")
+
 
 class CorrectionsViewsAuditTest(TestCase):
     
     @classmethod
     def setUpTestData(cls):
-
-        print("[SETUP] Generando BD temporal para CorrectionsViewsAuditTest...")
+        print("\n\n" + "█"*70)
+        print(" 3.2. TESTS DE CORRECCIONES (CorrectionsViewsAuditTest)")
+        print("█"*70)
         
         cls.company = Companies.objects.create(
             id=uuid.uuid4(), 
@@ -111,16 +111,14 @@ class CorrectionsViewsAuditTest(TestCase):
             reason="Error al iniciar turno",
             status='rejected'
         )
+        print("  -> Empresa, Usuarios, Fichajes e Incidencias creados. Setup finalizado.")
 
     def setUp(self):
-
         self.client = Client()
         self.client.force_login(self.admin_user)
 
-    # TESTS DE RESOLUCIÓN DE INCIDENCIAS
     def test_1_auditoria_al_resolver_incidencia(self):
-        print("[TEST 1] Inicio: Verificando auditoría al resolver (aceptar) una incidencia.")
-        
+        print("\n[TEST 1] Inicio: Verificando auditoría al resolver (aceptar) una incidencia.")
         print("  -> Acción: Ejecutando POST para aceptar incidencia...")
         response = self.client.post(reverse('resolver_incidencia'), {
             'incidencia_id': str(self.incidencia_pendiente.id),
@@ -141,11 +139,10 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertEqual(log.reason, 'Incidencia aceptarda por manager')
         self.assertEqual(log.after['status'], 'approved')
         self.assertEqual(log.after['correction_note'], 'Comprobado con el manager local.')
-        print("[TEST 1] Éxito: Auditoría generada correctamente al aceptar incidencia.\n")        
+        print("  [OK] Éxito: Auditoría generada correctamente al aceptar incidencia.")        
 
     def test_2_auditoria_al_editar_incidencia_rechazada(self):
-        print("[TEST 2] Inicio: Verificando auditoría al editar una incidencia rechazada.")
-        
+        print("\n[TEST 2] Inicio: Verificando auditoría al editar una incidencia rechazada.")
         nuevo_inicio = (timezone.now() - timedelta(hours=5)).strftime('%Y-%m-%d %H:%M:%S')
         nuevo_fin = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -169,11 +166,10 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertIsNotNone(log, "Error: No se auditó la edición de la incidencia rechazada.")
         self.assertEqual(log.after['status'], 'pending')
         self.assertEqual(log.after['reason'], 'Corregido tras revision con RRHH')
-        print("[TEST 2] Éxito: Edición de incidencia rechazada auditada con éxito.\n")
+        print("  [OK] Éxito: Edición de incidencia rechazada auditada con éxito.")
 
     def test_3_auditoria_al_eliminar_incidencia_rechazada(self):
-        print("[TEST 3] Inicio: Verificando auditoría al hacer soft-delete de incidencia rechazada.")
-        
+        print("\n[TEST 3] Inicio: Verificando auditoría al hacer soft-delete de incidencia rechazada.")
         print("  -> Acción: Ejecutando POST para eliminar incidencia lógicamente...")
         response = self.client.post(reverse('eliminar_incidencia_rechazada'), {
             'incidencia_id': str(self.incidencia_rechazada.id)
@@ -191,14 +187,16 @@ class CorrectionsViewsAuditTest(TestCase):
         self.assertIsNotNone(log, "Error: No se auditó la eliminación (soft-delete).")
         self.assertIsNotNone(log.after['deleted_at'], "Error: El payload JSON no registró el borrado lógico.")
         self.assertEqual(log.reason, 'Eliminación (soft-delete) de incidencia rechazada')
-        print("[TEST 3] Éxito: Eliminación de incidencia rechazada auditada de forma segura.\n")
+        print("  [OK] Éxito: Eliminación de incidencia rechazada auditada de forma segura.")
+
 
 class DashboardAndTeamViewsTest(TestCase):
     
     @classmethod
     def setUpTestData(cls):
-
-        print("[SETUP] Generando BD temporal para DashboardAndTeamViewsTest...")
+        print("\n\n" + "█"*70)
+        print(" 3.3. TESTS DE DASHBOARD Y EQUIPO (DashboardAndTeamViewsTest)")
+        print("█"*70)
         
         cls.company = Companies.objects.create(
             id=uuid.uuid4(),
@@ -245,24 +243,19 @@ class DashboardAndTeamViewsTest(TestCase):
             company=cls.company, 
             role=UserCompany.RoleChoices.EMPLOYEE
         )
+        print("  -> Empresa, Ajustes y Usuarios creados. Setup finalizado.")
 
     def setUp(self):
         self.client = Client()
 
     def _login_and_set_company(self, user):
-        """
-        Método auxiliar (DRY): Loguea al usuario inyectado y asocia la sesión a la empresa.
-        """
         self.client.force_login(user)
         session = self.client.session
         session['company_id'] = str(self.company.id)
         session.save()
 
-    # ── TESTS DE CALENDARIO (CALENDAR) ──────────────────────────────────────────
     def test_1_calendar_post_crear_solicitud_y_auditoria(self):
-        print("[TEST 1] Inicio: Verificando solicitud de ausencia (Empleado).")
-        
-        # Logueamos como empleado
+        print("\n[TEST 1] Inicio: Verificando solicitud de ausencia (Empleado).")
         self._login_and_set_company(self.employee)
         
         start_date = timezone.now().date().strftime('%Y-%m-%d')
@@ -286,14 +279,10 @@ class DashboardAndTeamViewsTest(TestCase):
         print("  -> Validación: Comprobando log de auditoría...")
         log = AuditLog.objects.filter(user=self.employee, action_type=AuditLog.AuditAction.CREATE).first()
         self.assertIsNotNone(log, "Error: No se generó auditoría para la creación de la ausencia.")
-        
-        print("[TEST 1] Éxito: Solicitud de ausencia y auditoría correctas.\n")
+        print("  [OK] Éxito: Solicitud de ausencia y auditoría correctas.")
 
-    # ── TESTS DE INFORMACIÓN DE ENTIDAD (ENTITY_INFO) ───────────────────────────
     def test_2_entity_info_post_actualizar_datos_y_auditoria(self):
-        print("[TEST 2] Inicio: Verificando actualización de empresa y ajustes (Manager).")
-        
-        # Logueamos como administrador/manager
+        print("\n[TEST 2] Inicio: Verificando actualización de empresa y ajustes (Manager).")
         self._login_and_set_company(self.admin_user)
         
         print("  -> Acción: Ejecutando POST para actualizar jornada y empresa...")
@@ -330,13 +319,16 @@ class DashboardAndTeamViewsTest(TestCase):
             reason__contains='Modificación de cierre automático'
         ).first()
         self.assertIsNotNone(log_cierre, "Error: No se auditó el cambio de cierre automático.")
-        
-        print("[TEST 2] Éxito: Actualización de ajustes y sus auditorías comprobados correctamente.\n")
+        print("  [OK] Éxito: Actualización de ajustes y sus auditorías comprobados correctamente.")
+
 
 class ManagementViewsAuditTest(TestCase):
     
     @classmethod
     def setUpTestData(cls):
+        print("\n\n" + "█"*70)
+        print(" 3.4. TESTS DE MANAGEMENT (ManagementViewsAuditTest)")
+        print("█"*70)
         
         cls.company = Companies.objects.create(
             id=uuid.uuid4(),
@@ -384,20 +376,17 @@ class ManagementViewsAuditTest(TestCase):
             status=TimeEntries.EntryStatus.CONFIRMED,
             total_seconds=28800
         )
+        print("  -> Usuarios y TimeEntry base creados. Setup finalizado.")
 
     def setUp(self):
-
         self.client = Client()
         self.client.force_login(self.admin_user)
-        
         session = self.client.session
         session['company_id'] = str(self.company.id)
         session.save()
 
-    # TESTS DE ACCIONES DE MANAGEMENT
     def test_1_editar_registro_post_auditoria(self):
-        print("[TEST 1] Inicio: Verificando edición manual de registro y su auditoría.")
-        
+        print("\n[TEST 1] Inicio: Verificando edición manual de registro y su auditoría.")
         hoy = timezone.now().strftime('%Y-%m-%d')
         clock_in = f"{hoy}T09:00"
         clock_out = f"{hoy}T17:00"
@@ -423,11 +412,10 @@ class ManagementViewsAuditTest(TestCase):
         ).first()
         
         self.assertIsNotNone(log, "Error: No se generó auditoría para la edición.")
-        print("[TEST 1] Éxito: Edición y auditoría verificadas correctamente.\n")
+        print("  [OK] Éxito: Edición y auditoría verificadas correctamente.")
 
     def test_2_anular_registro_post_auditoria(self):
-        print("[TEST 2] Inicio: Verificando anulación (soft-delete) de registro y su auditoría.")
-        
+        print("\n[TEST 2] Inicio: Verificando anulación (soft-delete) de registro y su auditoría.")
         print("  -> Acción: Ejecutando POST para anular fichaje...")
         response = self.client.post(reverse('anular_registro'), {
             'registro_id': str(self.time_entry.id)
@@ -448,31 +436,24 @@ class ManagementViewsAuditTest(TestCase):
         ).first()
         
         self.assertIsNotNone(log, "Error: No se generó auditoría para la anulación.")
-        print("[TEST 2] Éxito: Anulación y auditoría verificadas correctamente.\n")
+        print("  [OK] Éxito: Anulación y auditoría verificadas correctamente.")
+
 
 class TimeTrackingViewsAuditTest(TestCase):
-    """
-    Suite de pruebas para verificar la correcta generación de logs de auditoría 
-    durante el ciclo de vida completo de un registro de tiempo (Time Tracking).
     
-    El flujo evalúa los 4 estados principales simulando peticiones HTTP reales:
-    1. Fichaje de entrada (Clock-in)
-    2. Inicio de pausa (Pause Start)
-    3. Fin de pausa (Pause End)
-    4. Fichaje de salida (Clock-out)
-    """
-
+    # En esta clase NO usamos setUpTestData porque el ciclo de vida altera 
+    # muchos estados y preferimos que se cree todo limpio por cada test.
     def setUp(self):
-
-        self.client = Client()
+        # Como no hay setUpTestData, imprimimos el bloque aquí si es el primer test
+        print("\n\n" + "█"*70)
+        print(" 3.5. TESTS DE TIMETRACKING (TimeTrackingViewsAuditTest)")
+        print("█"*70)
         
-        # 1. Creación de la empresa base
+        self.client = Client()
         self.company = Companies.objects.create(
             id=uuid.uuid4(),
             name="Empresa Timetracking SA"
         )
-        
-        # 2. Creación del usuario (empleado) que realizará los fichajes
         self.employee = Users.objects.create(
             id=uuid.uuid4(),
             username="empleado_reloj",
@@ -483,7 +464,6 @@ class TimeTrackingViewsAuditTest(TestCase):
         self.employee.set_password("testpassword123")
         self.employee.save()
 
-        # 3. Vinculación del empleado con la empresa
         UserCompany.objects.create(
             id=uuid.uuid4(),
             user=self.employee, 
@@ -492,33 +472,24 @@ class TimeTrackingViewsAuditTest(TestCase):
         )
 
     def _setup_session(self):
-
         self.client.force_login(self.employee)
         session = self.client.session
         session['company_id'] = str(self.company.id)
         session.save()
         print("  -> Sesión configurada y usuario autenticado.")
 
-    def test_auditoria_ciclo_completo_fichaje(self):
-        """
-        Verifica que cada acción del ciclo de fichaje genera el registro de 
-        auditoría (AuditLog) correspondiente, con los campos exactos esperados.
-        """
+    def test_1_auditoria_ciclo_completo_fichaje(self):
         print("\n[TEST INICIO] Ejecutando ciclo completo de auditoría de fichajes...")
         self._setup_session()
         
         url = reverse('time_entries')
-        active_entry_id = None # Variable para almacenar el ID del fichaje durante el ciclo
+        active_entry_id = None
 
-        # PASO 1: CLOCK IN (Entrada)
         with self.subTest("Paso 1: Fichaje de entrada (Clock-in)"):
             print("  -> [Paso 1] Simulando petición POST para 'clock_in'...")
             response = self.client.post(url, {'action': 'clock_in'})
-            
-            # Verificamos que la vista responde correctamente (ej. redirección)
             self.assertEqual(response.status_code, 302)
             
-            # Buscamos el log de auditoría generado por esta acción específica
             log_in = AuditLog.objects.filter(
                 user=self.employee,
                 table_name='timetracking_registro',
@@ -526,16 +497,11 @@ class TimeTrackingViewsAuditTest(TestCase):
                 reason='Fichaje de entrada (Clock-in)'
             ).order_by('-id').first() 
             
-            # Validaciones del log
             self.assertIsNotNone(log_in, "Fallo: No se encontró el AuditLog para Clock-in.")
             self.assertEqual(log_in.source, 'web')
-            
-            # Guardamos el ID del registro de tiempo recién creado. 
-            # Lo necesitaremos para validar el Clock-out al final.
             active_entry_id = log_in.record_id 
-            print(f"     OK: Log de Clock-in validado (Record ID: {active_entry_id})")
+            print(f"     [OK] Log de Clock-in validado (Record ID: {active_entry_id})")
 
-        # PASO 2: PAUSE START (Inicio de pausa)
         with self.subTest("Paso 2: Inicio de pausa"):
             print("  -> [Paso 2] Simulando petición POST para 'pause_start'...")
             response = self.client.post(url, {'action': 'pause_start'})
@@ -549,11 +515,9 @@ class TimeTrackingViewsAuditTest(TestCase):
             ).order_by('-id').first()
             
             self.assertIsNotNone(log_pause_start, "Fallo: No se encontró el AuditLog para inicio de pausa.")
-            # Verificamos que el payload guardado en 'after' contenga los datos del evento
             self.assertIn('event_type', log_pause_start.after)
-            print("     OK: Log de Inicio de Pausa validado.")
+            print("     [OK] Log de Inicio de Pausa validado.")
 
-        # PASO 3: PAUSE END (Fin de pausa)
         with self.subTest("Paso 3: Fin de pausa"):
             print("  -> [Paso 3] Simulando petición POST para 'pause_end'...")
             response = self.client.post(url, {'action': 'pause_end'})
@@ -567,15 +531,13 @@ class TimeTrackingViewsAuditTest(TestCase):
             ).order_by('-id').first()
             
             self.assertIsNotNone(log_pause_end, "Fallo: No se encontró el AuditLog para fin de pausa.")
-            print("     OK: Log de Fin de Pausa validado.")
+            print("     [OK] Log de Fin de Pausa validado.")
 
-        # PASO 4: CLOCK OUT (Salida)
         with self.subTest("Paso 4: Fichaje de salida (Clock-out)"):
             print("  -> [Paso 4] Simulando petición POST para 'clock_out'...")
             response = self.client.post(url, {'action': 'clock_out'})
             self.assertEqual(response.status_code, 302)
             
-            # Para la salida, buscamos un UPDATE sobre el registro de entrada original
             log_out = AuditLog.objects.filter(
                 user=self.employee,
                 table_name='timetracking_registro',
@@ -584,36 +546,38 @@ class TimeTrackingViewsAuditTest(TestCase):
                 reason='Fichaje de salida (Clock-out)'
             ).order_by('-id').first()
             
-            # Validaciones de que se guardó el antes y el después correctamente
             self.assertIsNotNone(log_out, "Fallo: No se encontró el AuditLog para Clock-out.")
             self.assertIsNotNone(log_out.before, "Fallo: El estado previo ('before') no se registró.")
-            # Verificamos que el estado final en el log refleje que el registro está confirmado/cerrado
             self.assertEqual(log_out.after['status'], TimeEntries.EntryStatus.CONFIRMED)
-            print("     OK: Log de Clock-out validado (Cambio de estado guardado).")
+            print("     [OK] Log de Clock-out validado (Cambio de estado guardado).")
             
-        print("\n[TEST FIN] Ciclo completo de fichaje auditado correctamente.")
+        print("  [TEST FIN] Ciclo completo de fichaje auditado correctamente.")
+
 
 class UserViewsAuditTest(TestCase):
     
-    def setUp(self):
-
-        print("[SETUP] Inicializando entorno para test de autenticación...")
-        self.client = Client()
-        self.password = "password_segura_123"
+    @classmethod
+    def setUpTestData(cls):
+        print("\n\n" + "█"*70)
+        print(" 3.6. TESTS DE USUARIOS/LOGIN (UserViewsAuditTest)")
+        print("█"*70)
         
-        self.active_user = Users.objects.create_user(
+        cls.password = "password_segura_123"
+        cls.active_user = Users.objects.create_user(
             id=uuid.uuid4(),
             email="activo@test.com",
             username="usuario_activo",
             dni="11111111A",
-            password=self.password,
+            password=cls.password,
             status=Users.StatusChoices.ACTIVE
         )
+        print("  -> Usuario base creado. Setup finalizado.")
 
-    # TESTS DE AUTENTICACIÓN (LOGIN/LOGOUT)
+    def setUp(self):
+        self.client = Client()
+
     def test_1_auditoria_login_fallido(self):
-        print("[TEST 1] Inicio: Verificación de auditoría para login fallido.")
-        
+        print("\n[TEST 1] Inicio: Verificación de auditoría para login fallido.")
         print("  -> Acción: Enviando petición POST con contraseña incorrecta...")
         self.client.post(reverse('login'), {
             'step': 'credentials',
@@ -630,14 +594,12 @@ class UserViewsAuditTest(TestCase):
         
         self.assertIsNotNone(log, "Error: No se auditó el intento de login fallido.")
         self.assertIsNone(log.user, "Error: El log no debería asignar usuario en un fallo.")
-        
-        print("[TEST 1] Éxito: Auditoría de login fallido registrada correctamente.")
+        print("  [OK] Éxito: Auditoría de login fallido registrada correctamente.")
 
 
     def test_2_auditoria_flujo_login_y_logout_exitoso(self):
-        print("[TEST 2] Inicio: Verificación de flujo completo (Login exitoso -> Logout).")
+        print("\n[TEST 2] Inicio: Verificación de flujo completo (Login exitoso -> Logout).")
         
-        # --- PASO 1: Login Exitoso ---
         print("  -> Paso 1 [Login]: Enviando petición POST con credenciales correctas...")
         self.client.post(reverse('login'), {
             'step': 'credentials',
@@ -656,7 +618,6 @@ class UserViewsAuditTest(TestCase):
         self.assertEqual(log_login.user, self.active_user)
         print("     [OK] Login exitoso auditado y vinculado al usuario.")
 
-        # --- PASO 2: Logout ---
         print("  -> Paso 2 [Logout]: Solicitando cierre de sesión mediante GET...")
         self.client.get(reverse('logout'))
         
@@ -668,4 +629,4 @@ class UserViewsAuditTest(TestCase):
         ).first()
         
         self.assertIsNotNone(log_logout, "Error: No se auditó el cierre de sesión.")
-        print("[TEST 2] Éxito: Flujo completo de auditoría registrado correctamente.")
+        print("  [OK] Éxito: Flujo completo de auditoría registrado correctamente.")

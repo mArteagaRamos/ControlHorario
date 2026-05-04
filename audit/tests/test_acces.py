@@ -5,64 +5,75 @@ from audit.models import AuditLog
 from users.models import Users
 
 class AuditViewsTest(TestCase):
-    def setUp(self):
-        print("\n Preparando BD temporal para AuditViewsTest...")
-        self.client = Client()
+    
+    @classmethod
+    def setUpTestData(cls):
+        print("\n\n" + "█"*70)
+        print(" 1. TESTS DE ACCESOS (test_acces.py) - AuditViewsTest")
+        print("█"*70)
         
-        self.empleado = Users.objects.create(
+        cls.empleado = Users.objects.create(
             username="empleado", 
             email="empleado@test.com",
             dni="11111111A",
             is_admin=False 
         )
         
-        self.auditor = Users.objects.create(
+        cls.auditor = Users.objects.create(
             username="jefe_auditor", 
             email="jefe@test.com",
             dni="22222222B",
             is_admin=True 
         )
 
-        self.log_id = uuid.uuid4()
+        cls.log_id = uuid.uuid4()
         AuditLog.objects.create(
-            id=self.log_id,
+            id=cls.log_id,
             table_name="timetracking_registro",
             record_id=uuid.uuid4(),
-            user=self.empleado,
+            user=cls.empleado,
             action_type="create",
-            after={"user": str(self.empleado.id), "status": "present"} 
+            after={"user": str(cls.empleado.id), "status": "present"} 
         )
 
-    def test_acceso_denegado_a_usuario_normal(self):
-        print("\n TEST: Intentando acceder al dashboard como usuario base...")
+    def setUp(self):
+        self.client = Client()
+
+    def test_1_acceso_denegado_a_usuario_normal(self):
+        print("\n[TEST 1] Inicio: Intentando acceder al dashboard como usuario base.")
         self.client.force_login(self.empleado)
+        
+        print("  -> Acción: Ejecutando GET al dashboard de auditoría...")
         response = self.client.get(reverse('audit_dashboard'))
         
         self.assertNotEqual(response.status_code, 200) 
-        print(f"  [OK] Éxito: Acceso denegado. Código HTTP devuelto: {response.status_code}")
+        print(f"  -> Validación: Código HTTP devuelto es {response.status_code} (Acceso denegado).")
+        print("  [OK] Éxito: Acceso bloqueado correctamente.")
 
-    def test_acceso_permitido_a_auditor(self):
-        print("\n TEST: Intentando acceder al dashboard como auditor...")
+    def test_2_acceso_permitido_a_auditor(self):
+        print("\n[TEST 2] Inicio: Intentando acceder al dashboard como auditor.")
         self.client.force_login(self.auditor)
+        
+        print("  -> Acción: Ejecutando GET al dashboard de auditoría...")
         response = self.client.get(reverse('audit_dashboard'))
         
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'audit/audit_dashboard.html')
-        print("  [OK] Éxito: Acceso concedido (HTTP 200) y plantilla correcta cargada.")
+        print("  -> Validación: Código HTTP 200 y plantilla correcta cargada.")
+        print("  [OK] Éxito: Acceso concedido al auditor.")
 
-    def test_traduccion_de_uuids_en_vista_fichajes(self):
-        print("\n TEST: Comprobando traducción de UUID a Nombres Reales...")
+    def test_3_traduccion_de_uuids_en_vista_fichajes(self):
+        print("\n[TEST 3] Inicio: Comprobando traducción de UUID a Nombres Reales.")
         self.client.force_login(self.auditor)
-        response = self.client.get(reverse('audit_fichajes'))
         
+        print("  -> Acción: Ejecutando GET a la vista de fichajes...")
+        response = self.client.get(reverse('audit_fichajes'))
         self.assertEqual(response.status_code, 200)
         
         logs_en_contexto = response.context['logs']
         primer_log = logs_en_contexto[0]
 
-        # Mostramos por consola lo que hay antes de verificar
-        print(f"  -> JSON final en el contexto: {primer_log.after}")
-
+        print(f"  -> Validación: Analizando JSON final: {primer_log.after}")
         self.assertEqual(primer_log.after['Usuario'], "EMPLEADO")
         self.assertEqual(primer_log.after['Estado'], "Presente")
-        print("  [OK] Éxito: Los UUIDs se tradujeron perfectamente a texto entendible.")
+        print("  [OK] Éxito: Los UUIDs se tradujeron perfectamente.")
