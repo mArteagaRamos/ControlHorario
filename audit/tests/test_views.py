@@ -14,52 +14,59 @@ from corrections.models import LeaveRequest
 from corrections.models import CorrectionRequests
 
 class AdminViewsAuditTest(TestCase):
-    def setUp(self):
-        print("\n[SETUP] Preparando base de datos temporal para AdminViewsAuditTest...")
-        self.client = Client()
+    
+    @classmethod
+    def setUpTestData(cls):
+
+        print("[SETUP] Generando BD temporal para AdminViewsAuditTest...")
         
-        # 1. Creamos el usuario administrador
-        self.admin_user = Users.objects.create(
+        cls.admin_user = Users.objects.create(
+            id=uuid.uuid4(),
             username="super_jefe",
             email="admin@test.com",
             dni="99999999X",
             is_admin=True, 
         )
-        
-        # 2. Creamos un usuario marcado como eliminado para probar la exportación
-        self.deleted_user = Users.objects.create(
-            username="usuario_fantasma",
-            email="borrado@test.com",
-            dni="88888888Y",
-            deleted_at=timezone.now()
-        )
 
-    def test_auditoria_en_admin_dashboard(self):
-        print("\n[TEST] Verificando que el acceso al dashboard genera log de auditoria...")
+    def setUp(self):
+
+        self.client = Client()
         self.client.force_login(self.admin_user)
+
+    # TESTS DE PANEL DE ADMINISTRACIÓN
+    def test_1_auditoria_en_admin_dashboard(self):
+        print("[TEST 1] Inicio: Verificando que el acceso al dashboard genera log de auditoría.")
         
+        print("  -> Acción: Ejecutando GET hacia el dashboard de administración...")
         response = self.client.get(reverse('admin_dashboard'))
-        self.assertEqual(response.status_code, 200)
         
-        log = AuditLog.objects.filter(user=self.admin_user, table_name='user_action').first()
+        self.assertEqual(response.status_code, 200, "Error: El acceso al dashboard falló o fue denegado.")
         
-        self.assertIsNotNone(log, "Error: No se encontro el registro de auditoria")
+        print("  -> Validación: Comprobando log de auditoría del usuario...")
+        log = AuditLog.objects.filter(
+            user=self.admin_user, 
+            table_name='user_action'
+        ).first()
+        
+        self.assertIsNotNone(log, "Error: No se encontró el registro de auditoría tras el acceso.")
         self.assertEqual(log.reason, 'Acceso al panel de administración')
         self.assertEqual(log.after['rol'], 'administrador')
-        print("OK: Auditoria registrada correctamente al entrar al dashboard.")
-
+        
+        print("[TEST 1] Éxito: Auditoría registrada correctamente al entrar al dashboard.\n")
 
 class CorrectionsViewsAuditTest(TestCase):
-    def setUp(self):
-        print("\n[SETUP] Preparando BD temporal para CorrectionsViewsAuditTest...")
-        self.client = Client()
+    
+    @classmethod
+    def setUpTestData(cls):
+
+        print("[SETUP] Generando BD temporal para CorrectionsViewsAuditTest...")
         
-        self.company = Companies.objects.create(
+        cls.company = Companies.objects.create(
             id=uuid.uuid4(), 
             name="Tech Corp Audit"
         )
         
-        self.admin_user = Users.objects.create(
+        cls.admin_user = Users.objects.create(
             id=uuid.uuid4(),
             username="admin_correcciones",
             email="admincorr@test.com",
@@ -67,17 +74,17 @@ class CorrectionsViewsAuditTest(TestCase):
             is_admin=True 
         )
         
-        self.employee = Users.objects.create(
+        cls.employee = Users.objects.create(
             id=uuid.uuid4(),
             username="empleado_base",
             email="empleado@test.com",
             dni="66666666D"
         )
         
-        self.time_entry = TimeEntries.objects.create(
+        cls.time_entry = TimeEntries.objects.create(
             id=uuid.uuid4(),
-            user=self.employee,
-            company=self.company,
+            user=cls.employee,
+            company=cls.company,
             date=timezone.now().date(),
             clock_in=timezone.now() - timedelta(hours=8),
             clock_out=timezone.now() - timedelta(hours=1),
@@ -85,57 +92,64 @@ class CorrectionsViewsAuditTest(TestCase):
             total_seconds=25200
         )
         
-        self.incidencia_pendiente = CorrectionRequests.objects.create(
+        cls.incidencia_pendiente = CorrectionRequests.objects.create(
             id=uuid.uuid4(),
-            requester=self.employee,
-            time_entry=self.time_entry,
+            requester=cls.employee,
+            time_entry=cls.time_entry,
             new_clock_in=timezone.now() - timedelta(hours=8),
             new_clock_out=timezone.now(),
             reason="Se me olvido fichar a la salida",
             status='pending'
         )
         
-        self.incidencia_rechazada = CorrectionRequests.objects.create(
+        cls.incidencia_rechazada = CorrectionRequests.objects.create(
             id=uuid.uuid4(),
-            requester=self.employee,
-            time_entry=self.time_entry,
+            requester=cls.employee,
+            time_entry=cls.time_entry,
             new_clock_in=timezone.now() - timedelta(hours=9),
             new_clock_out=timezone.now(),
             reason="Error al iniciar turno",
             status='rejected'
         )
 
-    def test_auditoria_al_resolver_incidencia(self):
-        print("\n[TEST] Verificando auditoria al resolver (aceptar) una incidencia...")
+    def setUp(self):
+
+        self.client = Client()
         self.client.force_login(self.admin_user)
+
+    # TESTS DE RESOLUCIÓN DE INCIDENCIAS
+    def test_1_auditoria_al_resolver_incidencia(self):
+        print("[TEST 1] Inicio: Verificando auditoría al resolver (aceptar) una incidencia.")
         
+        print("  -> Acción: Ejecutando POST para aceptar incidencia...")
         response = self.client.post(reverse('resolver_incidencia'), {
             'incidencia_id': str(self.incidencia_pendiente.id),
             'accion': 'aceptar',
             'nota_resolucion': 'Comprobado con el manager local.'
         })
         
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 302, "Error: La redirección tras resolver falló.")
         
+        print("  -> Validación: Comprobando log de auditoría...")
         log = AuditLog.objects.filter(
             table_name='timetracking_correctionrequest',
             record_id=str(self.incidencia_pendiente.id),
             action_type='update'
         ).first()
         
-        self.assertIsNotNone(log, "Error: No se creo el log tras resolver la incidencia.")
+        self.assertIsNotNone(log, "Error: No se creó el log tras resolver la incidencia.")
         self.assertEqual(log.reason, 'Incidencia aceptarda por manager')
         self.assertEqual(log.after['status'], 'approved')
         self.assertEqual(log.after['correction_note'], 'Comprobado con el manager local.')
-        print("OK: Auditoria generada correctamente al aceptar incidencia.")        
+        print("[TEST 1] Éxito: Auditoría generada correctamente al aceptar incidencia.\n")        
 
-    def test_auditoria_al_editar_incidencia_rechazada(self):
-        print("\n[TEST] Verificando auditoria al editar una incidencia rechazada...")
-        self.client.force_login(self.admin_user)
+    def test_2_auditoria_al_editar_incidencia_rechazada(self):
+        print("[TEST 2] Inicio: Verificando auditoría al editar una incidencia rechazada.")
         
         nuevo_inicio = (timezone.now() - timedelta(hours=5)).strftime('%Y-%m-%d %H:%M:%S')
         nuevo_fin = timezone.now().strftime('%Y-%m-%d %H:%M:%S')
         
+        print("  -> Acción: Ejecutando POST para editar incidencia y devolverla a revisión...")
         response = self.client.post(reverse('editar_incidencia_rechazada'), {
             'incidencia_id': str(self.incidencia_rechazada.id),
             'new_clock_in': nuevo_inicio,
@@ -143,40 +157,41 @@ class CorrectionsViewsAuditTest(TestCase):
             'reason': 'Corregido tras revision con RRHH'
         })
         
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 302, "Error: La redirección tras editar falló.")
         
+        print("  -> Validación: Comprobando log de auditoría...")
         log = AuditLog.objects.filter(
             table_name='timetracking_correctionrequest',
             record_id=str(self.incidencia_rechazada.id),
             reason='Edición de incidencia rechazada para volver a revisión'
         ).first()
         
-        self.assertIsNotNone(log, "Error: No se audito la edicion de la incidencia rechazada.")
+        self.assertIsNotNone(log, "Error: No se auditó la edición de la incidencia rechazada.")
         self.assertEqual(log.after['status'], 'pending')
         self.assertEqual(log.after['reason'], 'Corregido tras revision con RRHH')
-        print("OK: Edicion de incidencia rechazada auditada con exito.")
+        print("[TEST 2] Éxito: Edición de incidencia rechazada auditada con éxito.\n")
 
-    def test_auditoria_al_eliminar_incidencia_rechazada(self):
-        print("\n[TEST] Verificando auditoria al hacer soft-delete de una incidencia rechazada...")
-        self.client.force_login(self.admin_user)
+    def test_3_auditoria_al_eliminar_incidencia_rechazada(self):
+        print("[TEST 3] Inicio: Verificando auditoría al hacer soft-delete de incidencia rechazada.")
         
+        print("  -> Acción: Ejecutando POST para eliminar incidencia lógicamente...")
         response = self.client.post(reverse('eliminar_incidencia_rechazada'), {
             'incidencia_id': str(self.incidencia_rechazada.id)
         })
         
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 302, "Error: La redirección tras eliminar falló.")
         
+        print("  -> Validación: Comprobando log de auditoría y payload JSON...")
         log = AuditLog.objects.filter(
             table_name='timetracking_correctionrequest',
             record_id=str(self.incidencia_rechazada.id),
             action_type='voided'
         ).first()
         
-        self.assertIsNotNone(log, "Error: No se audito la eliminacion (soft-delete).")
-        self.assertIsNotNone(log.after['deleted_at'], "Error: El payload JSON no registro el borrado logico.")
+        self.assertIsNotNone(log, "Error: No se auditó la eliminación (soft-delete).")
+        self.assertIsNotNone(log.after['deleted_at'], "Error: El payload JSON no registró el borrado lógico.")
         self.assertEqual(log.reason, 'Eliminación (soft-delete) de incidencia rechazada')
-        print("OK: Eliminacion de incidencia rechazada auditada de forma segura.")
-
+        print("[TEST 3] Éxito: Eliminación de incidencia rechazada auditada de forma segura.\n")
 
 class DashboardAndTeamViewsTest(TestCase):
     
