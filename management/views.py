@@ -501,8 +501,8 @@ def edit_employee(request):
     user = membership.user
 
     # 4. Update user data
-    user.username.title = username
-    user.surname.title = surname
+    user.username = username.title() if username else ""
+    user.surname = surname.title() if surname else ""
     user.status = status
     user.save()
 
