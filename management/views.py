@@ -1,7 +1,6 @@
 # management/views.py
 
 import csv
-from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
@@ -12,27 +11,20 @@ import uuid
 from django.utils import timezone
 from datetime import datetime
 from django.http import HttpResponseForbidden
-from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from audit.models import AuditLog
 from django.core.paginator import Paginator
 from audit.utils import safe_dict
-from uuid import uuid4
-from core.decorators import manager_or_admin_required, auditor_cannot_access, manager_or_admin_with_delegation_check
-from core.services import combine_local_date_time, get_effective_context
+from core.decorators import manager_or_admin_with_delegation_check
+from core.services import get_effective_context
 
 # Additional imports for entity_info
 from corrections.models import LeaveRequest, CorrectionRequests
 from admin.models import CompanySettings
-from django.template.defaulttags import register
-from django.utils.dateparse import parse_date
 from datetime import timedelta, date
 from django.db import IntegrityError
-import json
-from django.http import JsonResponse
 from audit.models import AuditLog
-from core.services import serialize_leave, log_leave
 from django.contrib import messages
 
 # Constants
@@ -132,12 +124,12 @@ def manager_logs(request):
 
     # 7. Paginate main records (registros)
     page_number = request.GET.get('page', 1)
-    paginator = Paginator(registros, 20)
+    paginator = Paginator(registros, 10)
     page_obj = paginator.get_page(page_number)
 
     # 8. Paginate rejected incidents (incidencias_rechazadas)
     page_number_rechazadas = request.GET.get('page_rechazadas', 1)
-    paginator_rechazadas = Paginator(incidencias_rechazadas, 20)
+    paginator_rechazadas = Paginator(incidencias_rechazadas, 10)
     page_obj_rechazadas = paginator_rechazadas.get_page(page_number_rechazadas)
 
     context = {
@@ -173,7 +165,7 @@ def exportar_logs(request):
 
         registros = TimeEntries.objects.filter(id__in=registros_ids).select_related('user').order_by('-date', '-clock_in')
 
-        # 🔐 AUDITORÍA: Exportación de fichajes (manager/admin)
+        # AUDITORÍA: Exportación de fichajes (manager/admin)
         AuditLog.objects.create(
             id=uuid.uuid4(),
             table_name='user_action',
@@ -241,7 +233,7 @@ def exportar_staff(request):
         id__in=employee_ids
     ).select_related('user', 'company').order_by('user__username')
 
-    # 🔐 AUDITORÍA: Exportación de lista de empleados
+    # AUDITORÍA: Exportación de lista de empleados
     AuditLog.objects.create(
         id=uuid.uuid4(),
         table_name='user_action',
@@ -429,7 +421,7 @@ def staff(request):
     is_manager = (user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
 
     # 3. Get ALL memberships (employees) for that company (non-deleted only)
-    memberships_list = UserCompany.objects.filter(
+    employee_memberships_list = UserCompany.objects.filter(
         company=company
     ).select_related('user').order_by('-joined_at')
 
@@ -438,7 +430,7 @@ def staff(request):
 
     # Crear diccionario de leaves activas por user_id
     active_leaves_map = {}
-    for membership in memberships_list:
+    for membership in employee_memberships_list:
         # Asegúrate de tener LeaveRequest importado si es necesario
         active_leave = LeaveRequest.objects.filter(
             user=membership.user,
@@ -450,16 +442,16 @@ def staff(request):
             active_leaves_map[membership.user.id] = active_leave
 
     # Agregar la information de leaves al contexto de cada membership
-    for membership in memberships_list:
+    for membership in employee_memberships_list:
         membership.active_leave = active_leaves_map.get(membership.user.id)
 
     # 5. Paginación
-    paginator = Paginator(memberships_list, 20)
+    paginator = Paginator(employee_memberships_list, 20)
     page_number = request.GET.get('page')
-    memberships = paginator.get_page(page_number)
+    employee_memberships = paginator.get_page(page_number)
 
     context = {
-        'memberships': memberships,
+        'employee_memberships': employee_memberships,
         'is_manager': is_manager,
         'company': company,
         'is_inspecting': delegation_context.get('is_inspecting', False),
@@ -858,7 +850,7 @@ def entity_info(request):
                 'auto_close_hours': settings_obj.auto_close_hours,
             }
 
-            # 🔐 Auditoría: Jornada laboral
+            # AUDITORÍA: Jornada laboral
             if before_jornada != after_jornada:
                 # Usa uuid.uuid4() porque importamos uuid
                 AuditLog.objects.create(
@@ -873,7 +865,7 @@ def entity_info(request):
                     source='web' # Añadido
                 )
 
-            # 🔐 Auditoría: Cierre automático
+            # AUDITORÍA: Cierre automático
             if before_cierre != after_cierre:
                 AuditLog.objects.create(
                     id=uuid.uuid4(),

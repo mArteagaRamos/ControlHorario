@@ -1,7 +1,6 @@
-import json
-from datetime import date,timedelta
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from datetime import timedelta
+from django.http import HttpResponse
+from django.shortcuts import render, redirect
 from django.db import IntegrityError
 from django.http import HttpResponseForbidden
 from django.shortcuts import render, redirect
@@ -15,15 +14,12 @@ from users.models import Companies, Users, UserCompany
 from admin.models import CompanySettings
 from dashboard.models import Note
 from corrections.models import LeaveRequest
-from django.views.decorators.http import require_POST
-from django.db.utils import IntegrityError as DBIntegrityError
-import uuid
 from audit.models import AuditLog
 from uuid import uuid4
 
 # Import centralized decorators and services
-from core.decorators import manager_or_admin_required, auditor_cannot_access, manager_or_admin_with_delegation_check
-from core.services import get_effective_context, get_company, is_manager as check_is_manager, serialize_leave, log_leave
+from core.decorators import auditor_cannot_access, manager_or_admin_with_delegation_check
+from core.services import get_company, is_manager as check_is_manager, log_leave
 
 WEEKDAY = [
     (0, 'Domingo'),
@@ -350,7 +346,7 @@ def entity_info(request):
                 'auto_close_hours': settings_obj.auto_close_hours,
             }
 
-            # 🔐 Auditoría: Jornada laboral
+            # Auditoría: Jornada laboral
             if before_jornada != after_jornada:
                 AuditLog.objects.create(
                     id=uuid4(),
@@ -364,7 +360,7 @@ def entity_info(request):
                     source='web' # Añadido
                 )
 
-            # 🔐 Auditoría: Cierre automático
+            # Auditoría: Cierre automático
             if before_cierre != after_cierre:
                 AuditLog.objects.create(
                     id=uuid4(),

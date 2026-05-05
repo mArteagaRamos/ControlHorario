@@ -5,6 +5,11 @@
     overflow-y: auto;
 }
 
+.table-scroll-container.has-fixed-height {
+    max-height: none;
+    height: var(--table-fixed-height, auto);
+}
+
 .table-scroll-container thead {
     position: sticky;
     top: 0;

@@ -1,8 +1,7 @@
-# ---------- Backend Models: users/models.py ----------
+# users/models.py
 
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser
-from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from core.model_normalization import UppercaseNormalizationMixin
 from core.managers import UsersManager, SoftDeleteManager
@@ -22,6 +21,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     status = models.CharField(max_length=20, choices=StatusChoices.choices, default=StatusChoices.ACTIVE)
     date_joined = models.DateTimeField(default=timezone.now)
     password = models.CharField(db_column='password_hash', max_length=255)
+    last_login = models.DateTimeField(null=True, blank=True)
     must_change_password = models.BooleanField(default=True)
     dni = models.CharField(max_length=20, unique=True, blank=False, null=False, default='')
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)

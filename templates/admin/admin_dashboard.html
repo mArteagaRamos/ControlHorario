@@ -216,8 +216,8 @@
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
             </h5>
 
-            <div class="table-responsive table-scroll-container">
-                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresasBody">
+            <div class="table-responsive table-scroll-container" id="empresasTableContainer">
+                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresas">
                     <thead class="table-dark">
                         <tr>
                             <th>Empresa</th>
@@ -291,8 +291,8 @@
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
             </h5>
 
-            <div class="table-responsive table-scroll-container">
-                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadoresBody">
+            <div class="table-responsive table-scroll-container" id="trabajadoresTableContainer">
+                <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadores">
                     <thead class="table-dark">
                         <tr>
                             <th>Nombre</th>
@@ -334,7 +334,7 @@
                             </td>
                             <td data-label="Acciones">
                                 <div class="d-flex gap-2 acciones-movil">
-                                    <button type="button" class="btn btn-sm btn-outline-dark-custom"
+                                    <button type="button" class="btn btn-sm btn-outline-dark-custom js-edit-btn"
                                             data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
                                             data-id="{{ worker.id }}"
                                             data-nombre="{{ worker.username }}"
@@ -352,7 +352,7 @@
                                          <i class="bi bi-trash"></i>
                                      </button>
                                      <button type="button" class="btn btn-sm {% if worker.companies %}btn-outline-success btn-select-worker{% else %}btn-outline-secondary disabled{% endif %}"
-                                             {% if worker.companies %}data-worker-id="{{ worker.id }}" data-companies='{{ worker.companies_json }}'{% else %}disabled{% endif %}>
+                                             {% if worker.companies %}data-worker-id="{{ worker.id }}" data-companies='{{ worker.companies_json }}' data-select-url="{% url 'select_delegated_worker' %}"{% else %}disabled{% endif %}>
                                          <i class="bi bi-check-lg"></i> {% if worker.companies %}Seleccionar{% else %}Sin empresas{% endif %}
                                     </button>
                                 </div>
@@ -540,10 +540,10 @@
 <script>
 // Configuración central - accesible por todos los módulos
 window.AEPTIC_ADMIN = {
-    LOOKUP_COMPANY_URL: "{% url 'lookup_company' %}",
-    LOOKUP_USER_URL: "{% url 'lookup_user' %}",
+    LOOKUP_COMPANY_URL: "/api/lookup-company/",
+    LOOKUP_USER_URL: "/api/lookup-user/",
     CSRF_TOKEN: "{{ csrf_token }}",
-    SELECT_WORKER_URL: "{% url 'select_delegated_worker' %}"
+    SELECT_WORKER_URL: "/api/admin/delegate/"
 };
 
 // ── Display Results ────────────────────────────────────────────────────────
@@ -632,7 +632,7 @@ function displayWorkerResults(workers) {
         const selectButtonText = isDisabledSelect ? 'Sin empresas' : 'Seleccionar';
         const selectButtonDataAttrs = isDisabledSelect
             ? ''
-            : `data-worker-id="${worker.id}" data-companies='${JSON.stringify(companies)}'`;
+            : `data-worker-id="${worker.id}" data-companies='${JSON.stringify(companies)}' data-select-url="{% url 'select_delegated_worker' %}"`;
         const selectButtonDisabled = isDisabledSelect ? 'disabled' : '';
 
         tr.innerHTML = `
@@ -643,7 +643,7 @@ function displayWorkerResults(workers) {
             <td data-label="Empresas">${companiesBadges}</td>
             <td data-label="Acciones">
                 <div class="d-flex gap-2 acciones-movil">
-                    <button type="button" class="btn btn-sm btn-outline-dark-custom"
+                    <button type="button" class="btn btn-sm btn-outline-dark-custom js-edit-btn"
                             data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
                             data-id="${worker.id}"
                             data-nombre="${worker.username}"
@@ -662,7 +662,7 @@ function displayWorkerResults(workers) {
                     </button>
                     <button type="button" class="btn btn-sm ${selectButtonClass}"
                             ${selectButtonDataAttrs} ${selectButtonDisabled}>
-                        ${selectButtonText}
+                        <i class="bi bi-check-lg"></i> ${selectButtonText}
                     </button>
                 </div>
             </td>
@@ -695,90 +695,24 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ── FASE 7: Delegated Worker Selection ──
-
-async function handleSelectWorker(workerId, companies) {
-    /**
-     * Maneja la selección inteligente de empresa:
-     * - 0 empresas: error (no debería llegar aquí por botón deshabilitado)
-     * - 1 empresa: selecciona automáticamente
-     * - N empresas: muestra modal para que elija
-     */
-    if (!companies || companies.length === 0) {
-        alert('Este trabajador no pertenece a ninguna empresa.');
-        return;
-    }
-
-    if (companies.length === 1) {
-        // Auto-select the only company
-        selectWorker(workerId, companies[0].id);
-    } else {
-        // Show modal for selection
-        const companiesList = document.getElementById('companiesList');
-        companiesList.innerHTML = '';
-
-        companies.forEach(company => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
-            button.innerHTML = `
-                <div>
-                    <strong>${company.name.title}</strong>
-                    <small class="text-muted d-block">${company.tax_id}</small>
-                </div>
-                <i class="bi bi-chevron-right text-secondary"></i>
-            `;
-            button.onclick = (e) => {
-                e.preventDefault();
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalSeleccionarEmpresa'));
-                modal.hide();
-                selectWorker(workerId, company.id);
-            };
-            companiesList.appendChild(button);
-        });
-
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('modalSeleccionarEmpresa'));
-        modal.show();
-    }
-}
-
-async function selectWorker(workerId, companyId) {
-    /**
-     * Envía la selección de trabajador y empresa al backend.
-     * Redirige a /home/ tras éxito.
-     */
-    const formData = new FormData();
-    formData.append('worker_id', workerId);
-    formData.append('company_id', companyId);
-
-    try {
-        const response = await fetch("{% url 'select_delegated_worker' %}", {
-            method: 'POST',
-            headers: {'X-CSRFToken': window.AEPTIC_ADMIN.CSRF_TOKEN},
-            body: formData
-        });
-
-        if (response.ok) {
-            window.location.href = '/home/';
-        } else {
-            const data = await response.json();
-            alert('Error: ' + (data.error || 'No se pudo seleccionar el trabajador.'));
-        }
-    } catch (err) {
-        alert('Error al seleccionar trabajador: ' + err);
-    }
-}
-
 // Event listeners for select worker buttons
-document.addEventListener('click', function(e) {
-    const btn = e.target.closest('.btn-select-worker');
-    if (!btn) return;
+// Nota: Ahora manejado por el módulo select-worker.js para mejor robustez y debugging
+</script>
 
-    const workerId = btn.getAttribute('data-worker-id');
-    const companies = JSON.parse(btn.getAttribute('data-companies'));
-
-    handleSelectWorker(workerId, companies);
+<!-- Script para inicializar la altura fija de tablas de paginación -->
+<script src="{% static 'js/modules/shared/pagination-height.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initPaginationHeights({
+        '#tablaTodosEmpresas': {
+            rowSelector: 'tbody tr.empresa-row',
+            containerSelector: '#empresasTableContainer'
+        },
+        '#tablaTodosTrabajadores': {
+            rowSelector: 'tbody tr.worker-row',
+            containerSelector: '#trabajadoresTableContainer'
+        }
+    });
 });
 </script>
 

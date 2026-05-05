@@ -1,7 +1,5 @@
-from django.urls import resolve
-from .models import UserCompany, Companies, Users
+from .models import UserCompany, Users
 from datetime import date
-from django.utils import timezone
 
 class CompanyMiddleware:
 
@@ -143,6 +141,46 @@ class InactiveUserVerificationMiddleware:
 
             except Exception:
                 # Si algo falla, simplemente continuar sin romper el request
+                pass
+
+        return self.get_response(request)
+
+
+class SessionValidationMiddleware:
+    """
+    Validates that the user's session login timestamp matches their last login in the DB.
+    If a newer login exists (more recent timestamp), invalidates the current session.
+
+    This implements single-session-per-user: only the latest login remains active.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.user.is_authenticated:
+            try:
+                from datetime import datetime
+
+                # Get fresh user data from DB
+                user = Users.objects.filter(id=request.user.id).first()
+
+                if user and user.last_login:
+                    # Get timestamp from current session
+                    session_timestamp_str = request.session.get('login_timestamp')
+                    db_timestamp = user.last_login
+
+                    if session_timestamp_str:
+                        # Parse ISO format timestamp
+                        session_timestamp = datetime.fromisoformat(session_timestamp_str.replace('Z', '+00:00'))
+
+                        # If timestamps don't match, this is an old session (user logged in elsewhere)
+                        if session_timestamp != db_timestamp:
+                            # Invalidate this session by logging out
+                            from django.contrib.auth import logout
+                            logout(request)
+            except Exception:
+                # If anything fails, just continue - don't break the request
                 pass
 
         return self.get_response(request)

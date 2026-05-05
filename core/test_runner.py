@@ -1,14 +1,20 @@
+# Custom test runner that temporarily sets managed=True on all models that have managed=False. 
+# This allows Django to create those tables in the test database without affecting production behavior.
+#
+# Usage in settings.py:
+#   TEST_RUNNER = 'core.test_runner.ManagedModelTestRunner'
+
 from django.test.runner import DiscoverRunner
 from django.apps import apps
 
+
 class ManagedModelTestRunner(DiscoverRunner):
     """
-    Fuerza a todos los modelos a comportarse como managed=True 
-    únicamente durante la ejecución de los tests.
+    Test runner that forces managed=True on unmanaged models so Django
+    creates their tables in the test DB.
     """
+
     def setup_test_environment(self, **kwargs):
         super().setup_test_environment(**kwargs)
-        
-        # Recorremos todos los modelos del proyecto y les quitamos la protección temporalmente
         for model in apps.get_models():
             model._meta.managed = True
