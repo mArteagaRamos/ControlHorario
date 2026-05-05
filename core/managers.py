@@ -1,9 +1,7 @@
-# ---------- Consolidated Managers: core/managers.py ----------
+# core/managers.py
 
-import email
-
-from django.db import models
 from django.contrib.auth.models import BaseUserManager
+from django.db import models
 from django.utils import timezone
 
 

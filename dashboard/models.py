@@ -1,7 +1,6 @@
 # ---------- Backend Models: dashboard/models.py ----------
 from django.db import models
-from users.models import Companies, Users, UserCompany
-from django.utils import timezone
+from users.models import Companies, Users
 import uuid
     
 class Note(models.Model):

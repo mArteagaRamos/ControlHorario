@@ -1,7 +1,6 @@
 # management/views.py
 
 import csv
-from urllib import request
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
@@ -12,27 +11,20 @@ import uuid
 from django.utils import timezone
 from datetime import datetime
 from django.http import HttpResponseForbidden
-from django.db.models import Q
 from django.views.decorators.http import require_POST
 from django.views.decorators.cache import never_cache
 from audit.models import AuditLog
 from django.core.paginator import Paginator
 from audit.utils import safe_dict
-from uuid import uuid4
-from core.decorators import manager_or_admin_required, auditor_cannot_access, manager_or_admin_with_delegation_check
-from core.services import combine_local_date_time, get_effective_context
+from core.decorators import manager_or_admin_with_delegation_check
+from core.services import get_effective_context
 
 # Additional imports for entity_info
 from corrections.models import LeaveRequest, CorrectionRequests
 from admin.models import CompanySettings
-from django.template.defaulttags import register
-from django.utils.dateparse import parse_date
 from datetime import timedelta, date
 from django.db import IntegrityError
-import json
-from django.http import JsonResponse
 from audit.models import AuditLog
-from core.services import serialize_leave, log_leave
 from django.contrib import messages
 
 # Constants
@@ -173,7 +165,7 @@ def exportar_logs(request):
 
         registros = TimeEntries.objects.filter(id__in=registros_ids).select_related('user').order_by('-date', '-clock_in')
 
-        # 🔐 AUDITORÍA: Exportación de fichajes (manager/admin)
+        # AUDITORÍA: Exportación de fichajes (manager/admin)
         AuditLog.objects.create(
             id=uuid.uuid4(),
             table_name='user_action',
@@ -241,7 +233,7 @@ def exportar_staff(request):
         id__in=employee_ids
     ).select_related('user', 'company').order_by('user__username')
 
-    # 🔐 AUDITORÍA: Exportación de lista de empleados
+    # AUDITORÍA: Exportación de lista de empleados
     AuditLog.objects.create(
         id=uuid.uuid4(),
         table_name='user_action',
@@ -829,7 +821,7 @@ def entity_info(request):
                 'auto_close_hours': settings_obj.auto_close_hours,
             }
 
-            # 🔐 Auditoría: Jornada laboral
+            # AUDITORÍA: Jornada laboral
             if before_jornada != after_jornada:
                 # Usa uuid.uuid4() porque importamos uuid
                 AuditLog.objects.create(
@@ -844,7 +836,7 @@ def entity_info(request):
                     source='web' # Añadido
                 )
 
-            # 🔐 Auditoría: Cierre automático
+            # AUDITORÍA: Cierre automático
             if before_cierre != after_cierre:
                 AuditLog.objects.create(
                     id=uuid.uuid4(),

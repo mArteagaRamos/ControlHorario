@@ -1,16 +1,13 @@
 # ---------- Backend Views: users/views.py ----------
 
-import json
 import csv
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
-from django.utils.dateparse import parse_datetime
 from django.utils import timezone
-from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.views.decorators.http import require_POST
 from uuid import uuid4
 from .forms import (
@@ -18,7 +15,7 @@ from .forms import (
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
 from .email_utils import send_new_user_email, send_new_auditor_email, send_existing_user_email
-from timetracking.models import TimeEntries, TimeEntryEvent
+from timetracking.models import TimeEntries
 from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
 from corrections.models import CorrectionRequests
@@ -29,17 +26,21 @@ from audit.utils import safe_dict
 from django.core.paginator import Paginator
 
 # Import centralized decorators and services
-from core.decorators import admin_only_required
 from core.services import (
     validate_manager_role_change,
     compute_worked_seconds,
     parse_local_datetime,
-    get_display_date,
-    get_or_create_demo_user,
     format_date_spanish,
-    ensure_membership,
 )
 
+
+
+def invalidate_other_sessions(user, current_session_key):
+    """
+    Esta función ya no es necesaria con el nuevo enfoque de timestamps.
+    Se mantiene para compatibilidad pero no hace nada.
+    """
+    pass
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
@@ -103,6 +104,11 @@ def login_view(request):
                             source='web',
                         )
                         auth_login(request, user)
+                        request.session.cycle_key()
+                        login_time = timezone.now()
+                        user.last_login = login_time
+                        user.save(update_fields=['last_login'])
+                        request.session['login_timestamp'] = login_time.isoformat()
                         request.session['nav_history'] = []
 
                         if user.must_change_password:
@@ -114,6 +120,11 @@ def login_view(request):
                     # ── Regular user (not auditor, not suspended, not deleted) ──
                     else:
                         auth_login(request, user)
+                        request.session.cycle_key()
+                        login_time = timezone.now()
+                        user.last_login = login_time
+                        user.save(update_fields=['last_login'])
+                        request.session['login_timestamp'] = login_time.isoformat()
 
                         AuditLog.objects.create(
                             id=uuid4(),
@@ -205,6 +216,11 @@ def login_view(request):
                 )
                 if updated_user:
                     auth_login(request, updated_user)
+                    request.session.cycle_key()
+                    login_time = timezone.now()
+                    updated_user.last_login = login_time
+                    updated_user.save(update_fields=['last_login'])
+                    request.session['login_timestamp'] = login_time.isoformat()
 
                     if updated_user.deleted_at is not None:
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
@@ -271,7 +287,7 @@ def login_view(request):
 @login_required
 def logout_view(request):
     """Cierra la sesión del usuario y redirige al login."""
-    # 🔐 AUDITORÍA: Registro de logout
+    # AUDITORÍA: Registro de logout
     user = request.user
     AuditLog.objects.create(
         id=uuid4(),
@@ -977,7 +993,7 @@ def exportar_workday_entries(request):
 
     entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
 
-    # 🔐 AUDITORÍA: Exportación de fichajes personales
+    # AUDITORÍA: Exportación de fichajes personales
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -1040,7 +1056,7 @@ def exportar_workday_requests(request):
         id__in=request_ids
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
-    # 🔐 AUDITORÍA: Exportación de solicitudes de corrección
+    # AUDITORÍA: Exportación de solicitudes de corrección
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
