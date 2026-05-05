@@ -18,6 +18,7 @@ urlpatterns = [
     # HOME & TIME TRACKING
     # ════════════════════════════════════════════════════════════════════════
     path('home/', timetracking_views.time_entries, name='home_timetracking'),
+    path('time-entries/', timetracking_views.time_entries, name='time_entries'),
 
     # ════════════════════════════════════════════════════════════════════════
     # AUTH & CORE (users/)
