@@ -5,7 +5,7 @@ from users.models import Users, UserCompany
 
 
 # ============================================
-# Block 1 — Login and authentication
+# Login and authentication
 # ============================================
 
 class AuthFlowTest(TestCase):
@@ -165,7 +165,7 @@ class AuthFlowTest(TestCase):
 
 
 # ============================================
-# Block 2 — Role access control
+# Role access control
 # ============================================
 
 class RoleAccessTest(TestCase):
@@ -262,7 +262,7 @@ class RoleAccessTest(TestCase):
 
 
 # ============================================
-# Block 3 — Critical business logic
+# Critical business logic
 # ============================================
 
 class BusinessLogicTest(TestCase):
@@ -429,7 +429,7 @@ class BusinessLogicTest(TestCase):
 
 
 # ============================================
-# Block 4 — Auditor flow
+# Auditor flow
 # ============================================
 
 class AuditorFlowTest(TestCase):
@@ -492,7 +492,7 @@ class AuditorFlowTest(TestCase):
 
 
 # ============================================
-# Block 5 — Unit tests
+# Unit tests
 # ============================================
 
 class SoftDeleteManagerTest(TestCase):
@@ -549,7 +549,7 @@ class SoftDeleteManagerTest(TestCase):
 
 
 # ============================================
-# Block 6 — Edge cases
+# Edge cases
 # ============================================
 
 class EdgeCaseTest(TestCase):
