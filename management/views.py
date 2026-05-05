@@ -597,6 +597,14 @@ def delete_employee(request):
         company__in=companies_to_delete
     )
 
+    # --- COMPROBACIÓN DE ELIMINACIÓN CONCURRENTE ---
+    # Si hay membresías pero TODAS tienen ya un deleted_at, significa que
+    # otro manager/admin se te ha adelantado.
+    if memberships.exists() and all(m.deleted_at is not None for m in memberships):
+        messages.warning(request, "Este empleado ya ha sido eliminado previamente por otro administrador.")
+        return redirect('deleted_records')
+    # -----------------------------------------------
+
     for membership in memberships:
         if membership.deleted_at is None:  # Only soft-delete if not already deleted
             membership.deleted_at = now
@@ -615,7 +623,6 @@ def delete_employee(request):
         user.save(update_fields=['status', 'deleted_at'])
 
     return redirect('deleted_records')
-
 
 @manager_or_admin_with_delegation_check
 @require_POST
