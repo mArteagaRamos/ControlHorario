@@ -19,7 +19,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
     
     def test_clock_in_successful(self):
         """Test successful clock-in action"""
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post(reverse('home_timetracking'), {
             'action': 'clock_in'
@@ -47,7 +47,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
             status=TimeEntries.EntryStatus.ONGOING
         )
         
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post('/timetracking/time_entries/', {
             'action': 'clock_in'
@@ -64,21 +64,29 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
     
     def test_clock_out_successful(self):
         """Test successful clock-out action"""
-        # Create ongoing entry
-        entry = TimeEntries.objects.create(
-            id=uuid4(),
+        # First, clock in to create an entry
+        self.client.login(username='testuser@example.com', password='testpass123')
+        
+        response = self.client.post(reverse('home_timetracking'), {
+            'action': 'clock_in'
+        }, follow=True)
+        
+        # Get the created entry
+        entry = TimeEntries.objects.filter(
             user=self.user,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now(),
             status=TimeEntries.EntryStatus.ONGOING
-        )
+        ).first()
         
-        self.client.login(username='testuser', password='testpass123')
+        self.assertIsNotNone(entry)
         
-        response = self.client.post('/timetracking/time_entries/', {
+        # Wait a bit to ensure elapsed time > 0
+        import time
+        time.sleep(1)  # Sleep for 1 second to ensure time difference
+        
+        # Now clock out
+        response = self.client.post(reverse('time_entries'), {
             'action': 'clock_out'
-        })
+        }, follow=True)
         
         # Refresh entry from database
         entry.refresh_from_db()
@@ -90,7 +98,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
     
     def test_clock_out_without_active_entry(self):
         """Test that clock-out without active entry shows error"""
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post('/timetracking/time_entries/', {
             'action': 'clock_out'
@@ -107,20 +115,25 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
     
     def test_pause_start_successful(self):
         """Test successful pause start"""
-        entry = TimeEntries.objects.create(
-            id=uuid4(),
+        # First, clock in to create an entry
+        self.client.login(username='testuser@example.com', password='testpass123')
+        
+        response = self.client.post(reverse('home_timetracking'), {
+            'action': 'clock_in'
+        }, follow=True)
+        
+        # Get the created entry
+        entry = TimeEntries.objects.filter(
             user=self.user,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now(),
             status=TimeEntries.EntryStatus.ONGOING
-        )
+        ).first()
         
-        self.client.login(username='testuser', password='testpass123')
+        self.assertIsNotNone(entry)
         
-        response = self.client.post('/timetracking/time_entries/', {
+        # Now start pause
+        response = self.client.post(reverse('time_entries'), {
             'action': 'pause_start'
-        })
+        }, follow=True)
         
         # Check that pause event was created
         pause_event = TimeEntryEvent.objects.filter(
@@ -150,7 +163,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
             actor=self.user
         )
         
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post('/timetracking/time_entries/', {
             'action': 'pause_start'
@@ -167,29 +180,30 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
     
     def test_pause_end_successful(self):
         """Test successful pause end"""
-        entry = TimeEntries.objects.create(
-            id=uuid4(),
+        # First, clock in to create an entry
+        self.client.login(username='testuser@example.com', password='testpass123')
+        
+        response = self.client.post(reverse('home_timetracking'), {
+            'action': 'clock_in'
+        }, follow=True)
+        
+        # Get the created entry
+        entry = TimeEntries.objects.filter(
             user=self.user,
-            company=self.company,
-            date=timezone.localdate(),
-            clock_in=timezone.now(),
             status=TimeEntries.EntryStatus.ONGOING
-        )
+        ).first()
         
-        # Create pause start event
-        TimeEntryEvent.objects.create(
-            id=uuid4(),
-            time_entry=entry,
-            event_type=TimeEntryEvent.EventType.PAUSE_START,
-            timestamp=timezone.now(),
-            actor=self.user
-        )
+        self.assertIsNotNone(entry)
         
-        self.client.login(username='testuser', password='testpass123')
+        # Start pause
+        response = self.client.post(reverse('time_entries'), {
+            'action': 'pause_start'
+        }, follow=True)
         
-        response = self.client.post('/timetracking/time_entries/', {
+        # End pause
+        response = self.client.post(reverse('time_entries'), {
             'action': 'pause_end'
-        })
+        }, follow=True)
         
         # Check that pause end event was created
         pause_end_event = TimeEntryEvent.objects.filter(
@@ -210,7 +224,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
             status=TimeEntries.EntryStatus.ONGOING
         )
         
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post('/timetracking/time_entries/', {
             'action': 'pause_end'
@@ -230,7 +244,7 @@ class TimeTrackingViewsTest(TimeTrackingTestBase):
         self.user.status = Users.StatusChoices.INACTIVE
         self.user.save()
         
-        self.client.login(username='testuser', password='testpass123')
+        self.client.login(username='testuser@example.com', password='testpass123')
         
         response = self.client.post('/timetracking/time_entries/', {
             'action': 'clock_in'

@@ -55,7 +55,11 @@ def resolver_incidencia(request):
         if delegation_context['is_delegating'] and delegation_context['delegated_user_role'] == UserCompany.RoleChoices.MANAGER:
             approver_user = Users.objects.get(id=delegation_context['delegated_user_id'])
         else:
-            approver_user = request.user
+            # Get the Users object corresponding to the Django user
+            approver_user = Users.objects.filter(email=request.user.email).first()
+            if not approver_user:
+                # Fallback: try to get by username
+                approver_user = Users.objects.filter(username=request.user.username).first()
 
         # --- AUDIT FIELDS ASSIGNMENT ---
         incidencia.approver = approver_user
@@ -85,10 +89,10 @@ def resolver_incidencia(request):
                 notes=f"Aceptado por {approver_user.username.title()}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
-            incidencia.status = 'approved'
+            incidencia.status = CorrectionRequests.CorrectionStatus.APPROVED
 
         elif accion == 'denegar':
-            incidencia.status = 'rejected'
+            incidencia.status = CorrectionRequests.CorrectionStatus.REJECTED
 
         # Save all changes (including approver, date and note)
         incidencia.save()

@@ -33,9 +33,9 @@ class CorrectionsViewsTest(CorrectionsTestBase):
             status=CorrectionRequests.CorrectionStatus.PENDING
         )
         
-        # Login as manager
+        # Login as manager (use email, not username)
         client = Client()
-        client.login(username='testmanager', password='managerpass123')
+        client.login(username='manager@example.com', password='managerpass123')
         
         # Submit approval
         response = client.post(reverse('resolver_incidencia'), {
@@ -64,9 +64,9 @@ class CorrectionsViewsTest(CorrectionsTestBase):
             status=CorrectionRequests.CorrectionStatus.PENDING
         )
         
-        # Login as manager
+        # Login as manager (use email, not username)
         client = Client()
-        client.login(username='testmanager', password='managerpass123')
+        client.login(username='manager@example.com', password='managerpass123')
         
         # Submit rejection
         response = client.post(reverse('resolver_incidencia'), {
@@ -98,9 +98,9 @@ class CorrectionsViewsTest(CorrectionsTestBase):
         
         initial_entries = TimeEntries.objects.count()
         
-        # Login as manager and approve
+        # Login as manager and approve (use email, not username)
         client = Client()
-        client.login(username='testmanager', password='managerpass123')
+        client.login(username='manager@example.com', password='managerpass123')
         
         response = client.post(reverse('resolver_incidencia'), {
             'incidencia_id': str(correction.id),
@@ -136,9 +136,9 @@ class CorrectionsViewsTest(CorrectionsTestBase):
         
         initial_entries = TimeEntries.objects.count()
         
-        # Login as manager and reject
+        # Login as manager and reject (use email, not username)
         client = Client()
-        client.login(username='testmanager', password='managerpass123')
+        client.login(username='manager@example.com', password='managerpass123')
         
         response = client.post(reverse('resolver_incidencia'), {
             'incidencia_id': str(correction.id),
@@ -166,9 +166,9 @@ class CorrectionsViewsTest(CorrectionsTestBase):
             status=CorrectionRequests.CorrectionStatus.PENDING
         )
         
-        # Try accessing as regular user
+        # Try accessing as regular employee (not manager) - use email for login
         client = Client()
-        client.login(username='testuser', password='testpass123')
+        client.login(username='testuser@example.com', password='testpass123')
         
         response = client.post(reverse('resolver_incidencia'), {
             'incidencia_id': str(correction.id),
@@ -176,6 +176,5 @@ class CorrectionsViewsTest(CorrectionsTestBase):
             'nota_resolucion': 'Test'
         })
         
-        # Should be denied or redirected
-        # (The actual view returns HttpResponse("Método no permitido."))
+        # Should be denied (403 Forbidden)
         self.assertEqual(response.status_code, 403)
