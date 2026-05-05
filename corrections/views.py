@@ -43,6 +43,12 @@ def resolver_incidencia(request):
 
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
 
+        # --- COMPROBACIÓN DE CONCURRENCIA ---
+        if incidencia.status != 'pending':
+            messages.warning(request, "Esta incidencia ya ha sido gestionada (aceptada o denegada) por otro administrador.")
+            return redirect('manager_logs')
+        # ------------------------------------
+
         # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
         estado_anterior = safe_dict(incidencia)
         # ----------------------------------------
@@ -50,8 +56,6 @@ def resolver_incidencia(request):
         ficha_original = incidencia.time_entry
 
         # --- Determine who is approving ─────────────────────────────────────
-        # If delegating and delegated user is manager: use them
-        # Otherwise: use request.user
         if delegation_context['is_delegating'] and delegation_context['delegated_user_role'] == UserCompany.RoleChoices.MANAGER:
             approver_user = Users.objects.get(id=delegation_context['delegated_user_id'])
         else:
@@ -86,9 +90,11 @@ def resolver_incidencia(request):
                 total_seconds=max(0, segundos)
             )
             incidencia.status = 'approved'
+            messages.success(request, "Incidencia aceptada y registro actualizado.")
 
         elif accion == 'denegar':
             incidencia.status = 'rejected'
+            messages.success(request, "Incidencia denegada correctamente.")
 
         # Save all changes (including approver, date and note)
         incidencia.save()
@@ -254,7 +260,14 @@ def eliminar_incidencia_rechazada(request):
     if not incidencia_id:
         return HttpResponse("ID de incidencia no proporcionado.", status=400)
 
-    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+    # La buscamos sin filtro estricto en el get_object para poder mandar el aviso si el estado cambió
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+
+    # --- COMPROBACIÓN DE CONCURRENCIA ---
+    if incidencia.deleted_at is not None or incidencia.status != 'rejected':
+        messages.warning(request, "Esta incidencia ya ha sido eliminada o modificada por otro administrador.")
+        return redirect('manager_logs')
+    # ------------------------------------
 
     # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
     estado_anterior = safe_dict(incidencia)
@@ -278,6 +291,7 @@ def eliminar_incidencia_rechazada(request):
     )
     # -------------------------------------------
 
+    messages.success(request, "Incidencia rechazada eliminada correctamente.")
     return redirect('manager_logs')
 
 

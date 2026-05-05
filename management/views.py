@@ -637,6 +637,12 @@ def anular_registro(request):
 
     registro = get_object_or_404(TimeEntries, id=registro_id)
 
+    # --- COMPROBACIÓN DE CONCURRENCIA ---
+    if registro.status == 'voided' or registro.deleted_at is not None:
+        messages.warning(request, "Este registro ya ha sido anulado recientemente por otro administrador.")
+        return redirect('manager_logs')
+    # ------------------------------------
+
     # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
     estado_anterior = safe_dict(registro)
     # ----------------------------------------
@@ -670,6 +676,7 @@ def anular_registro(request):
     )
     # -------------------------------------------
 
+    messages.success(request, "Registro anulado correctamente.")
     return redirect('manager_logs')
 
 
