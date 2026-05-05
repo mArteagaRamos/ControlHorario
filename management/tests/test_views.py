@@ -11,23 +11,21 @@ from timetracking.models import TimeEntries
 from corrections.models import CorrectionRequests
 from admin.models import CompanySettings
 
-# ═════════════════════════════════════════════════════════════════════════════
-# 3. VIEW TESTS (Pruebas Lógicas de las Vistas)
-# ═════════════════════════════════════════════════════════════════════════════
-
 class ManagementViewTest(TestCase):
     def setUp(self):
-        print("\n[SETUP] Preparando base de datos temporal para View Tests...")
         self.client = Client()
         self.password = "pass_segura_123"
         
         self.company = Companies.objects.create(id=uuid.uuid4(), name="Tech Corp", tax_id="B12345678")
-        CompanySettings.objects.create(company=self.company)
+        
+        # Le pasamos el timedelta explícitamente para blindar el test de SQLite
+        CompanySettings.objects.create(company=self.company, max_tolerance=timedelta(minutes=15))
         
         self.manager = Users.objects.create_user(
             email="manager@test.com", username="manager", dni="333C", password=self.password
         )
         self.membership_manager = UserCompany.objects.create(
+            id=uuid.uuid4(),
             user=self.manager, company=self.company, role=UserCompany.RoleChoices.MANAGER
         )
         
@@ -35,6 +33,7 @@ class ManagementViewTest(TestCase):
             email="trabajador@test.com", username="trabajador", dni="444D", password=self.password
         )
         self.membership_employee = UserCompany.objects.create(
+            id=uuid.uuid4(),
             user=self.employee, company=self.company, role=UserCompany.RoleChoices.EMPLOYEE
         )
 
@@ -56,7 +55,6 @@ class ManagementViewTest(TestCase):
         session.save()
 
     def test_edit_employee(self):
-        print("\n[TEST VIEW] Verificando edición de datos de un empleado...")
         response = self.client.post(reverse('edit_employee'), {
             'user_id': str(self.employee.id),
             'username': 'Nuevo Nombre',
@@ -73,7 +71,6 @@ class ManagementViewTest(TestCase):
         self.assertEqual(self.membership_employee.role, UserCompany.RoleChoices.MANAGER)
 
     def test_delete_employee_soft_delete(self):
-        print("\n[TEST VIEW] Verificando soft-delete de un empleado...")
         response = self.client.post(reverse('delete_employee'), {
             'user_id': str(self.employee.id),
             'company_id': str(self.company.id)
@@ -90,7 +87,6 @@ class ManagementViewTest(TestCase):
         self.assertIsNotNone(self.employee.deleted_at)
 
     def test_editar_registro_manual(self):
-        print("\n[TEST VIEW] Verificando edición manual de fichaje (anula anterior y crea nuevo)...")
         # Preparamos las nuevas horas
         new_in = timezone.now() - timedelta(hours=5)
         new_out = timezone.now()
@@ -116,7 +112,6 @@ class ManagementViewTest(TestCase):
         self.assertIsNotNone(nuevo_registro)
 
     def test_anular_registro(self):
-        print("\n[TEST VIEW] Verificando anulación directa de un fichaje...")
         response = self.client.post(reverse('anular_registro'), {
             'registro_id': str(self.time_entry.id)
         })
@@ -129,7 +124,6 @@ class ManagementViewTest(TestCase):
         self.assertIsNotNone(self.time_entry.deleted_at)
 
     def test_exportar_staff_csv(self):
-        print("\n[TEST VIEW] Verificando exportación de lista de empleados a CSV...")
         response = self.client.post(reverse('exportar_staff'), {
             'employee_id': [str(self.membership_employee.id)]
         })
@@ -141,3 +135,43 @@ class ManagementViewTest(TestCase):
         # Verificamos que el contenido tiene al empleado
         content = response.content.decode('utf-8')
         self.assertIn(self.employee.email.lower(), content)
+
+    def test_anular_registro_concurrencia(self):
+        # 1. Simulamos que otro admin ya ha anulado el registro un segundo antes
+        self.time_entry.status = 'voided'
+        self.time_entry.deleted_at = timezone.now()
+        self.time_entry.save()
+        
+        # 2. El admin actual intenta anular el mismo registro
+        response = self.client.post(reverse('anular_registro'), {
+            'registro_id': str(self.time_entry.id)
+        })
+        
+        # 3. Al estar borrado, Django protege el registro y nos devuelve un 404
+        self.assertEqual(response.status_code, 404)
+
+    def test_entity_info_post_update(self):
+        # Hacemos POST a la vista con los nuevos datos de la empresa y configuración
+        response = self.client.post(reverse('manager_entity_info'), { 
+            'name': 'Super Tech Corp',
+            'legal_name': 'Super Tech Corp SL',
+            'tax_id': 'B98765432',
+            'work_start': '09:00',
+            'work_end': '18:00',
+            'max_tolerance': '15',
+            'weekend_days': ['5', '6'], # Sábado y Domingo
+            'auto_close_hours': '12'
+        })
+        
+        self.assertEqual(response.status_code, 302) # Debería redirigir tras guardar con éxito
+        
+        # Refrescamos la empresa y settings de la base de datos
+        self.company.refresh_from_db()
+        settings_obj = CompanySettings.objects.get(company=self.company)
+        
+        # Comprobamos que los datos se han guardado correctamente
+        self.assertEqual(self.company.name, 'Super Tech Corp')
+        self.assertEqual(self.company.tax_id, 'B98765432')
+        self.assertEqual(str(settings_obj.work_start), '09:00:00')
+        self.assertEqual(settings_obj.max_tolerance, timedelta(minutes=15))
+        self.assertEqual(settings_obj.weekend_days, [5, 6])
