@@ -496,9 +496,22 @@ def edit_employee(request):
     role = request.POST.get('role')
     status = request.POST.get('status')
 
-    # 3. Validate that the employee belongs to the company
-    membership = get_object_or_404(UserCompany, user_id=user_id, company=company)
+    # 3. Validate that the employee belongs to the company (EVITANDO EL 404)
+    # Cambiamos get_object_or_404 por un filter para controlarlo nosotros mismos
+    membership = UserCompany.objects.filter(user_id=user_id, company=company).first()
+
+    # --- INICIO COMPROBACIÓN DE CONCURRENCIA ---
+    if not membership:
+        messages.warning(request, "⚠️ No se pueden guardar los cambios. Este empleado ya ha sido eliminado o desvinculado por otro administrador.")
+        return redirect('staff')
+    
     user = membership.user
+
+    # Comprobación adicional por si usáis borrado lógico (deleted_at) en el modelo Users
+    if hasattr(user, 'deleted_at') and user.deleted_at is not None:
+        messages.warning(request, "⚠️ El perfil de este usuario ya ha sido eliminado del sistema.")
+        return redirect('staff')
+    # -------------------------------------------
 
     # 4. Update user data
     user.username = username.title() if username else ""
@@ -510,6 +523,8 @@ def edit_employee(request):
     membership.role = role
     membership.save()
 
+    # Feedback de éxito
+    messages.success(request, "Empleado actualizado correctamente.")
     return redirect('staff')
 
 
