@@ -37,7 +37,7 @@ export function initializeEditWorkerModal() {
     if (!editarModal) return;
 
     editarModal.addEventListener('show.bs.modal', function(event) {
-        const button = event.relatedTarget?.closest('.js-edit-btn');
+        const button = event.relatedTarget;
         if (!button) return;
 
         // Mapeo de campos para editar trabajador
@@ -46,7 +46,6 @@ export function initializeEditWorkerModal() {
             editNombre: 'nombre',
             editApellidos: 'apellidos',
             editEmail: 'email',
-            editRol: 'rol',
             editEstado: 'estado'
         };
 

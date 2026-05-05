@@ -4,7 +4,7 @@ import datetime
 from uuid import uuid4
 from django.utils import timezone
 from django.forms.models import model_to_dict
-from django.utils.dateparse import parse_datetime, parse_date
+from django.utils.dateparse import parse_datetime
 from django.db import transaction
 
 from users.models import Companies, UserCompany, Users

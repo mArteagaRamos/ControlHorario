@@ -1,7 +1,6 @@
 # core/urls.py
 # ═══════════════════════════════════════════════════════════════════════════
 
-from django.contrib import admin
 from django.urls import path
 from users import views as user_views
 from dashboard import views as dashboard_views
@@ -10,8 +9,6 @@ from audit import views as audit_views
 from admin import views as admin_views   
 from management import views as management_views
 from corrections import views as corrections_views
-from django.conf import settings
-from django.conf.urls.static import static
 
 urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
@@ -97,7 +94,6 @@ urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
 
     path('admin/', admin_views.admin_dashboard, name='admin_dashboard'),
-    path('admin/company-info/', management_views.entity_info, name='manager_entity_info'),
 
     # Soft Delete Management
     path('admin/deleted-records/', admin_views.deleted_records, name='deleted_records'),

@@ -3,25 +3,23 @@
 import csv
 import json
 from datetime import date, timedelta
-from tracemalloc import start
-from django.shortcuts import render, redirect, get_object_or_404
+from pyexpat.errors import messages
+from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 import uuid
-from uuid import uuid4
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import os
-from users.models import Users, Companies, UserCompany
+from users.models import Users, UserCompany
 from timetracking.models import TimeEntries
 from corrections.models import LeaveRequest, CorrectionRequests
 from audit.models import AuditLog
 from audit.utils import safe_dict
-from core.decorators import manager_or_admin_required, manager_or_admin_with_delegation_check
+from core.decorators import manager_or_admin_with_delegation_check
 from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
 from core.services import is_manager as check_is_manager
 
@@ -43,6 +41,12 @@ def resolver_incidencia(request):
 
         incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
 
+        # --- COMPROBACIÓN DE CONCURRENCIA ---
+        if incidencia.status != 'pending':
+            messages.warning(request, "Esta incidencia ya ha sido gestionada (aceptada o denegada) por otro administrador.")
+            return redirect('manager_logs')
+        # ------------------------------------
+
         # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
         estado_anterior = safe_dict(incidencia)
         # ----------------------------------------
@@ -50,8 +54,6 @@ def resolver_incidencia(request):
         ficha_original = incidencia.time_entry
 
         # --- Determine who is approving ─────────────────────────────────────
-        # If delegating and delegated user is manager: use them
-        # Otherwise: use request.user
         if delegation_context['is_delegating'] and delegation_context['delegated_user_role'] == UserCompany.RoleChoices.MANAGER:
             approver_user = Users.objects.get(id=delegation_context['delegated_user_id'])
         else:
@@ -89,10 +91,12 @@ def resolver_incidencia(request):
                 notes=f"Aceptado por {approver_user.username.title()}. Motivo: {incidencia.reason}",
                 total_seconds=max(0, segundos)
             )
-            incidencia.status = CorrectionRequests.CorrectionStatus.APPROVED
+            incidencia.status = 'approved'
+            messages.success(request, "Incidencia aceptada y registro actualizado.")
 
         elif accion == 'denegar':
-            incidencia.status = CorrectionRequests.CorrectionStatus.REJECTED
+            incidencia.status = 'rejected'
+            messages.success(request, "Incidencia denegada correctamente.")
 
         # Save all changes (including approver, date and note)
         incidencia.save()
@@ -133,7 +137,7 @@ def exportar_logs_rechazadas(request):
         status='rejected'
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
-    # 🔐 AUDITORÍA: Exportación de incidencias rechazadas
+    # AUDITORÍA: Exportación de incidencias rechazadas
     AuditLog.objects.create(
         id=uuid.uuid4(),
         table_name='user_action',
@@ -200,7 +204,14 @@ def editar_incidencia_rechazada(request):
     if not incidencia_id:
         return HttpResponse("ID de incidencia no proporcionado.", status=400)
 
-    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+    # 1. Quitamos el filtro estricto de status='rejected' para evitar el error 404 feo
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+
+    # --- 2. COMPROBACIÓN DE CONCURRENCIA ---
+    if incidencia.status != 'rejected' or incidencia.deleted_at is not None:
+        messages.warning(request, "⚠️ Esta incidencia ya no puede editarse porque ha sido modificada, reabierta o eliminada por otro administrador.")
+        return redirect('manager_logs')
+    # ------------------------------------
 
     # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
     estado_anterior = safe_dict(incidencia)
@@ -244,6 +255,8 @@ def editar_incidencia_rechazada(request):
     )
     # -------------------------------------------
 
+    # 3. Añadimos el mensaje de éxito para dar feedback al usuario
+    messages.success(request, "Incidencia editada y enviada a revisión correctamente.")
     return redirect('manager_logs')
 
 
@@ -258,7 +271,14 @@ def eliminar_incidencia_rechazada(request):
     if not incidencia_id:
         return HttpResponse("ID de incidencia no proporcionado.", status=400)
 
-    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+    # La buscamos sin filtro estricto en el get_object para poder mandar el aviso si el estado cambió
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+
+    # --- COMPROBACIÓN DE CONCURRENCIA ---
+    if incidencia.deleted_at is not None or incidencia.status != 'rejected':
+        messages.warning(request, "Esta incidencia ya ha sido eliminada o modificada por otro administrador.")
+        return redirect('manager_logs')
+    # ------------------------------------
 
     # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
     estado_anterior = safe_dict(incidencia)
@@ -282,6 +302,7 @@ def eliminar_incidencia_rechazada(request):
     )
     # -------------------------------------------
 
+    messages.success(request, "Incidencia rechazada eliminada correctamente.")
     return redirect('manager_logs')
 
 
@@ -343,6 +364,8 @@ def api_leave_review(request, leave_id):
     note   = data.get('note', '')
     note   = note.strip() if note else None
  
+    #todo: Validar estado de la solicitud antes de aprobar/rechazar (ej: no solapamientos aprobados, etc)
+
     if action == 'approve':
 
         new_status  = LeaveRequest.LeaveStatus.APPROVED
@@ -666,7 +689,7 @@ def api_leave_request_create(request):
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
  
-    # 🔐 AUDITORÍA: Creación
+    # AUDITORÍA: Creación
     log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
                reason=reason_note or 'Solicitud creada por el empleado',
                source='web') # Añadido
@@ -727,7 +750,7 @@ def api_leave_request_cancel(request, leave_id):
     leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save(update_fields=['status', 'updated_at'])
     
-    # 🔐 AUDITORÍA: Cancelación
+    # AUDITORÍA: Cancelación
     log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
                before=before, reason='Cancelación por el empleado',
                source='web') # Añadido

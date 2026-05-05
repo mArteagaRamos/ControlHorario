@@ -289,7 +289,6 @@ button.btn.std-btn-toggle.btn-outline-primary:focus {
 
 .alert.alert-warning {
     border-left: 4px solid #ffc107 !important;
-    width: fit-content !important;
 }
 
 .alert.alert-danger {
@@ -305,6 +304,8 @@ button.btn.std-btn-toggle.btn-outline-primary:focus {
     border: none !important;
     font-size: 1.2rem !important;
     opacity: 0.6 !important;
+    display: flex !important;
+    align-items: center !important;
 }
 
 .alert .btn-close:hover {

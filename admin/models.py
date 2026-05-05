@@ -1,6 +1,5 @@
 # admin/models.py
 
-import uuid
 import sys
 from django.db import models
 from django.contrib.postgres.fields import ArrayField

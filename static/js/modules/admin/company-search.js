@@ -41,6 +41,7 @@ async function searchCompanyByCif() {
         url.searchParams.set('include_created', 'true');
 
         const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         if (data.found) {
@@ -113,7 +114,8 @@ export function initializeCompanySearch() {
             clearSuggestions(empresaNombreSuggestions);
             setFeedback(feedback, 'Error al buscar empresas.', 'danger');
         },
-        300
+        300,
+        { include_created: 'true' }
     );
 
     empresaNombreInput?.addEventListener('input', () => {

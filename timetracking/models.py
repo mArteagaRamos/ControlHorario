@@ -1,10 +1,11 @@
-# ---------- Backend Models: timetracking/models.py ----------
+# timetracking/models.py
 
 from django.db import models
-from users.models import Users, Companies
 from django.utils import timezone
-from core.model_normalization import UppercaseNormalizationMixin
+
 from core.managers import SoftDeleteManager
+from core.model_normalization import UppercaseNormalizationMixin
+from users.models import Users, Companies
 
 # Time entry models
 class TimeEntries(UppercaseNormalizationMixin, models.Model):
