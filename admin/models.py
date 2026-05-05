@@ -1,4 +1,4 @@
-import uuid
+# admin/models.py
 import sys
 from datetime import timedelta
 from django.db import models

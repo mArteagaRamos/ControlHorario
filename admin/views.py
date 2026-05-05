@@ -1,27 +1,22 @@
 # admin/views.py
 
-import json
 import csv
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse, HttpResponse
-from django.utils import timezone
-from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache
+import json
 from uuid import uuid4
-from users.models import Users, Companies, UserCompany
-from timetracking.models import TimeEntries, TimeEntryEvent
-from audit.models import AuditLog
-from audit.utils import safe_dict
+
+from django.contrib import messages
 from django.core.paginator import Paginator
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render, redirect
+from django.utils import timezone
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_POST
+
+from audit.models import AuditLog
 from core.decorators import admin_only_required
-from corrections.models import CorrectionRequests, LeaveRequest
-from admin.models import CompanySettings
-from django.utils.dateparse import parse_date
-from datetime import timedelta, date
-from django.db import IntegrityError
-from core.services import get_effective_context, serialize_leave, log_leave
+from corrections.models import CorrectionRequests
+from timetracking.models import TimeEntries, TimeEntryEvent
+from users.models import Users, Companies, UserCompany
 
 # Constants
 WEEKDAY = [
@@ -40,7 +35,7 @@ WEEKDAY = [
 def admin_dashboard(request):
     """Admin dashboard to manage companies and workers globally"""
 
-    # 🔐 AUDITORÍA: Acceso al panel de administración
+    # AUDITORÍA: Acceso al panel de administración
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -57,7 +52,7 @@ def admin_dashboard(request):
 
     # Get all companies and workers for listing tables
     companies_list = Companies.objects.all().order_by('name')
-    workers_list = Users.objects.all().order_by('username')
+    workers_list = Users.objects.exclude(status='suspended').order_by('username')
 
     # Pagination for companies
     paginator_companies = Paginator(companies_list, 10)
@@ -219,7 +214,7 @@ def exportar_deleted_records(request):
     if not records.exists():
         return HttpResponse("No hay registros de este tipo para exportar.")
 
-    # 🔐 AUDITORÍA: Exportación de registros eliminados (solo admin)
+    # AUDITORÍA: Exportación de registros eliminados (solo admin)
     record_ids = [str(r.id) for r in records[:50]]  # Primeros 50 IDs
     AuditLog.objects.create(
         id=uuid4(),
@@ -448,7 +443,6 @@ def restore_record(request):
                     user.save(update_fields=['status'])
 
         messages.success(request, "Registro restaurado correctamente.")
-
     except Exception as e:
         messages.error(request, f"Error al restaurar el registro: {str(e)}")
 
@@ -566,12 +560,10 @@ def delete_company(request):
         suspended_msg = f" {suspended_users_count} usuario(s) fue(ron) suspendido(s)." if suspended_users_count > 0 else ""
         messages.success(
             request,
-            f"Empresa '{company.name.title}' eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
+            f"Empresa eliminada correctamente. Se desvincularon {member_count} trabajador(es).{suspended_msg}"
         )
 
     except Exception as e:
         messages.error(request, f"Error al eliminar la empresa: {str(e)}")
 
     return redirect('admin_dashboard')
-
-

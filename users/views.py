@@ -1,16 +1,13 @@
 # ---------- Backend Views: users/views.py ----------
 
-import json
 import csv
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse, HttpResponse
-from django.utils.dateparse import parse_datetime
 from django.utils import timezone
-from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.views.decorators.http import require_POST
 from uuid import uuid4
 from .forms import (
@@ -18,7 +15,7 @@ from .forms import (
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
 )
 from .email_utils import send_new_user_email, send_new_auditor_email, send_existing_user_email
-from timetracking.models import TimeEntries, TimeEntryEvent
+from timetracking.models import TimeEntries
 from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
 from corrections.models import CorrectionRequests
@@ -29,23 +26,27 @@ from audit.utils import safe_dict
 from django.core.paginator import Paginator
 
 # Import centralized decorators and services
-from core.decorators import admin_only_required
 from core.services import (
     validate_manager_role_change,
     compute_worked_seconds,
     parse_local_datetime,
-    get_display_date,
-    get_or_create_demo_user,
     format_date_spanish,
-    ensure_membership,
 )
 
+
+
+def invalidate_other_sessions(user, current_session_key):
+    """
+    Esta función ya no es necesaria con el nuevo enfoque de timestamps.
+    Se mantiene para compatibilidad pero no hace nada.
+    """
+    pass
 
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
-    form                  = LoginForm(request)
+    form                  = LoginForm()
     company_form          = None
     show_company_selector = False
     set_password_form     = None
@@ -56,7 +57,7 @@ def login_view(request):
 
         # ── Step 1: login ──────────────────────────────────────────────────────
         if step == 'credentials':
-            form = LoginForm(request, data=request.POST)
+            form = LoginForm(data=request.POST)
             if form.is_valid():
                 email    = form.cleaned_data.get('username')
                 password = form.cleaned_data.get('password')
@@ -65,7 +66,6 @@ def login_view(request):
                 if user is not None:
                     # ── Check if user is suspended ──────────────────────────────
                     if user.status == 'suspended':
-                        # 🔐 AUDITORÍA: Intento de login con cuenta suspendida
                         AuditLog.objects.create(
                             id=uuid4(),
                             table_name='user_action',
@@ -73,14 +73,13 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Intento de login: cuenta suspendida',
-                            source='web', # Añadido
+                            source='web',
                         )
                         messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
-                    
+
                     # ── Check if user is deleted ────────────────────────────────
                     elif user.deleted_at is not None:
-                        # 🔐 AUDITORÍA: Intento de login con cuenta eliminada
                         AuditLog.objects.create(
                             id=uuid4(),
                             table_name='user_action',
@@ -88,14 +87,13 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Intento de login: cuenta eliminada',
-                            source='web', # Añadido
+                            source='web',
                         )
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # ── Check if user is auditor ────────────────────────────────
-                    if user.is_auditor:
-                        # 🔐 AUDITORÍA: Registro de login de auditor
+                    elif user.is_auditor:
                         AuditLog.objects.create(
                             id=uuid4(),
                             table_name='user_action',
@@ -103,80 +101,85 @@ def login_view(request):
                             user=user,
                             action_type=AuditLog.AuditAction.CREATE,
                             reason='Login exitoso (Auditor)',
-                            source='web', # Añadido
+                            source='web',
                         )
-
                         auth_login(request, user)
-                        # Clear navigation history on login
+                        request.session.cycle_key()
+                        login_time = timezone.now()
+                        user.last_login = login_time
+                        user.save(update_fields=['last_login'])
+                        request.session['login_timestamp'] = login_time.isoformat()
                         request.session['nav_history'] = []
 
-                        # ── Check if auditor must change password ────────────────
                         if user.must_change_password:
                             set_password_form = SetPasswordForm()
                             show_set_password = True
                         else:
                             return redirect('audit_dashboard')
 
-                    # User is valid, now login
-                    auth_login(request, user)
-
-                    # 🔐 AUDITORÍA: Registro de login exitoso
-                    AuditLog.objects.create(
-                        id=uuid4(),
-                        table_name='user_action',
-                        record_id=user.id,
-                        user=user,
-                        action_type=AuditLog.AuditAction.CREATE,
-                        reason='Login exitoso',
-                        source='web', # Añadido
-                    )
-
-                    if user.must_change_password:
-                        # Clear navigation history on login
-                        request.session['nav_history'] = []
-                        set_password_form = SetPasswordForm()
-                        show_set_password = True
+                    # ── Regular user (not auditor, not suspended, not deleted) ──
                     else:
-                        # ── Get only ACTIVE memberships (not soft-deleted) ───────
-                        memberships = UserCompany.objects.filter(
-                            user=user,
-                            deleted_at__isnull=True
-                        ).select_related('company')
+                        auth_login(request, user)
+                        request.session.cycle_key()
+                        login_time = timezone.now()
+                        user.last_login = login_time
+                        user.save(update_fields=['last_login'])
+                        request.session['login_timestamp'] = login_time.isoformat()
 
-                        # ── Check if user has at least one active membership ─────
-                        if memberships.count() == 0:
-                            # Desautenticar y mostrar error
-                            auth_logout(request)
-                            messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
-                            return render(request, 'login/login.html', {'form': form})
-                        else:
-                            # Clear navigation history on login
+                        AuditLog.objects.create(
+                            id=uuid4(),
+                            table_name='user_action',
+                            record_id=user.id,
+                            user=user,
+                            action_type=AuditLog.AuditAction.CREATE,
+                            reason='Login exitoso',
+                            source='web',
+                        )
+
+                        if user.must_change_password:
                             request.session['nav_history'] = []
-                            if memberships.count() > 1:
-                                company_form = CompanySelectLoginForm(companies=memberships)
-                                show_company_selector = True
-                                request.session['pending_company_selection'] = True
+                            set_password_form = SetPasswordForm()
+                            show_set_password = True
+                        else:
+                            # ── Get only ACTIVE memberships (not soft-deleted) ───
+                            memberships = UserCompany.objects.filter(
+                                user=user,
+                                deleted_at__isnull=True
+                            ).select_related('company')
+
+                            # ── Check if user has at least one active membership ─
+                            if memberships.count() == 0:
+                                auth_logout(request)
+                                messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
+                                return render(request, 'login/login.html', {'form': form})
                             else:
-                                if memberships.first():
-                                    request.session['company_id'] = str(
-                                        memberships.first().company.id
-                                    )
-                                return redirect('home_timetracking')
+                                request.session['nav_history'] = []
+                                if memberships.count() > 1:
+                                    company_form = CompanySelectLoginForm(companies=memberships)
+                                    show_company_selector = True
+                                    request.session['pending_company_selection'] = True
+                                else:
+                                    if memberships.first():
+                                        request.session['company_id'] = str(
+                                            memberships.first().company.id
+                                        )
+                                    return redirect('home_timetracking')
+
                 else:
-                    # 🔐 AUDITORÍA: Registro de intento de login fallido
+                    # ── Login fallido ───────────────────────────────────────────
                     email = form.cleaned_data.get('username', 'desconocido')
                     AuditLog.objects.create(
                         id=uuid4(),
                         table_name='user_action',
-                        record_id=uuid4(),  # Sin usuario asociado (login fallido)
+                        record_id=uuid4(),
                         user=None,
                         action_type=AuditLog.AuditAction.CREATE,
                         reason=f'Intento de login fallido: {email}',
-                        source='web', # Añadido
+                        source='web',
                     )
                     messages.error(request, 'Email o contraseña incorrectos.')
             else:
-                # 🔐 AUDITORÍA: Registro de intento de login con errores de validación
+                # ── Errores de validación del formulario ────────────────────────
                 email_input = request.POST.get('username', 'desconocido')
                 error_messages = ', '.join([str(e) for errors in form.errors.values() for e in errors])
                 AuditLog.objects.create(
@@ -190,7 +193,7 @@ def login_view(request):
                         'tipo': 'Login Fallido - Validación',
                         'errores': error_messages,
                     },
-                    source='web', # Añadido
+                    source='web',
                 )
 
         # ── Step 2: set password ───────────────────────────────────────────────
@@ -213,25 +216,25 @@ def login_view(request):
                 )
                 if updated_user:
                     auth_login(request, updated_user)
+                    request.session.cycle_key()
+                    login_time = timezone.now()
+                    updated_user.last_login = login_time
+                    updated_user.save(update_fields=['last_login'])
+                    request.session['login_timestamp'] = login_time.isoformat()
 
-                    # ── Check if user is deleted ────────────────────────────────
                     if updated_user.deleted_at is not None:
                         messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
                         return redirect('login')
 
-                    # ── Check if user is auditor ────────────────────────────────
                     if updated_user.is_auditor:
-                        # Auditor finished changing password, redirect to audit_dashboard
                         return redirect('audit_dashboard')
 
-                    # ── Get only ACTIVE memberships (not soft-deleted) ───────
                     memberships = UserCompany.objects.filter(
                         user=updated_user,
                         deleted_at__isnull=True
                     ).select_related('company')
 
-                    # ── Check if user has at least one active membership ─────
                     if memberships.count() == 0:
                         messages.error(request, 'No tienes ninguna membresía activa. Puede ponerse en contacto a través de info@aeptic.es.')
                         auth_logout(request)
@@ -250,12 +253,11 @@ def login_view(request):
                             )
                         return redirect('home_timetracking')
 
-        # ── Step 3: select company ────────────────────────────────────────
+        # ── Step 3: select company ─────────────────────────────────────────────
         elif step == 'select_company':
             if not request.user.is_authenticated:
                 return redirect('login')
 
-            # ── Get only ACTIVE memberships (not soft-deleted) ───────────────
             memberships  = UserCompany.objects.filter(
                 user=request.user,
                 deleted_at__isnull=True
@@ -285,7 +287,7 @@ def login_view(request):
 @login_required
 def logout_view(request):
     """Cierra la sesión del usuario y redirige al login."""
-    # 🔐 AUDITORÍA: Registro de logout
+    # AUDITORÍA: Registro de logout
     user = request.user
     AuditLog.objects.create(
         id=uuid4(),
@@ -371,7 +373,10 @@ def _user_to_dict(user, include_companies=False):
         'status':   user.status,
     }
     if include_companies:
-        companies = UserCompany.objects.filter(user=user).select_related('company')
+        companies = UserCompany.objects.filter(
+            user=user,
+            deleted_at__isnull=True  # Solo membresías activas
+        ).select_related('company')
         result['companies'] = [
             {'id': str(c.company.id), 'name': c.company.name.title(), 'tax_id': c.company.tax_id or '--'}
             for c in companies
@@ -768,9 +773,8 @@ def switch_company(request, company_id):
 @never_cache
 def workday(request):
     from core.services import get_effective_context
-    # IMPORTANTE: Asegúrate de tener estas importaciones al principio de tu views.py
     from audit.models import AuditLog
-    from core.services import safe_dict # Ajustado la importación de safe_dict a donde parecía correcta originalmente
+    from core.services import safe_dict
     from uuid import uuid4
 
     delegation_context = get_effective_context(request)
@@ -839,7 +843,7 @@ def workday(request):
                     status='pending',
                 )
 
-                # --- INICIO AUDITORÍA (CREACIÓN) ---
+                # ---AUDITORÍA (CREACIÓN) ---
                 AuditLog.objects.create(
                     id=uuid4(),
                     table_name='timetracking_correctionrequest',
@@ -851,7 +855,6 @@ def workday(request):
                     reason="Nueva incidencia reportada",
                     source='web' # Añadido para el hash
                 )
-                # --- FIN AUDITORÍA ---
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
@@ -990,7 +993,7 @@ def exportar_workday_entries(request):
 
     entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
 
-    # 🔐 AUDITORÍA: Exportación de fichajes personales
+    # AUDITORÍA: Exportación de fichajes personales
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -1053,7 +1056,7 @@ def exportar_workday_requests(request):
         id__in=request_ids
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
-    # 🔐 AUDITORÍA: Exportación de solicitudes de corrección
+    # AUDITORÍA: Exportación de solicitudes de corrección
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',

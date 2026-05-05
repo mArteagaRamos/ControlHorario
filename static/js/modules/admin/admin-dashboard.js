@@ -18,6 +18,7 @@ import { initializeModeToggle } from './mode-toggle.js';
 import { initializeSearchTabs } from './search-tabs.js';
 import { initializePagination } from './pagination.js';
 import { initializeModals } from './modals.js';
+import { initializeSelectWorker } from './select-worker.js';
 
 console.log('[AdminDashboard] Ready to load modules');
 
@@ -54,6 +55,13 @@ export function initializeAdminDashboard() {
         initializeModals();
     } catch (error) {
         console.error('[AdminDashboard] Error initializing modals:', error);
+    }
+
+    // FASE 7.5: Inicializar selección de trabajadores
+    try {
+        initializeSelectWorker();
+    } catch (error) {
+        console.error('[AdminDashboard] Error initializing select worker:', error);
     }
 
     // FASE 3: Inicializar búsqueda de empresas

@@ -1,28 +1,12 @@
-# ---------- Backend Views: audit/views.py ----------
-import csv
-from urllib import request
-from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse
-from django.contrib.auth.decorators import login_required
-from users.models import Companies, UserCompany, Users
-from corrections.models import CorrectionRequests
-from timetracking.models import TimeEntries
-from django.db.models import OuterRef, Subquery
-import uuid
-from django.utils import timezone
-from datetime import datetime
-from django.http import HttpResponseForbidden
-from django.db.models import Q
-from django.views.decorators.http import require_POST
-from django.views.decorators.cache import never_cache
-from .models import AuditLog
-from django.core.paginator import Paginator
-from audit.utils import safe_dict
-from uuid import uuid4
+# audit/views.py
 
-# Import centralized decorators and services
-from core.decorators import manager_or_admin_required, auditor_cannot_access, auditor_or_admin_required
-from core.services import combine_local_date_time, get_effective_context
+from django.core.paginator import Paginator
+from django.db.models import Q
+from django.shortcuts import render
+
+from .models import AuditLog
+from core.decorators import auditor_or_admin_required
+from users.models import Companies, Users
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -253,11 +237,6 @@ def audit_usuarios(request):
         'hasta': hasta,
     }
     return render(request, 'audit/audit_users.html', context)
-
-from django.db.models import Q
-from django.core.paginator import Paginator
-from django.shortcuts import render
-# Asegúrate de tener importados tus modelos AuditLog, Users, Company...
 
 @auditor_or_admin_required
 def audit_incidencias(request):

@@ -53,7 +53,7 @@ def time_entries(request):
     # Auto-close any ongoing entry that exceeds company auto_close_hours before user actions
     active_entry = TimeEntries.objects.filter(user=user, status=TimeEntries.EntryStatus.ONGOING, clock_out__isnull=True).order_by('-clock_in').first()
     if active_entry and auto_close_entry_if_expired(active_entry, company):
-        messages.info(request, 'An overdue active entry was auto-closed based on company policy.')
+        messages.info(request, 'Una entrada activa vencida se cerró automáticamente según la política de la empresa.')
         active_entry = None
 
     if request.method == 'POST':
@@ -66,7 +66,7 @@ def time_entries(request):
         # ---------------------------------------------------------
         if action == 'clock_in':
             if active_entry:
-                messages.warning(request, 'You already have an ongoing clock-in entry.')
+                messages.warning(request, 'Ya tienes una entrada de reloj en curso.')
             else:
                 entry = TimeEntries.objects.create(
                     id=uuid4(),

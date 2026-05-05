@@ -2,11 +2,10 @@
 
 import uuid
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
 from django.utils import timezone
 from core.model_normalization import UppercaseNormalizationMixin
 from core.managers import SoftDeleteManager
-from users.models import Users, Companies, UserCompany
+from users.models import Users, Companies
 
 
 class CorrectionRequests(UppercaseNormalizationMixin, models.Model):

@@ -50,6 +50,7 @@ async function searchWorkerByEmail() {
         url.searchParams.set('include_companies', 'true');
 
         const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         if (data.found) {
@@ -85,6 +86,7 @@ async function searchWorkerByDni() {
         url.searchParams.set('include_companies', 'true');
 
         const res = await fetch(url.toString());
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
 
         if (data.found) {
@@ -148,7 +150,8 @@ export function initializeWorkerSearch() {
             clearSuggestions(trabajadorNombreSuggestions);
             setFeedback(feedback, 'Error al buscar trabajadores.', 'danger');
         },
-        300
+        300,
+        { include_companies: 'true' }
     );
 
     trabajadorNombreInput?.addEventListener('input', () => {

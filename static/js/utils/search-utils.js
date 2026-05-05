@@ -77,13 +77,19 @@ export function setupClickOutsideListener(triggerEl, dropdownEl, onHide) {
  * @param {Function} onSuccess - Callback con resultados
  * @param {Function} onError - Callback de error
  * @param {number} delayMs - Delay del debounce (default: 300ms)
+ * @param {Object} extraParams - Parámetros adicionales a agregar a la URL (default: {})
  * @returns {Function} Función debouncified que ejecuta la búsqueda
  */
-export function createDebouncedSearch(url, onSuccess, onError, delayMs = 300) {
+export function createDebouncedSearch(url, onSuccess, onError, delayMs = 300, extraParams = {}) {
   const performSearch = debounce(async (query) => {
     try {
       const searchUrl = new URL(url, window.location.origin);
       searchUrl.searchParams.set('name', query);
+
+      // Agregar parámetros adicionales
+      Object.entries(extraParams).forEach(([key, value]) => {
+        searchUrl.searchParams.set(key, value);
+      });
 
       const res = await fetch(searchUrl.toString());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);

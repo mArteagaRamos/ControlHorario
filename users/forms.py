@@ -99,7 +99,7 @@ class _UserBaseForm(forms.ModelForm):
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
-class LoginForm(AuthenticationForm):
+class LoginForm(forms.Form):
     username = forms.EmailField(
         label='Correo electrónico',
         widget=forms.EmailInput(attrs={
@@ -117,7 +117,7 @@ class LoginForm(AuthenticationForm):
 
     def clean_username(self):
         username = (self.cleaned_data.get('username') or '').strip()
-        return username.upper()
+        return username
 
 # ── Login with company selection ────────────────────────────────────────────
 

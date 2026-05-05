@@ -3,25 +3,23 @@
 import csv
 import json
 from datetime import date, timedelta
-from tracemalloc import start
-from django.shortcuts import render, redirect, get_object_or_404
+from pyexpat.errors import messages
+from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 import uuid
-from uuid import uuid4
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import os
-from users.models import Users, Companies, UserCompany
+from users.models import Users, UserCompany
 from timetracking.models import TimeEntries
 from corrections.models import LeaveRequest, CorrectionRequests
 from audit.models import AuditLog
 from audit.utils import safe_dict
-from core.decorators import manager_or_admin_required, manager_or_admin_with_delegation_check
+from core.decorators import manager_or_admin_with_delegation_check
 from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
 from core.services import is_manager as check_is_manager
 
@@ -135,7 +133,7 @@ def exportar_logs_rechazadas(request):
         status='rejected'
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
-    # 🔐 AUDITORÍA: Exportación de incidencias rechazadas
+    # AUDITORÍA: Exportación de incidencias rechazadas
     AuditLog.objects.create(
         id=uuid.uuid4(),
         table_name='user_action',
@@ -362,6 +360,8 @@ def api_leave_review(request, leave_id):
     note   = data.get('note', '')
     note   = note.strip() if note else None
  
+    #todo: Validar estado de la solicitud antes de aprobar/rechazar (ej: no solapamientos aprobados, etc)
+
     if action == 'approve':
 
         new_status  = LeaveRequest.LeaveStatus.APPROVED
@@ -685,7 +685,7 @@ def api_leave_request_create(request):
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
  
-    # 🔐 AUDITORÍA: Creación
+    # AUDITORÍA: Creación
     log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
                reason=reason_note or 'Solicitud creada por el empleado',
                source='web') # Añadido
@@ -746,7 +746,7 @@ def api_leave_request_cancel(request, leave_id):
     leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save(update_fields=['status', 'updated_at'])
     
-    # 🔐 AUDITORÍA: Cancelación
+    # AUDITORÍA: Cancelación
     log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
                before=before, reason='Cancelación por el empleado',
                source='web') # Añadido
