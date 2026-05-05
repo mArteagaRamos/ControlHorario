@@ -202,7 +202,14 @@ def editar_incidencia_rechazada(request):
     if not incidencia_id:
         return HttpResponse("ID de incidencia no proporcionado.", status=400)
 
-    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id, status='rejected')
+    # 1. Quitamos el filtro estricto de status='rejected' para evitar el error 404 feo
+    incidencia = get_object_or_404(CorrectionRequests, id=incidencia_id)
+
+    # --- 2. COMPROBACIÓN DE CONCURRENCIA ---
+    if incidencia.status != 'rejected' or incidencia.deleted_at is not None:
+        messages.warning(request, "⚠️ Esta incidencia ya no puede editarse porque ha sido modificada, reabierta o eliminada por otro administrador.")
+        return redirect('manager_logs')
+    # ------------------------------------
 
     # --- INICIO AUDITORÍA: FOTO DEL ANTES ---
     estado_anterior = safe_dict(incidencia)
@@ -246,6 +253,8 @@ def editar_incidencia_rechazada(request):
     )
     # -------------------------------------------
 
+    # 3. Añadimos el mensaje de éxito para dar feedback al usuario
+    messages.success(request, "Incidencia editada y enviada a revisión correctamente.")
     return redirect('manager_logs')
 
 
