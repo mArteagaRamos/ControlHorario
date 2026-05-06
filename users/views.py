@@ -31,14 +31,16 @@ from core.services import (
     compute_worked_seconds,
     parse_local_datetime,
     format_date_spanish,
+    get_effective_context,
+    safe_dict,
 )
 
 
 
 def invalidate_other_sessions(user, current_session_key):
     """
-    Esta función ya no es necesaria con el nuevo enfoque de timestamps.
-    Se mantiene para compatibilidad pero no hace nada.
+    This function is no longer needed with the new timestamp-based approach.
+    It is kept for compatibility but does nothing.
     """
     pass
 
@@ -166,7 +168,7 @@ def login_view(request):
                                     return redirect('home_timetracking')
 
                 else:
-                    # ── Login fallido ───────────────────────────────────────────
+                    # ── Failed login ───────────────────────────────────────────
                     email = form.cleaned_data.get('username', 'desconocido')
                     AuditLog.objects.create(
                         id=uuid4(),
@@ -179,7 +181,7 @@ def login_view(request):
                     )
                     messages.error(request, 'Email o contraseña incorrectos.')
             else:
-                # ── Errores de validación del formulario ────────────────────────
+                # ── Form validation errors ────────────────────────────────────────
                 email_input = request.POST.get('username', 'desconocido')
                 error_messages = ', '.join([str(e) for errors in form.errors.values() for e in errors])
                 AuditLog.objects.create(
@@ -286,8 +288,8 @@ def login_view(request):
 
 @login_required
 def logout_view(request):
-    """Cierra la sesión del usuario y redirige al login."""
-    # AUDITORÍA: Registro de logout
+    """Logs the user out and redirects to login."""
+    # AUDIT: Logout record
     user = request.user
     AuditLog.objects.create(
         id=uuid4(),
@@ -326,7 +328,7 @@ def lookup_company(request):
     company_id = request.GET.get('company_id', '').strip()
     include_created = request.GET.get('include_created', 'true').lower() == 'true'
 
-    # ── Búsqueda por company_id → obtener conteo de miembros ─────────────────
+    # ── Search by company_id -> get member count ────────────────────────────
     if company_id:
         company = Companies.objects.filter(id=company_id).first()
         if not company:
@@ -337,7 +339,7 @@ def lookup_company(request):
         result['member_count'] = member_count
         return JsonResponse({'found': True, **result})
 
-    # ── Búsqueda por nombre (autocompletado) → múltiples resultados ───────────
+    # ── Search by name (autocomplete) -> multiple results ───────────────────
     if name:
         if len(name) < 2:
             return JsonResponse({'results': []})
@@ -351,7 +353,7 @@ def lookup_company(request):
         results = [_company_to_dict(c, include_created=include_created) for c in companies]
         return JsonResponse({'results': results})
 
-    # ── Búsqueda por CIF → resultado único ────────────────────────────────────
+    # ── Search by tax ID -> single result ────────────────────────────────────
     if not tax_id:
         return JsonResponse({'error': 'Proporciona tax_id o name'}, status=400)
 
@@ -375,7 +377,7 @@ def _user_to_dict(user, include_companies=False):
     if include_companies:
         companies = UserCompany.objects.filter(
             user=user,
-            deleted_at__isnull=True  # Solo membresías activas
+            deleted_at__isnull=True
         ).select_related('company')
         result['companies'] = [
             {'id': str(c.company.id), 'name': c.company.name.title(), 'tax_id': c.company.tax_id or '--'}
@@ -391,7 +393,7 @@ def lookup_user(request):
     company_id = request.GET.get('company_id', '').strip()
     include_companies = request.GET.get('include_companies', 'false').lower() == 'true'
 
-    # Check if user is admin
+    # Check if the user is admin
     is_admin = request.user.is_admin
 
     # Build company filter
@@ -408,7 +410,7 @@ def lookup_user(request):
             return JsonResponse({'error': 'Sin empresa asignada'}, status=400)
         company_filter = {'company': company}
 
-    # ── Name search → multiple results ────────────────────────────────────────
+    # ── Name search -> multiple results ───────────────────────────────────────
     if name:
         if len(name) < 2:
             return JsonResponse({'results': []})
@@ -419,7 +421,7 @@ def lookup_user(request):
                 Users.objects
                 .filter(Q(username__icontains=name) | Q(surname__icontains=name))
                 .filter(usercompany__deleted_at__isnull=True)
-                .exclude(status='suspended')  # Exclude suspended users
+                .exclude(status='suspended')
                 .distinct()[:10]
             )
             results = [_user_to_dict(u, include_companies=include_companies) for u in users]
@@ -430,15 +432,15 @@ def lookup_user(request):
                 .filter(
                     Q(user__username__icontains=name) | Q(user__surname__icontains=name),
                     **company_filter,
-                    deleted_at__isnull=True,  # Only active memberships
+                    deleted_at__isnull=True,
                 )
-                .exclude(user__status='suspended')  # Exclude suspended users
+                .exclude(user__status='suspended')
                 .select_related('user')[:10]
             )
             results = [_user_to_dict(m.user, include_companies=include_companies) for m in memberships]
         return JsonResponse({'results': results})
 
-    # ── Email search → single result ───────────────────────────────────────────
+    # ── Email search -> single result ──────────────────────────────────────────
     if email:
         if company_filter is None:
             user = Users.objects.filter(email__iexact=email).first()
@@ -456,7 +458,7 @@ def lookup_user(request):
                 return JsonResponse({'found': False})
             return JsonResponse({'found': True, **_user_to_dict(membership.user, include_companies=include_companies)})
 
-    # ── DNI search → single result ─────────────────────────────────────────────
+    # ── DNI search -> single result ─────────────────────────────────────────────
     if dni:
         if company_filter is None:
             user = Users.objects.filter(dni__iexact=dni).first()
@@ -480,12 +482,12 @@ def lookup_user(request):
 @login_required
 def check_last_manager(request):
     """
-    Check if a user is the last manager in their company.
-    Used for frontend UX: deshabilitar dropdown de rol si es el único manager.
+    Check whether a user is the last manager in their company.
+    Used for frontend UX: disable the role dropdown if they are the only manager.
 
     Params:
-        user_id: UUID del usuario a verificar
-        company_id: UUID de la empresa (opcional, usa request.company si no se proporciona)
+        user_id: UUID of the user to verify
+        company_id: UUID of the company (optional, uses request.company if not provided)
     """
     user_id = request.GET.get('user_id', '').strip()
     company_id = request.GET.get('company_id', '').strip()
@@ -500,7 +502,7 @@ def check_last_manager(request):
         company_id = str(company.id)
 
     try:
-        # Buscar si el usuario tiene un rol en esa empresa
+        # Check whether the user has a role in that company
         membership = UserCompany.objects.filter(
             user_id=user_id,
             company_id=company_id
@@ -513,7 +515,7 @@ def check_last_manager(request):
                 'other_managers': 0
             })
 
-        # Si no es manager, no hay restricción
+        # If the user is not a manager, there is no restriction
         if membership.role != UserCompany.RoleChoices.MANAGER:
             return JsonResponse({
                 'is_manager': False,
@@ -521,7 +523,7 @@ def check_last_manager(request):
                 'other_managers': -1  # N/A
             })
 
-        # Contar otros managers en la empresa
+        # Count other managers in the company
         other_managers = UserCompany.objects.filter(
             company_id=company_id,
             role=UserCompany.RoleChoices.MANAGER
@@ -578,7 +580,6 @@ def register_unified(request):
         # Get effective context (delegation info if any)
         delegation_context = {}
         if request.user.is_admin:
-            from core.services import get_effective_context
             delegation_context = get_effective_context(request)
 
         # ── 1. Resolve company ────────────────────────────────────────────────
@@ -586,7 +587,7 @@ def register_unified(request):
             # Auditors don't need a company; skip all company validation
             company_obj = None
         elif is_admin:
-            # Check if using delegated company
+            # Check whether a delegated company is being used
             if delegation_context.get('is_delegating') and delegation_context.get('delegated_company_id'):
                 company_obj = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
                 if not company_obj:
@@ -612,14 +613,14 @@ def register_unified(request):
 
                         AuditLog.objects.create(
                             id=uuid4(),
-                            table_name='company_settings', # Importante: coincide con tu filtro de audit_company
+                            table_name='company_settings',
                             record_id=str(company_obj.id),
                             user=request.user,
                             action_type='update',
                             before=estado_anterior,
                             after=safe_dict(company_obj),
                             reason="Actualización de datos de empresa en registro unificado",
-                            source='web' # Añadido para el hash
+                            source='web'
                         )
                     else:
                         errors.append('Corrige los datos de la empresa.')
@@ -707,17 +708,15 @@ def register_unified(request):
                 ).first()
                 if membership:
                     if role and membership.role != role:
-                        # Validate that changing roles won't leave company without managers
+                        # Validate that changing roles won't leave the company without managers
                         is_valid, error_message = validate_manager_role_change(worker_user, company_obj, role)
                         if not is_valid:
                             errors.append(error_message)
                         else:
                             membership.role = role
                             membership.save(update_fields=['role'])
-                            # Send email to existing user registering in new company
                             send_existing_user_email(worker_user, company_obj, role)
                     else:
-                        # Send email to existing user registering in new company
                         send_existing_user_email(worker_user, company_obj, role)
                 else:
                     UserCompany.objects.create(
@@ -726,7 +725,7 @@ def register_unified(request):
                         company=company_obj,
                         role=role,
                     )
-                    # Send appropriate email based on user type
+                    # Send the appropriate email based on user type
                     if is_new_user and temp_password:
                         send_new_user_email(worker_user, temp_password, company_obj)
                     else:
@@ -772,11 +771,6 @@ def switch_company(request, company_id):
 @login_required
 @never_cache
 def workday(request):
-    from core.services import get_effective_context
-    from audit.models import AuditLog
-    from core.services import safe_dict
-    from uuid import uuid4
-
     delegation_context = get_effective_context(request)
 
     # Determine which user to work with
@@ -832,7 +826,7 @@ def workday(request):
                     messages.error(request, 'El formato de fecha y hora no es válido.')
                     return redirect('workday')
 
-                # Guardamos la creación en una variable para poder auditarla
+                # Store the created record in a variable so it can be audited
                 nueva_solicitud = CorrectionRequests.objects.create(
                     id=uuid4(),
                     time_entry=entry,
@@ -843,7 +837,7 @@ def workday(request):
                     status='pending',
                 )
 
-                # ---AUDITORÍA (CREACIÓN) ---
+                # --- AUDIT (CREATION) ---
                 AuditLog.objects.create(
                     id=uuid4(),
                     table_name='timetracking_correctionrequest',
@@ -853,7 +847,7 @@ def workday(request):
                     before=None,
                     after=safe_dict(nueva_solicitud),
                     reason="Nueva incidencia reportada",
-                    source='web' # Añadido para el hash
+                    source='web'
                 )
 
                 if request.headers.get('HX-Request'):
@@ -874,12 +868,11 @@ def workday(request):
             new_clock_in_str = request.POST.get('new_clock_in')
             new_clock_out_str = request.POST.get('new_clock_out')
 
-            # Buscamos la solicitud (asegurándonos de que es de este usuario y sigue pendiente)
             correction = CorrectionRequests.objects.filter(id=request_id, requester=user, status='pending').first()
 
             if correction and reason and new_clock_in_str and new_clock_out_str:
                 
-                # --- INICIO AUDITORÍA (FOTO DEL ANTES) ---
+                # --- AUDIT START (BEFORE SNAPSHOT) ---
                 estado_anterior = safe_dict(correction)
                 # ----------------------------------------
 
@@ -888,7 +881,7 @@ def workday(request):
                 correction.reason = reason
                 correction.save()
 
-                # --- INICIO AUDITORÍA (FOTO DEL DESPUÉS) ---
+                # --- AUDIT START (AFTER SNAPSHOT) ---
                 AuditLog.objects.create(
                     id=uuid4(),
                     table_name='timetracking_correctionrequest',
@@ -898,7 +891,7 @@ def workday(request):
                     before=estado_anterior,
                     after=safe_dict(correction),
                     reason="Edición de datos de la incidencia por el usuario",
-                    source='web' # Añadido para el hash
+                    source='web'
                 )
                 # -------------------------------------------
 
@@ -981,10 +974,9 @@ def workday(request):
 @require_POST
 def exportar_workday_entries(request):
     """
-    Exporta los fichajes del usuario a CSV.
-    POST params: entry_id (lista de IDs seleccionadas)
+    Exports the user's time entries to CSV.
+    POST params: entry_id (list of selected IDs)
     """
-    from core.services import get_effective_context
 
     entry_ids = request.POST.getlist('entry_id')
 
@@ -993,7 +985,7 @@ def exportar_workday_entries(request):
 
     entries = TimeEntries.objects.filter(id__in=entry_ids).select_related('user').order_by('-date', '-clock_in')
 
-    # AUDITORÍA: Exportación de fichajes personales
+    # AUDIT: Export of personal time entries
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -1007,7 +999,7 @@ def exportar_workday_entries(request):
             'cantidad': len(entry_ids),
             'ids': [str(id) for id in entry_ids],
         },
-        source='web' # Añadido para el hash
+        source='web'
     )
 
     response = HttpResponse(content_type='text/csv')
@@ -1043,8 +1035,8 @@ def exportar_workday_entries(request):
 @require_POST
 def exportar_workday_requests(request):
     """
-    Exporta las solicitudes de corrección del usuario a CSV.
-    POST params: request_id (lista de IDs seleccionadas)
+    Exports the user's correction requests to CSV.
+    POST params: request_id (list of selected IDs)
     """
 
     request_ids = request.POST.getlist('request_id')
@@ -1056,7 +1048,7 @@ def exportar_workday_requests(request):
         id__in=request_ids
     ).select_related('requester', 'time_entry').order_by('-request_date')
 
-    # AUDITORÍA: Exportación de solicitudes de corrección
+    # AUDIT: Export of correction requests
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',

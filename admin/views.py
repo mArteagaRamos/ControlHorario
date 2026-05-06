@@ -35,7 +35,7 @@ WEEKDAY = [
 def admin_dashboard(request):
     """Admin dashboard to manage companies and workers globally"""
 
-    # AUDITORÍA: Acceso al panel de administración
+    # AUDIT: Access to the admin dashboard
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -113,7 +113,7 @@ def admin_dashboard(request):
 @require_POST
 def exportar_deleted_records(request):
     """
-    Exporta registros eliminados agrupados por tipo a CSV.
+    Exports deleted records grouped by type to CSV.
     POST params: record_type (users, companies, user_companies, corrections, time_entries, time_events)
     """
 
@@ -214,8 +214,8 @@ def exportar_deleted_records(request):
     if not records.exists():
         return HttpResponse("No hay registros de este tipo para exportar.")
 
-    # AUDITORÍA: Exportación de registros eliminados (solo admin)
-    record_ids = [str(r.id) for r in records[:50]]  # Primeros 50 IDs
+    # AUDIT: Export of deleted records (admin only)
+    record_ids = [str(r.id) for r in records[:50]]
     AuditLog.objects.create(
         id=uuid4(),
         table_name='user_action',
@@ -253,12 +253,12 @@ def exportar_deleted_records(request):
 @require_POST
 def select_delegated_worker(request):
     """
-    Admin selecciona un trabajador para delegar las acciones.
-    Guarda user_id, name y company_id en sesión.
+    Admin selects a worker to delegate actions.
+    Stores user_id, name, and company_id in the session.
 
     POST params:
-        worker_id: UUID del usuario a delegar
-        company_id: UUID de la empresa donde se actúa
+        worker_id: UUID of the user to delegate to
+        company_id: UUID of the company where actions are performed
     """
     worker_id = request.POST.get('worker_id', '').strip()
     company_id = request.POST.get('company_id', '').strip()
@@ -269,17 +269,17 @@ def select_delegated_worker(request):
     if not company_id:
         return JsonResponse({'error': 'company_id es obligatorio'}, status=400)
 
-    # Validar que el usuario existe
+    # Validate that the user exists
     delegated_user = Users.objects.filter(id=worker_id).first()
     if not delegated_user:
         return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
 
-    # Validar que la empresa existe
+    # Validate that the company exists
     delegated_company = Companies.objects.filter(id=company_id).first()
     if not delegated_company:
         return JsonResponse({'error': 'Empresa no encontrada'}, status=404)
 
-    # Validar que el usuario pertenece a esa empresa
+    # Validate that the user belongs to that company
     membership = UserCompany.objects.filter(
         user=delegated_user,
         company=delegated_company
@@ -287,7 +287,7 @@ def select_delegated_worker(request):
     if not membership:
         return JsonResponse({'error': 'El usuario no pertenece a esa empresa'}, status=403)
 
-    # Guardar en sesión
+    # Save in session
     request.session['delegated_user_id'] = str(worker_id)
     request.session['delegated_user_name'] = delegated_user.username.title()
     request.session['delegated_company_id'] = str(company_id)
@@ -301,8 +301,8 @@ def select_delegated_worker(request):
 @require_POST
 def clear_delegated_worker(request):
     """
-    Admin cancela la delegación de usuario.
-    Limpia las variables de sesión asociadas.
+    Admin cancels user delegation.
+    Clears the associated session variables.
     """
     request.session.pop('delegated_user_id', None)
     request.session.pop('delegated_user_name', None)
@@ -319,8 +319,8 @@ def clear_delegated_worker(request):
 @admin_only_required
 def deleted_records(request):
     """
-    Vista para mostrar todos los registros eliminados (soft-deleted) agrupados por tipo.
-    Solo accesible para administradores.
+    View to show all deleted (soft-deleted) records grouped by type.
+    Accessible only to administrators.
     """
     # Get all deleted records by type
     deleted_users = Users.objects.only_deleted().order_by('-deleted_at')
@@ -330,7 +330,7 @@ def deleted_records(request):
     deleted_time_entries = TimeEntries.objects.only_deleted().order_by('-deleted_at')
     deleted_time_events = TimeEntryEvent.objects.only_deleted().order_by('-deleted_at')
 
-    # Para cada usuario eliminado, obtener sus empresas asociadas (incluyendo membresías eliminadas)
+    # For each deleted user, fetch their associated companies (including deleted memberships)
     users_with_companies = []
     for user in deleted_users:
         companies = Companies.objects.all_with_deleted().filter(
@@ -365,12 +365,12 @@ def deleted_records(request):
 @require_POST
 def restore_record(request):
     """
-    Restaura un registro eliminado (soft-deleted).
-    Solo accesible para administradores.
+    Restores a deleted (soft-deleted) record.
+    Accessible only to administrators.
 
     POST params:
-        record_type: Tipo de registro (users, companies, user_companies, company_settings, corrections, time_entries, time_events)
-        record_id: UUID del registro a restaurar
+        record_type: Type of record (users, companies, user_companies, company_settings, corrections, time_entries, time_events)
+        record_id: UUID of the record to restore
     """
     record_type = request.POST.get('record_type', '').strip()
     record_id = request.POST.get('record_id', '').strip()
@@ -453,12 +453,12 @@ def restore_record(request):
 @require_POST
 def permanently_delete_record(request):
     """
-    Elimina permanentemente un registro eliminado (hard-delete).
-    Solo accesible para administradores.
+    Permanently deletes a deleted record (hard-delete).
+    Accessible only to administrators.
 
     POST params:
-        record_type: Tipo de registro
-        record_id: UUID del registro a eliminar permanentemente
+        record_type: Type of record
+        record_id: UUID of the record to permanently delete
     """
     record_type = request.POST.get('record_type', '').strip()
     record_id = request.POST.get('record_id', '').strip()
@@ -505,11 +505,11 @@ def permanently_delete_record(request):
 @require_POST
 def delete_company(request):
     """
-    Elimina una empresa (soft-delete) y todas sus membresías asociadas.
-    Solo accesible para administradores.
+    Deletes a company (soft-delete) and all its associated memberships.
+    Accessible only to administrators.
 
     POST params:
-        company_id: UUID de la empresa a eliminar
+        company_id: UUID of the company to delete
     """
     company_id = request.POST.get('company_id', '').strip()
 
@@ -529,7 +529,7 @@ def delete_company(request):
             messages.warning(request, "Esta empresa ya ha sido eliminada.")
             return redirect('admin_dashboard')
 
-        # Mark company as deleted
+        # Mark the company as deleted
         company.deleted_at = timezone.now()
         company.save(update_fields=['deleted_at'])
 
@@ -545,14 +545,14 @@ def delete_company(request):
                 deleted_at__isnull=True
             ).count()
 
-            # If this is the only active membership, mark user as suspended
+            # If this is the only active membership, mark the user as suspended
             if active_memberships == 1:
                 user = membership.user
                 user.status = 'suspended'
                 user.save(update_fields=['status'])
                 suspended_users_count += 1
 
-            # Mark membership as deleted
+            # Mark the membership as deleted
             membership.deleted_at = timezone.now()
             membership.save(update_fields=['deleted_at'])
 

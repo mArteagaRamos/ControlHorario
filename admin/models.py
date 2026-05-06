@@ -9,16 +9,16 @@ from core.managers import SoftDeleteManager
 from users.models import Companies
 
 
-# Detectar si estamos ejecutando tests
+# Detect whether tests are being run
 is_testing = 'test' in sys.argv
 
-# Elegir el tipo de campo según el modo
+# Choose the field type based on the runtime mode
 if is_testing:
-    # En tests con SQLite, usar JSONField (compatible)
+    # In tests with SQLite, use JSONField (compatible)
     weekend_days_field = models.JSONField(default=list, blank=True)
     holidays_field = models.JSONField(default=list, blank=True)
 else:
-    # En producción con PostgreSQL, usar ArrayField
+    # In production with PostgreSQL, use ArrayField
     weekend_days_field = ArrayField(models.IntegerField(), default=list, blank=True)
     holidays_field = ArrayField(models.DateField(), default=list, blank=True)
 

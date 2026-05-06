@@ -14,7 +14,7 @@ import uuid
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import os
-from users.models import Users, UserCompany
+from users.models import Users, UserCompany, Companies
 from timetracking.models import TimeEntries
 from corrections.models import LeaveRequest, CorrectionRequests
 from audit.models import AuditLog
@@ -308,18 +308,27 @@ def eliminar_incidencia_rechazada(request):
 
 @manager_or_admin_with_delegation_check
 def api_leave_pending(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     try:
         company = get_company(request)
+
+        # Si hay delegación, mostrar solicitudes de la empresa delegada
+        if delegation_context['is_delegating']:
+            company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+            if not company:
+                return JsonResponse({'error': 'Empresa delegada no encontrada'}, status=400)
+
         leaves = LeaveRequest.objects.filter(
-            company=company, 
+            company=company,
             status=LeaveRequest.LeaveStatus.PENDING
         ).select_related('user')
 
         data = []
         for l in leaves:
-            # Según tu users/models.py, los campos son 'username' y 'surname'
             full_name = f"{l.user.username.title()} {l.user.surname.title()}".strip()
-            
+
             data.append({
                 'id':           str(l.id),
                 'user':         full_name or l.user.email.lower(),
@@ -330,12 +339,11 @@ def api_leave_pending(request):
                 'end_date':     l.end_date.strftime('%d/%m/%Y'),
                 'reason_note':  l.reason_note or ""
             })
-        
-        # IMPORTANTE: Envolver en un diccionario {'requests': ...} para calendar.html
+
         return JsonResponse({'requests': data})
 
     except Exception as e:
-        print(f"DEBUG ERROR: {str(e)}") 
+        print(f"DEBUG ERROR: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -403,11 +411,14 @@ def api_leave_review(request, leave_id):
 
 @login_required
 def api_leave_resolved(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     company = get_company(request)
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    user_is_manager = is_manager(request, company)  # ← Bug 1 corregido
+    user_is_manager = is_manager(request, company)
     user_id         = request.GET.get('user_id', '')
 
     resolved_statuses = [
@@ -421,16 +432,23 @@ def api_leave_resolved(request):
         status__in=resolved_statuses,
     ).select_related('user', 'reviewed_by').order_by('-updated_at')
 
-    if user_is_manager and user_id == 'all':      # ← renombrado
+    if user_is_manager and user_id == 'all':
         leaves = base_qs[:50]
-    elif user_is_manager and user_id:             # ← renombrado
+    elif user_is_manager and user_id:
         try:
             target = get_object_or_404(Users, id=user_id)
         except Exception:
             return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
         leaves = base_qs.filter(user=target)[:30]
     else:
-        leaves = base_qs.filter(user=request.user)[:30]
+        # Si hay delegación, mostrar solicitudes del usuario delegado
+        if delegation_context['is_delegating']:
+            delegated_user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+            if not delegated_user:
+                return JsonResponse({'error': 'Usuario delegado no encontrado'}, status=400)
+            leaves = base_qs.filter(user=delegated_user)[:30]
+        else:
+            leaves = base_qs.filter(user=request.user)[:30]
 
     show_user_col: bool = user_is_manager and user_id == 'all'
 
@@ -453,11 +471,14 @@ def api_leave_resolved(request):
 
     return JsonResponse({
         'requests':      data,
-        'show_user_col': is_manager and user_id == 'all',
+        'show_user_col': user_is_manager and user_id == 'all',
     })
 
 @login_required
 def api_calendar_events(request):
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
     company = get_company(request)
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
@@ -488,9 +509,9 @@ def api_calendar_events(request):
         'approved': LeaveRequest.LeaveStatus.APPROVED,
         'rejected': LeaveRequest.LeaveStatus.REJECTED,
     }
-    
+
     filtered_statuses = [status_mapping[s] for s in statuses if s in status_mapping]
-    
+
     if not filtered_statuses:
         filtered_statuses = [LeaveRequest.LeaveStatus.PENDING, LeaveRequest.LeaveStatus.APPROVED]
 
@@ -520,7 +541,8 @@ def api_calendar_events(request):
         for leave in leaves:
             events.append({
                 'id': f'leave-{leave.id}',
-                'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',                'start': leave.start_date.isoformat(),
+                'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',
+                'start': leave.start_date.isoformat(),
                 'end': (leave.end_date + timedelta(days=1)).isoformat(),
                 'color': STATUS_COLOR.get(leave.status, '#6b7280'),
                 'allDay': True,
@@ -534,12 +556,18 @@ def api_calendar_events(request):
         return JsonResponse(events, safe=False)
 
     # ── Empleado concreto (manager) o usuario propio ──────────────────────
-    target_user = request.user
-    if user_id and check_is_manager(request, company):
-        try:
-            target_user = get_object_or_404(Users, id=user_id)
-        except:
-            return JsonResponse({'error': 'Invalid User ID'}, status=400)
+    # Si hay delegación, usar el usuario delegado
+    if delegation_context['is_delegating']:
+        target_user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        if not target_user:
+            return JsonResponse({'error': 'Usuario delegado no encontrado'}, status=400)
+    else:
+        target_user = request.user
+        if user_id and check_is_manager(request, company):
+            try:
+                target_user = get_object_or_404(Users, id=user_id)
+            except:
+                return JsonResponse({'error': 'Invalid User ID'}, status=400)
 
     leaves = LeaveRequest.objects.filter(
         user=target_user,
@@ -636,46 +664,56 @@ def api_validate_leave_overlap(request):
 @login_required
 @require_POST
 def api_leave_request_create(request):
-    company = get_company(request)
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to create the request for
+    if delegation_context['is_delegating']:
+        user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+        if not user or not company:
+            return JsonResponse({'error': 'Usuario o empresa delegada no encontrada'}, status=400)
+    else:
+        user = request.user
+        company = get_company(request)
+
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
- 
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
- 
+
     start_date = data.get('start_date')
     end_date   = data.get('end_date')
     leave_type = data.get('leave_type', 'other')
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
- 
-    
-    
+
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
- 
+
     try:
         start = date.fromisoformat(start_date)
         end   = date.fromisoformat(end_date)
     except ValueError:
         return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
- 
+
     if end < start:
         return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
- 
+
     if start < date.today():
         return JsonResponse({'error': 'No puedes solicitar días anteriores a hoy'}, status=400)
-    
+
     if leave_type not in LeaveRequest.LeaveType.values:
         return JsonResponse({'error': 'Tipo de solicitud no válido'}, status=400)
- 
+
     if leave_reason not in LeaveRequest.LeaveReason.values:
         return JsonResponse({'error': 'Motivo no válido'}, status=400)
- 
+
     leave = LeaveRequest.objects.create(
-        user         = request.user,
+        user         = user,
         company      = company,
         leave_type   = leave_type,
         leave_reason = leave_reason,
@@ -684,12 +722,12 @@ def api_leave_request_create(request):
         end_date     = end,
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
- 
-    # AUDITORÍA: Creación
+
+    # AUDITORÍA: Creación (registrada bajo el usuario delegado o el actual)
     log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
-               reason=reason_note or 'Solicitud creada por el empleado',
-               source='web') # Añadido
-    
+               reason=reason_note or 'Solicitud creada desde calendario',
+               source='web')
+
     return JsonResponse({
         'ok':      True,
         'id':      str(leave.id),

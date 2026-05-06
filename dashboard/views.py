@@ -36,10 +36,24 @@ WEEKDAY = [
 @login_required
 @auditor_cannot_access
 def calendar(request):
-    company = get_company(request)
+    from core.services import get_effective_context
+
+    delegation_context = get_effective_context(request)
+
+    # Determine which user to work with
+    if delegation_context['is_delegating']:
+        user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+        if not user or not company:
+            messages.error(request, 'Usuario o empresa delegada no encontrada.')
+            return redirect('calendar')
+    else:
+        user = request.user
+        company = get_company(request)
+
     is_manager = check_is_manager(request, company)
 
-    # ── Lógica de POST (Igual que en workday) ──
+    # ── Lógica de POST ──
     if request.method == 'POST':
         leave_type   = request.POST.get('leave_type')
         leave_reason = request.POST.get('leave_reason')
@@ -54,7 +68,7 @@ def calendar(request):
                 end   = parse_date(end_date_str)
 
                 leave = LeaveRequest.objects.create(
-                    user=request.user,
+                    user=user,
                     company=company,
                     leave_type=leave_type,
                     leave_reason=leave_reason,
@@ -63,14 +77,14 @@ def calendar(request):
                     reason_note=reason_note,
                     status=LeaveRequest.LeaveStatus.PENDING
                 )
-                
+
                 log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
                            reason=reason_note or 'Solicitud creada desde calendario',
                            source='web')
 
                 if request.headers.get('HX-Request'):
                     return HttpResponse(status=204)
-                
+
                 messages.success(request, 'Solicitud enviada correctamente.')
                 return redirect('calendar')
             except Exception as e:
@@ -82,11 +96,11 @@ def calendar(request):
     team = []
     if is_manager:
         team = UserCompany.objects.filter(company=company).select_related('user')
-    
+
     pending_count = LeaveRequest.objects.filter(
         company=company, status=LeaveRequest.LeaveStatus.PENDING
     ).count() if is_manager else 0
-    
+
     context = {
         'is_manager': is_manager,
         'team': team,
@@ -100,6 +114,7 @@ def calendar(request):
             if v in ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
         ],
     }
+    context.update(delegation_context)
     # Asegúrate de que la ruta al HTML sea la correcta según tu estructura
     return render(request, 'dashboard/calendar.html', context)
 

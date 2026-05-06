@@ -4,7 +4,6 @@ import secrets
 import string
 
 from django import forms
-from django.contrib.auth.forms import AuthenticationForm
 from users.models import Users, Companies, UserCompany
 
 
@@ -72,8 +71,6 @@ class _UserBaseForm(forms.ModelForm):
             'dni':      forms.TextInput(attrs={'class': 'form-control'}),
             'email':    forms.EmailInput(attrs={'class': 'form-control'}),
             'status':   forms.Select(attrs={'class': 'form-control'}),
-            # TextInput instead of PasswordInput: prevents Django from dropping
-            # the field value while processing POST.
             'password': forms.TextInput(attrs={
                 'class':    'form-control font-monospace',
                 'readonly': True,

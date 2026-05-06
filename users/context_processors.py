@@ -1,5 +1,4 @@
 # Context processor to add current company and breadcrumbs to templates
-from django.urls import reverse
 
 
 # Labels for URL names - maps route names to display labels
