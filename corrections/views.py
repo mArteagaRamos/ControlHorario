@@ -3,7 +3,7 @@
 import csv
 import json
 from datetime import date, timedelta
-from pyexpat.errors import messages
+from django.contrib import messages
 from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
@@ -756,4 +756,3 @@ def api_leave_request_cancel(request, leave_id):
                source='web') # Añadido
 
     return JsonResponse({'ok': True})
-
