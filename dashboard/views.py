@@ -18,7 +18,7 @@ from audit.models import AuditLog
 from uuid import uuid4
 
 # Import centralized decorators and services
-from core.decorators import auditor_cannot_access, manager_or_admin_with_delegation_check
+from core.decorators import auditor_cannot_access
 from core.services import get_company, is_manager as check_is_manager, log_leave, get_effective_context
 
 WEEKDAY = [
@@ -195,8 +195,6 @@ def security(request):
 
     return render(request, 'dashboard/security.html', context)
 
- 
-# ── Team views ───────────────────────────────────────────────────────────
 
 @login_required
 def notes(request):

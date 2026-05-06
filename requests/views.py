@@ -19,7 +19,7 @@ from timetracking.models import TimeEntries
 from requests.models import LeaveRequest, CorrectionRequests
 from audit.models import AuditLog
 from audit.utils import safe_dict
-from core.decorators import manager_or_admin_with_delegation_check
+from core.decorators import login_required_with_delegation_support
 from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
 from core.services import is_manager as check_is_manager
 
@@ -28,7 +28,7 @@ from core.services import is_manager as check_is_manager
 # CORRECTION REQUESTS MANAGEMENT
 # =============================================================================
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def resolver_incidencia(request):
     if request.method == 'POST':
         # Get effective context (delegation info if any)
@@ -120,7 +120,7 @@ def resolver_incidencia(request):
     return HttpResponse("Método no permitido.")
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def exportar_logs_rechazadas(request):
     """
@@ -188,7 +188,7 @@ def exportar_logs_rechazadas(request):
     return response
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def editar_incidencia_rechazada(request):
     """
@@ -260,7 +260,7 @@ def editar_incidencia_rechazada(request):
     return redirect('manager_logs')
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def eliminar_incidencia_rechazada(request):
     """
@@ -310,7 +310,7 @@ def eliminar_incidencia_rechazada(request):
 # LEAVE REQUESTS MANAGEMENT
 # =============================================================================
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def api_leave_pending(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
@@ -353,7 +353,7 @@ def api_leave_pending(request):
 
 
 @login_required
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def api_leave_review(request, leave_id):
     """Manager aprueba o rechaza una solicitud."""

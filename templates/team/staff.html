@@ -60,7 +60,7 @@
             <button type="submit" form="exportFormEmpleados" id="btnExportarEmpleados" class="std-btn d-flex align-items-center gap-2" disabled>
                 <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
             </button>
-            {% if is_manager %}
+            {% if user_role == 'manager' or user_role == 'admin' %}
             <a href="{% url 'register_unified' %}" class="btn btn-primary std-btn d-flex align-items-center gap-2">
                 <i class="bi bi-person-plus-fill"></i> Añadir Empleado
             </a>
@@ -113,8 +113,8 @@
                             <th class="py-3">Rol</th>
                             <th class="py-3">Estado</th>
                             <th class="py-3">Fecha de Ingreso</th>
-                            <th class="py-3">Último Acceso</th>
-                            {% if is_manager %}<th class="py-3">Acciones</th>{% endif %}
+                            {% if user_role == 'manager' or user_role == 'admin' %}<th class="py-3">Último Acceso</th>{% endif %}
+                            {% if user_role == 'manager' or user_role == 'admin' %}<th class="py-3">Acciones</th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -154,7 +154,8 @@
                                 {% endif %}
                             </td>
                             <td data-label="Ingreso">{{ membership.joined_at|date:"d/m/Y" }}</td>
-                            
+
+                            {% if user_role == 'manager' or user_role == 'admin' %}
                             <td data-label="Último Acceso">
                                 {% if membership.user.last_login %}
                                     {{ membership.user.last_login|date:"d/m/Y H:i" }}
@@ -162,22 +163,23 @@
                                     <span class="text-muted fst-italic">Nunca</span>
                                 {% endif %}
                             </td>
-                            
-                            {% if is_manager %}
+                            {% endif %}
+
+                            {% if user_role == 'manager' or user_role == 'admin' %}
                             <td data-label="Acciones">
                                 <div class="d-flex acciones-movil gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-primary std-btn-secondary js-edit-btn"
                                         data-bs-toggle="modal" data-bs-target="#modalEditarTrabajador"
                                         data-id="{{ membership.user.id }}"
-                                        data-nombre="{{ membership.user.username }}"
-                                        data-apellidos="{{ membership.user.surname }}"
-                                        data-email="{{ membership.user.email|lower }}"
+                                        data-nombre="{{ membership.user.username|default:'' }}"
+                                        data-apellidos="{{ membership.user.surname|default:'' }}"
+                                        data-email="{{ membership.user.email|lower|default:'' }}"
                                         data-rol="{{ membership.role }}"
                                         data-estado="{{ membership.user.status }}"
                                         title="Editar Empleado">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    
+
                                     <button type="button" class="btn btn-sm btn-outline-danger std-btn-secondary js-delete-btn"
                                         data-bs-toggle="modal" data-bs-target="#modalEliminar"
                                         data-id="{{ membership.user.id }}"
@@ -222,7 +224,7 @@
     </div>
 </div>
 
-{% if is_manager %}
+{% if user_role == 'manager' or user_role == 'admin' %}
 <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">

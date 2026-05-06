@@ -184,8 +184,11 @@
         btn.textContent = editing ? 'Cancelar' : 'Editar';
         btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
       }
+    </script>
+    {% endif %}
 
-      // Clear delegation function
+    <script>
+      // Clear delegation function (always available)
       async function clearDelegation() {
         const response = await fetch("{% url 'clear_delegated_worker' %}", {
             method: 'POST',
@@ -196,7 +199,6 @@
         }
       }
     </script>
-    {% endif %}
 
 </div>
 {% endblock %}

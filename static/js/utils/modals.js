@@ -22,7 +22,14 @@ export function fillFormFromDataset(mapping, sourceElement) {
     Object.entries(mapping).forEach(([fieldId, datasetKey]) => {
         const field = document.getElementById(fieldId);
         if (field) {
-            field.value = sourceElement.dataset[datasetKey] || '';
+            const value = sourceElement.dataset[datasetKey] || '';
+            // Si es un input, asigna el valor
+            if (field.tagName === 'INPUT' || field.tagName === 'SELECT' || field.tagName === 'TEXTAREA') {
+                field.value = value;
+            } else {
+                // Si es otro elemento (span, strong, div, etc.), asigna como texto
+                field.textContent = value;
+            }
         }
     });
 }
