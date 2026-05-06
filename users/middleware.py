@@ -105,10 +105,10 @@ class NavigationHistoryMiddleware:
 
 class InactiveUserVerificationMiddleware:
     """
-    Middleware para verificar y revertir automáticamente el status de usuarios inactivos
-    cuyas vacaciones/ausencias han expirado (verificación Lazy).
+    Middleware to verify and automatically revert the status of inactive users
+    whose vacations/absences have expired (lazy verification).
 
-    Se ejecuta en cada request si el usuario está autenticado e inactivo.
+    It runs on each request if the user is authenticated and inactive.
     """
 
     def __init__(self, get_response):
@@ -117,30 +117,30 @@ class InactiveUserVerificationMiddleware:
     def __call__(self, request):
         if request.user.is_authenticated:
             try:
-                # Obtener el usuario Django y verificar si está inactivo
+                # Get the Django user and check whether it is inactive
                 django_user = request.user
                 user = Users.objects.filter(email=django_user.email).first()
 
                 if user and user.status == Users.StatusChoices.INACTIVE:
-                    # Verificar si hay leaves aprobadas activas (end_date >= hoy)
+                    # Check whether there are active approved leaves (end_date >= today)
                     from corrections.models import LeaveRequest
                     today = date.today()
 
-                    # Buscar si tiene alguna leave aprobada vigente
+                    # Check whether there is any active approved leave
                     active_leave = LeaveRequest.objects.filter(
                         user=user,
                         status=LeaveRequest.LeaveStatus.APPROVED,
                         end_date__gte=today
                     ).exists()
 
-                    # Si NO hay leaves aprobadas activas, revertir a 'active'
+                    # If there are no active approved leaves, revert to 'active'
                     if not active_leave:
                         Users.objects.filter(id=user.id).update(
                             status=Users.StatusChoices.ACTIVE
                         )
 
             except Exception:
-                # Si algo falla, simplemente continuar sin romper el request
+                # If something fails, continue without breaking the request
                 pass
 
         return self.get_response(request)

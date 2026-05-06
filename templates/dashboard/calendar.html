@@ -12,6 +12,15 @@
 
 {% block content %}
 <div class="cal-page">
+  {% if is_delegating %}
+  <div class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="position: relative;">
+    <small>
+      <i class="bi bi-exclamation-circle"></i>
+      <strong>Actuando como:</strong> {{ delegated_user_name }} <i class="bi bi-building ms-2"></i> {{ delegated_company_name }}
+      <button type="button" class="btn-close" onclick="clearDelegation()">×</button>
+    </small>
+  </div>
+  {% endif %}
   {% if is_manager and pending_count > 0 %}
   <div class="pending-banner" id="pendingBanner">
     <span>Tienes <strong>{{ pending_count }}</strong> solicitud{{ pending_count|pluralize:",es" }} pendiente{{ pending_count|pluralize:"s" }} de revisión.</span>
@@ -289,6 +298,21 @@
   let currentLeaveId   = null;                          // ID de solicitud en modal
   window._leaveDataMap = {};                            // Mapa de datos de solicitudes
   window.selectedStatuses = ['pending', 'approved'];    // Filtros de estado por defecto
+
+  // ════════════════════════════════════════════════════════════════════════════════
+  // DELEGACIÓN - Limpiar delegación
+  // ════════════════════════════════════════════════════════════════════════════════
+
+  async function clearDelegation() {
+    const response = await fetch("{% url 'clear_delegated_worker' %}", {
+      method: 'POST',
+      headers: {'X-CSRFToken': '{{ csrf_token }}'}
+    });
+    if (response.ok) {
+      location.reload();
+    }
+  }
+
 </script>
 
 <!-- ════════════════════════════════════════════════════════════════════════════════ -->

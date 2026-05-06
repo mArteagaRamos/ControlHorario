@@ -8,17 +8,18 @@ from core.model_normalization import UppercaseNormalizationMixin
 from core.managers import SoftDeleteManager
 from users.models import Companies
 
-# Detectar si estamos ejecutando tests
+
+# Detect whether tests are being run
 is_testing = 'test' in sys.argv
 
-# Elegir el tipo de campo según el modo para no tocar producción
+# Choose the field type based on the runtime mode
 if is_testing:
-    # En tests con SQLite
+    # In tests with SQLite, use JSONField
     weekend_days_field = models.JSONField(default=list, blank=True)
     holidays_field = models.JSONField(default=list, blank=True)
     tolerance_field = models.DurationField(default=timedelta(minutes=15))
 else:
-    # En producción con PostgreSQL
+    # In production with PostgreSQL, use ArrayField
     weekend_days_field = ArrayField(models.IntegerField(), default=list, blank=True)
     holidays_field = ArrayField(models.DateField(), default=list, blank=True)
     tolerance_field = models.DurationField(default='00:15:00')
