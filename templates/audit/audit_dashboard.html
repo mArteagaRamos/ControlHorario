@@ -26,7 +26,7 @@
                     <h1 class="display-4 mb-3" style="color: #1a1f2e;"><i class="fas fa-clock"></i></h1>
                     <h4 class="card-title text-dark">Auditoría de Jornadas</h4>
                     <p class="card-text text-muted">Entradas, salidas, pausas, cierres automáticos y modificaciones manuales de jornada.</p>
-                    <a href="{% url 'audit_fichajes' %}" class="std-btn mt-3 text-center">
+                    <a href="{% url 'audit_timetracking' %}" class="std-btn mt-3 text-center">
                         Ver Registros
                     </a>
                 </div>
@@ -39,7 +39,7 @@
                     <h1 class="display-4 mb-3" style="color: #1a1f2e;"><i class="fas fa-calendar-alt"></i></h1>
                     <h4 class="card-title text-dark">Vacaciones y Ausencias</h4>
                     <p class="card-text text-muted">Creación de solicitudes, aprobaciones, rechazos y modificaciones de días libres.</p>
-                    <a href="{% url 'audit_vacaciones' %}" class="std-btn mt-3 text-center">
+                    <a href="{% url 'audit_leave' %}" class="std-btn mt-3 text-center">
                         Ver Registros
                     </a>
                 </div>
@@ -52,7 +52,7 @@
                     <h1 class="display-4 mb-3" style="color: #1a1f2e;"><i class="fas fa-users"></i></h1>
                     <h4 class="card-title text-dark">Auditoría de Usuarios</h4>
                     <p class="card-text text-muted">Altas, bajas, cambios de permisos, modificaciones de datos personales y accesos.</p>
-                    <a href="{% url 'audit_usuarios' %}" class="std-btn mt-3 text-center">
+                    <a href="{% url 'audit_users' %}" class="std-btn mt-3 text-center">
                         Ver Registros
                     </a>
                 </div>
@@ -65,7 +65,7 @@
                     <h1 class="display-4 mb-3" style="color: #1a1f2e;"><i class="fas fa-exclamation-triangle"></i></h1>
                     <h4 class="card-title text-dark">Auditoría de Incidencias</h4>
                     <p class="card-text text-muted">Registro de errores, tickets de soporte, cambios de estado en incidencias y resoluciones.</p>
-                    <a href="{% url 'audit_incidencias' %}" class="std-btn mt-3 text-center">
+                    <a href="{% url 'audit_corrections' %}" class="std-btn mt-3 text-center">
                         Ver Registros
                     </a>
                 </div>

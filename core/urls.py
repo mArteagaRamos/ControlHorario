@@ -110,10 +110,10 @@ urlpatterns = [
     # AUDIT - READ-ONLY LOGS (audit/)
     # ════════════════════════════════════════════════════════════════════════
     path('audit/', audit_views.audit_dashboard, name='audit_dashboard'),
-    path('audit/logs/', audit_views.audit_fichajes, name='audit_fichajes'),
-    path('audit/leave/', audit_views.audit_vacaciones, name='audit_vacaciones'),
-    path('audit/users/', audit_views.audit_usuarios, name='audit_usuarios'),
-    path('audit/corrections/', audit_views.audit_incidencias, name='audit_incidencias'),
+    path('audit/logs/', audit_views.audit_timetracking, name='audit_timetracking'),
+    path('audit/leave/', audit_views.audit_leave, name='audit_leave'),
+    path('audit/users/', audit_views.audit_users, name='audit_users'),
+    path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
 

@@ -21,36 +21,36 @@ class AuditLog(UppercaseNormalizationMixin, models.Model):
     after = models.JSONField(blank=True, null=True)
     reason = models.TextField(blank=True, null=True)
     timestamp = models.DateTimeField(default=timezone.now)
-    # Campo añadido según el documento
+    # Field added according to the document
     source = models.CharField(max_length=50, default='web') 
 
-    # Nuevos campos de auditoría
+    # New audit fields
     previous_hash = models.CharField(max_length=64, blank=True, null=True)
     event_hash = models.CharField(max_length=64, blank=True, null=True)
 
     class Meta:
-        managed = False  # Mantener como False ya que gestionas la DB manualmente
+        managed = False  # Keep as False since you manage the DB manually
         db_table = 'audit_log'
 
     def calcular_event_hash(self, payload: dict) -> str:
         """
-        Función única para calcular el hash siguiendo las reglas del documento.
+        Unique function to calculate the hash following the document rules.
         """
-        # Serialización estricta: claves ordenadas, sin caracteres ASCII innecesarios y separadores compactos
+        # Strict serialization: sorted keys, no unnecessary ASCII characters and compact separators
         texto = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"), default=str)
-        # Conversión a bytes UTF-8 y SHA-256
+        # Conversion to UTF-8 bytes and SHA-256
         return hashlib.sha256(texto.encode("utf-8")).hexdigest()
 
     def save(self, *args, **kwargs):
-        # Impedir la edición de registros existentes
+        # Prevent editing of existing records
         if self.pk and AuditLog.objects.filter(pk=self.pk).exists():
-            raise PermissionError("Los registros de auditoría no se pueden editar.")
+            raise PermissionError("Audit records cannot be edited.")
 
-        # 1. Buscar el último registro para obtener el previous_hash
+        # 1. Find the last record to get the previous_hash
         last_log = AuditLog.objects.order_by('-timestamp', '-id').first()
         self.previous_hash = last_log.event_hash if last_log else None
 
-        # 2. Preparar el payload con los datos exactos requeridos
+        # 2. Prepare the payload with the exact required data
         payload = {
             "id": str(self.id),
             "action_type": self.action_type,
@@ -65,7 +65,7 @@ class AuditLog(UppercaseNormalizationMixin, models.Model):
             "previous_hash": self.previous_hash
         }
 
-        # 3. Calcular y guardar el event_hash
+        # 3. Calculate and save the event_hash
         self.event_hash = self.calcular_event_hash(payload)
         
         super().save(*args, **kwargs)
