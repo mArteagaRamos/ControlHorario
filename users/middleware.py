@@ -1,5 +1,9 @@
 from .models import UserCompany, Users
 from datetime import date
+from requests.models import LeaveRequest
+from datetime import datetime
+from django.urls import resolve
+from django.contrib.auth import logout
 
 class CompanyMiddleware:
 
@@ -57,7 +61,6 @@ class NavigationHistoryMiddleware:
         if request.user.is_authenticated:
             try:
                 # Manually resolve the URL to get the url name
-                from django.urls import resolve
                 match = resolve(request.path)
                 url_name = match.url_name
 
@@ -123,7 +126,6 @@ class InactiveUserVerificationMiddleware:
 
                 if user and user.status == Users.StatusChoices.INACTIVE:
                     # Check whether there are active approved leaves (end_date >= today)
-                    from corrections.models import LeaveRequest
                     today = date.today()
 
                     # Check whether there is any active approved leave
@@ -160,8 +162,6 @@ class SessionValidationMiddleware:
     def __call__(self, request):
         if request.user.is_authenticated:
             try:
-                from datetime import datetime
-
                 # Get fresh user data from DB
                 user = Users.objects.filter(id=request.user.id).first()
 
@@ -177,7 +177,6 @@ class SessionValidationMiddleware:
                         # If timestamps don't match, this is an old session (user logged in elsewhere)
                         if session_timestamp != db_timestamp:
                             # Invalidate this session by logging out
-                            from django.contrib.auth import logout
                             logout(request)
             except Exception:
                 # If anything fails, just continue - don't break the request

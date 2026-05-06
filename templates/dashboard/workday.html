@@ -146,7 +146,7 @@
             </h5>
 
             <div class="table-responsive table-scroll-container" id="entryTableContainer" style="border-radius: 0.5rem;">
-                <form id="exportFormEntries" action="{% url 'exportar_workday_entries' %}" method="POST">
+                <form id="exportFormEntries" action="{% url 'export_workday_entries' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="entryTable">
                         <thead class="table-light">
@@ -225,7 +225,7 @@
             </h5>
 
             <div class="table-responsive table-scroll-container" id="requestTableContainer" style="border-radius: 0.5rem;">
-                <form id="exportFormRequests" action="{% url 'exportar_workday_requests' %}" method="POST">
+                <form id="exportFormRequests" action="{% url 'export_workday_requests' %}" method="POST">
                     {% csrf_token %}
                     <table class="table align-middle" id="requestTable">
                         <thead class="table-light">

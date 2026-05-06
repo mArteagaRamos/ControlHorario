@@ -36,8 +36,8 @@ urlpatterns = [
 
     # Personal Time Tracking
     path('workday/', user_views.workday, name='workday'),
-    path('workday/exportar_entries/', user_views.exportar_workday_entries, name='exportar_workday_entries'),
-    path('workday/exportar_requests/', user_views.exportar_workday_requests, name='exportar_workday_requests'),
+    path('workday/exportar_entries/', user_views.export_workday_entries, name='export_workday_entries'),
+    path('workday/exportar_requests/', user_views.export_workday_requests, name='export_workday_requests'),
 
     # Personal Info
     path('profile/', dashboard_views.profile, name='profile'),
@@ -97,7 +97,7 @@ urlpatterns = [
 
     # Soft Delete Management
     path('admin/deleted-records/', admin_views.deleted_records, name='deleted_records'),
-    path('admin/deleted-records/export/', admin_views.exportar_deleted_records, name='exportar_deleted_records'),
+    path('admin/deleted-records/export/', admin_views.export_deleted_records, name='export_deleted_records'),
     path('admin/restore/', admin_views.restore_record, name='restore_record'),
     path('admin/delete-permanent/', admin_views.permanently_delete_record, name='permanently_delete_record'),
     path('admin/delete-company/', admin_views.delete_company, name='delete_company'),

@@ -36,15 +36,6 @@ from core.services import (
 )
 
 
-
-def invalidate_other_sessions(user, current_session_key):
-    """
-    This function is no longer needed with the new timestamp-based approach.
-    It is kept for compatibility but does nothing.
-    """
-    pass
-
-
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
 def login_view(request):
@@ -972,7 +963,7 @@ def workday(request):
 
 @login_required
 @require_POST
-def exportar_workday_entries(request):
+def export_workday_entries(request):
     """
     Exports the user's time entries to CSV.
     POST params: entry_id (list of selected IDs)
@@ -1033,7 +1024,7 @@ def exportar_workday_entries(request):
 
 @login_required
 @require_POST
-def exportar_workday_requests(request):
+def export_workday_requests(request):
     """
     Exports the user's correction requests to CSV.
     POST params: request_id (list of selected IDs)

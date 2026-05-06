@@ -37,7 +37,7 @@
         </div>
     {% else %}
         <div class="d-flex justify-content-end mb-3">
-            <form id="exportFormDeletedRecords" action="{% url 'exportar_deleted_records' %}" method="POST" style="display: none;">
+            <form id="exportFormDeletedRecords" action="{% url 'export_deleted_records' %}" method="POST" style="display: none;">
                 {% csrf_token %}
                 <input type="hidden" id="recordTypeInput" name="record_type" value="users">
             </form>
