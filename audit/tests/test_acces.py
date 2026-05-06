@@ -66,8 +66,8 @@ class AuditViewsTest(TestCase):
         print("\n[TEST 3] Inicio: Comprobando traducción de UUID a Nombres Reales.")
         self.client.force_login(self.auditor)
         
-        print("  -> Acción: Ejecutando GET a la vista de fichajes...")
-        response = self.client.get(reverse('audit_fichajes'))
+        print("  -> Acción: Ejecutando GET a la vista de timetracking...")
+        response = self.client.get(reverse('audit_timetracking'))
         self.assertEqual(response.status_code, 200)
         
         logs_en_contexto = response.context['logs']

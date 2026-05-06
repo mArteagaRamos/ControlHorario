@@ -352,9 +352,11 @@ def api_leave_review(request, leave_id):
     company = get_company(request)
     leave   = get_object_or_404(LeaveRequest, id=leave_id, company=company)
  
+    # --- COMPROBACION DE CONCURRENCIA ---
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
-        return JsonResponse({'error': 'Esta solicitud ya fue revisada'}, status=400)
+        return JsonResponse({'error': 'Esta solicitud ya fue revisada por otro administrador.'}, status=400)
  
+    # ------------------------------------
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -743,8 +745,10 @@ def api_leave_request_cancel(request, leave_id):
     company = get_company(request)
     leave = get_object_or_404(LeaveRequest, id=leave_id, user=request.user, company=company)
  
+    # --- COMPROBACION DE CONCURRENCIA ---
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
         return JsonResponse({'error': 'Solo se pueden cancelar solicitudes pendientes'}, status=400)
+    # ------------------------------------
  
     before = serialize_leave(leave)
     leave.status = LeaveRequest.LeaveStatus.CANCELED
@@ -756,4 +760,3 @@ def api_leave_request_cancel(request, leave_id):
                source='web') # Añadido
 
     return JsonResponse({'ok': True})
-

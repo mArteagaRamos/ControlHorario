@@ -10,28 +10,28 @@ from users.models import Companies, Users
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# AUDITORÍA VIEWS (Read-only audit functions)
+# AUDIT VIEWS (Read-only audit functions)
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# 1. Vista del Dashboard (el menú de botones)
+# 1. Audit Dashboard view (menu buttons)
 @auditor_or_admin_required
 def audit_dashboard(request):
-    # Añadimos 'audit/' a la ruta
+    # Add 'audit/' to the route
     return render(request, 'audit/audit_dashboard.html')
 
-# -------------------------------------------------------------
-# VISTAS DE TABLAS ESPECÍFICAS
-# -------------------------------------------------------------
+# ---------------------------------------------------------
+# SPECIFIC TABLE VIEWS
+# ---------------------------------------------------------
 
 @auditor_or_admin_required
-def audit_fichajes(request):
-    # Tablas a monitorear
+def audit_timetracking(request):
+    # Tables to monitor
     tablas_fichajes = ['timetracking_registro', 'timetracking_pausa', 'timetracking_timeentries']
     
-    # 1. Queryset base
+    # 1. Base QuerySet
     logs_list = AuditLog.objects.filter(table_name__in=tablas_fichajes).order_by('-timestamp')
 
-    # 2. FILTRO DE BÚSQUEDA
+    # 2. SEARCH FILTER
     search_query = request.GET.get('search')
     if search_query:
         logs_list = logs_list.filter(
@@ -41,7 +41,7 @@ def audit_fichajes(request):
             Q(reason__icontains=search_query)
         )
 
-    # 3. FILTRO POR FECHAS
+    # 3. DATE FILTER
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
     if desde:
@@ -49,16 +49,16 @@ def audit_fichajes(request):
     if hasta:
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
-    # 4. PAGINACIÓN
+    # 4. PAGINATION
     paginator = Paginator(logs_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
     # -----------------------------------------------------------------------
-    # 5. MAGIA PARA EL AUDITOR: TRADUCCIÓN Y FORMATO DE DATOS
+    # 5. MAGIC FOR AUDITOR: TRANSLATION AND DATA FORMAT
     # -----------------------------------------------------------------------
     
-    # Mapas de UUID a Nombres
+    # UUID to Names maps
     mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
     
     try:
@@ -66,7 +66,7 @@ def audit_fichajes(request):
     except NameError:
         mapa_empresas = {}
 
-    # Diccionario para columnas
+    # Dictionary for columns
     traducciones_keys = {
         'id': 'ID Registro',
         'date': 'Fecha de Jornada',
@@ -80,7 +80,7 @@ def audit_fichajes(request):
         'total_seconds': 'Segundos Totales'
     }
 
-    # Diccionario para estados
+    # Dictionary for states
     traducciones_estados = {
         'present': 'Presente',
         'paused': 'Pausado',
@@ -92,7 +92,7 @@ def audit_fichajes(request):
     }
 
     # -----------------------------------------------------------------------
-    # 6. PROCESAR LOGS PARA LA PÁGINA ACTUAL
+    # 6. PROCESS LOGS FOR CURRENT PAGE
     # -----------------------------------------------------------------------
 
     for log in page_obj:
@@ -104,26 +104,26 @@ def audit_fichajes(request):
                     key_lower = key.lower()
                     key_limpia = traducciones_keys.get(key_lower, key.replace('_', ' ').title())
                     
-                    # 1. Traducir UUIDs
+                    # 1. Translate UUIDs
                     if key_lower == 'user' and str(value) in mapa_usuarios:
                         value = mapa_usuarios[str(value)]
                     elif key_lower == 'company' and str(value) in mapa_empresas:
                         value = mapa_empresas[str(value)]
                         
-                    # 2. Traducir Estados
+                    # 2. Translate States
                     elif key_lower == 'status' and isinstance(value, str):
                         value = traducciones_estados.get(value.lower(), value.title())
                         
-                    # 3. Formatear Fechas y Horas correctamente
+                    # 3. Format Dates and Times correctly
                     elif isinstance(value, str):
-                        # SOLO HORAS para Entrada y Salida
+                        # ONLY TIME for Clock In and Clock Out
                         if key_lower in ['clock_in', 'clock_out'] and 'T' in value:
                             try:
                                 value = value.split('T')[1][:8]
                             except IndexError:
                                 pass
                         
-                        # FECHA COMPLETA para Eliminado el (o cualquier otra fecha con T)
+                        # FULL DATE AND TIME for Deleted At (or any other datetime with T)
                         elif 'T' in value: 
                             try:
                                 fecha_str, resto = value.split('T')
@@ -133,7 +133,7 @@ def audit_fichajes(request):
                             except ValueError:
                                 pass 
                         
-                        # SOLO FECHA para Fecha de Jornada
+                        # ONLY DATE for Day Date
                         elif key_lower == 'date' and '-' in value: 
                             try:
                                 anio, mes, dia = value.split('-')
@@ -144,7 +144,7 @@ def audit_fichajes(request):
                     estado_limpio[key_limpia] = value
                 
                 setattr(log, atributo, estado_limpio)
-    # -----------------------------------------------------------------------   
+    # -----------------------------------------------------------------------
 
     context = {
         'titulo': 'Auditoría de Fichajes',
@@ -159,7 +159,7 @@ def audit_fichajes(request):
     return render(request, 'audit/audit_timetracking.html', context)
 
 @auditor_or_admin_required
-def audit_vacaciones(request):
+def audit_leave(request):
 
     logs_list = AuditLog.objects.filter(table_name='leave_requests').order_by('-timestamp')
 
@@ -198,13 +198,13 @@ def audit_vacaciones(request):
     return render(request, 'audit/audit_leave_requests.html', context)
 
 @auditor_or_admin_required
-def audit_usuarios(request):
-    tablas_usuarios = ['user_action']  # Tabla estándar para todos los eventos de usuario
+def audit_users(request):
+    tablas_usuarios = ['user_action']  # Standard table for all user events
 
-    # 1. Queryset base
+    # 1. Base QuerySet
     logs_list = AuditLog.objects.filter(table_name__in=tablas_usuarios).order_by('-timestamp')
 
-    # 2. FILTRO DE BÚSQUEDA (Por nombre de usuario o email)
+    # 2. SEARCH FILTER (By username or email)
     search_query = request.GET.get('search')
     if search_query:
         logs_list = logs_list.filter(
@@ -214,7 +214,7 @@ def audit_usuarios(request):
             Q(reason__icontains=search_query)
         )
 
-    # 3. FILTRO POR FECHAS
+    # 3. DATE FILTER
     desde = request.GET.get('desde')
     hasta = request.GET.get('hasta')
     if desde:
@@ -222,7 +222,7 @@ def audit_usuarios(request):
     if hasta:
         logs_list = logs_list.filter(timestamp__date__lte=hasta)
 
-    # 4. PAGINACIÓN (15 registros por página)
+    # 4. PAGINATION (15 records per page)
     paginator = Paginator(logs_list, 12)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
@@ -231,7 +231,7 @@ def audit_usuarios(request):
         'titulo': 'Auditoría de Usuarios',
         'icono': 'fas fa-users',
         'color_tema': 'info',
-        'logs': page_obj,  # Ahora pasamos el objeto paginado
+        'logs': page_obj,  # Now we pass the paginated object
         'search_query': search_query,
         'desde': desde,
         'hasta': hasta,
@@ -239,8 +239,8 @@ def audit_usuarios(request):
     return render(request, 'audit/audit_users.html', context)
 
 @auditor_or_admin_required
-def audit_incidencias(request):
-    tablas_incidencias = ['timetracking_correctionrequest'] 
+def audit_corrections(request):
+    tablas_incidencias = ['timetracking_correctionrequest']
     
     logs_list = AuditLog.objects.filter(table_name__in=tablas_incidencias).order_by('-timestamp')
     
@@ -265,7 +265,7 @@ def audit_incidencias(request):
     page_obj = paginator.get_page(page_number)
 
     # -----------------------------------------------------------------------
-    # MAGIA DE TRADUCCIÓN (AMPLIADA PARA INCIDENCIAS)
+    # TRANSLATION MAGIC (EXTENDED FOR CORRECTIONS)
     # -----------------------------------------------------------------------
     
     mapa_usuarios = {str(u.id): u.username for u in Users.objects.all()}
@@ -286,7 +286,7 @@ def audit_incidencias(request):
         'created_at': 'Creado el',
         'updated_at': 'Actualizado el',
         'deleted_at': 'Eliminado el',
-        # --- CAMPOS NUEVOS DE LA CAPTURA ---
+        # --- NEW CAPTURE FIELDS ---
         'approver': 'Aprobador',
         'requester': 'Solicitante',
         'time_entry': 'ID Fichaje Original',
@@ -313,26 +313,26 @@ def audit_incidencias(request):
                     key_lower = key.lower()
                     key_limpia = traducciones_keys.get(key_lower, key.replace('_', ' ').title())
                     
-                    # 1. Traducir UUIDs de CUALQUIER usuario (solicitante, aprobador, etc)
+                    # 1. Translate UUIDs of ANY user (requester, approver, etc)
                     if key_lower in ['user', 'approver', 'requester'] and str(value) in mapa_usuarios:
                         value = mapa_usuarios[str(value)]
                     elif key_lower == 'company' and str(value) in mapa_empresas:
                         value = mapa_empresas[str(value)]
                         
-                    # 2. Traducir Estados
+                    # 2. Translate States
                     elif key_lower == 'status' and isinstance(value, str):
                         value = traducciones_estados.get(value.lower(), value.title())
                         
-                    # 3. Fechas y Horas
+                    # 3. Dates and Times
                     elif isinstance(value, str):
-                        # SOLO HORAS (Añadidos los new_clock)
+                        # ONLY TIME (Added new_clock fields)
                         if key_lower in ['clock_in', 'clock_out', 'new_clock_in', 'new_clock_out'] and 'T' in value:
                             try:
                                 value = value.split('T')[1][:8]
                             except IndexError:
                                 pass
                         
-                        # FECHA Y HORA COMPLETA
+                        # FULL DATE AND TIME
                         elif 'T' in value: 
                             try:
                                 fecha_str, resto = value.split('T')
@@ -342,7 +342,7 @@ def audit_incidencias(request):
                             except ValueError:
                                 pass 
                         
-                        # SOLO FECHA
+                        # ONLY DATE
                         elif key_lower == 'date' and '-' in value: 
                             try:
                                 anio, mes, dia = value.split('-')
@@ -353,7 +353,7 @@ def audit_incidencias(request):
                     estado_limpio[key_limpia] = value
                 
                 setattr(log, atributo, estado_limpio)
-    # -----------------------------------------------------------------------   
+    # -----------------------------------------------------------------------
 
     context = {
         'titulo': 'Auditoría de Incidencias',
@@ -369,7 +369,7 @@ def audit_incidencias(request):
 
 JORNADA_FIELDS = {'work_start', 'work_end', 'max_tolerance', 'weekend_days', 'holidays'}
 CIERRE_FIELDS  = {'auto_close_hours'}
-PAUSA_FIELDS   = set()  # CompanySettings no tiene campos de pausas
+PAUSA_FIELDS   = set()  # CompanySettings has no pause fields
 
 def _infer_categoria(log):
     keys = set((log.after or {}).keys()) | set((log.before or {}).keys())
@@ -383,7 +383,7 @@ def _infer_categoria(log):
 @auditor_or_admin_required
 def audit_company(request):
 
-    # ── Filtros ───────────────────────────────────────────────────────────────
+    # ── Filters ────────────────────────────────────────────────────────────────
     search_query = request.GET.get('search', '').strip()
     tipo_cambio  = request.GET.get('tipo_cambio', '').strip()
     desde        = request.GET.get('desde', '').strip()
@@ -396,7 +396,7 @@ def audit_company(request):
         .order_by('-timestamp')
     )
 
-    # Búsqueda libre: actor (username) o motivo
+    # Free search: actor (username) or reason
     if search_query:
         qs = qs.filter(
             Q(user__username__icontains=search_query) |
@@ -404,7 +404,7 @@ def audit_company(request):
             Q(reason__icontains=search_query)
         )
 
-    # Filtro por fecha
+    # Date filter
     if desde:
         qs = qs.filter(timestamp__date__gte=desde)
     if hasta:
