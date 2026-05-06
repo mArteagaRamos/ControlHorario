@@ -67,7 +67,7 @@ Control Horario es una plataforma web completa para gestionar entradas/salidas d
 │   ├── views.py            # Vistas de entrada/salida y visualización
 │   └── tests.py            # Tests (pendiente completar)
 │
-├── corrections/             # Gestión de correcciones
+├── requests/                # Gestión de solicitudes de correcciones y ausencias
 │   ├── models.py           # CorrectionRequest
 │   ├── views.py            # Solicitud, aprobación, rechazo de correcciones
 │   └── tests.py            # Tests (pendiente completar)
@@ -234,7 +234,7 @@ Para ejecutar los tests:
 # Tests de una app específica
 python manage.py test users
 python manage.py test timetracking
-python manage.py test corrections
+python manage.py test requests
 python manage.py test audit
 python manage.py test admin
 python manage.py test dashboard

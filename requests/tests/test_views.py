@@ -1,5 +1,5 @@
 """
-Tests para las vistas de corrections
+Tests para las vistas de requests
 """
 from django.test import Client
 from django.urls import reverse
@@ -7,16 +7,16 @@ from django.utils import timezone
 from uuid import uuid4
 import datetime
 
-from corrections.models import CorrectionRequests, LeaveRequest
+from requests.models import CorrectionRequests, LeaveRequest
 from timetracking.models import TimeEntries
-from .fixtures import CorrectionsTestBase
+from .fixtures import RequestsTestBase
 
 
 # ========================================================================
 # VIEW TESTS
 # ========================================================================
 
-class CorrectionsViewsTest(CorrectionsTestBase):
+class RequestsViewsTest(RequestsTestBase):
     """Test cases for corrections views"""
     
     def test_resolver_incidencia_approve_successful(self):

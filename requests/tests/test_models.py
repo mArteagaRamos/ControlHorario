@@ -5,16 +5,16 @@ from django.utils import timezone
 from uuid import uuid4
 import datetime
 
-from corrections.models import CorrectionRequests, LeaveRequest
+from requests.models import CorrectionRequests, LeaveRequest
 from timetracking.models import TimeEntries
-from .fixtures import CorrectionsTestBase
+from .fixtures import RequestsTestBase
 
 
 # ========================================================================
 # MODEL TESTS: CorrectionRequests
 # ========================================================================
 
-class CorrectionRequestsModelTest(CorrectionsTestBase):
+class CorrectionRequestsModelTest(RequestsTestBase):
     """Test cases for CorrectionRequests model"""
     
     def test_create_correction_request(self):
@@ -111,7 +111,7 @@ class CorrectionRequestsModelTest(CorrectionsTestBase):
 # MODEL TESTS: LeaveRequest
 # ========================================================================
 
-class LeaveRequestModelTest(CorrectionsTestBase):
+class LeaveRequestModelTest(RequestsTestBase):
     """Test cases for LeaveRequest model"""
     
     def test_create_leave_request(self):

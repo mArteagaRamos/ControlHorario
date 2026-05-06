@@ -9,8 +9,8 @@ from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
 from audit.models import AuditLog
 from timetracking.models import TimeEntries
-from corrections.models import LeaveRequest
-from corrections.models import CorrectionRequests
+from requests.models import LeaveRequest
+from requests.models import CorrectionRequests
 
 class AdminViewsAuditTest(TestCase):
     

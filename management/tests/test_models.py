@@ -12,7 +12,7 @@ class ManagementModelsTest(TestCase):
     Esta aplicación es una capa de vistas de gestión que utiliza modelos de otras apps:
     - users.models: Companies, UserCompany, Users
     - timetracking.models: TimeEntries
-    - corrections.models: CorrectionRequests, LeaveRequest
+    - requests.models: CorrectionRequests, LeaveRequest
     - audit.models: AuditLog
     
     Por lo tanto, este archivo de tests valida que los modelos utilizados

@@ -1,4 +1,4 @@
-# corrections/views.py
+# requests/views.py
 
 import csv
 import json
@@ -16,7 +16,7 @@ from django.core.files.base import ContentFile
 import os
 from users.models import Users, UserCompany
 from timetracking.models import TimeEntries
-from corrections.models import LeaveRequest, CorrectionRequests
+from requests.models import LeaveRequest, CorrectionRequests
 from audit.models import AuditLog
 from audit.utils import safe_dict
 from core.decorators import manager_or_admin_with_delegation_check

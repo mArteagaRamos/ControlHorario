@@ -13,7 +13,7 @@ from users.forms import ProfilePasswordChangeForm, UserPersonalDataForm
 from users.models import Companies, Users, UserCompany
 from admin.models import CompanySettings
 from dashboard.models import Note
-from corrections.models import LeaveRequest
+from requests.models import LeaveRequest
 from audit.models import AuditLog
 from uuid import uuid4
 

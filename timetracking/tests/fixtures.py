@@ -18,22 +18,23 @@ except ImportError:
 class TimeTrackingTestBase(TestCase):
     """Base test class con setup común para timetracking tests"""
     
-    def setUp(self):
-        """Create test data for each test"""
+    @classmethod
+    def setUpTestData(cls):
+        """Create shared test data for all tests (created once per test class)"""
         # Create custom Users entry (Users es el modelo de usuario personalizado)
-        self.user = Users.objects.create_user(
+        cls.user = Users.objects.create_user(
             email='testuser@example.com',
             username='testuser',
             dni='12345678A',
             password='testpass123'
         )
-        self.user.status = Users.StatusChoices.ACTIVE
-        self.user.is_auditor = False
-        self.user.save()
+        cls.user.status = Users.StatusChoices.ACTIVE
+        cls.user.is_auditor = False
+        cls.user.save()
         
         # Create a company
         from users.models import Companies, UserCompany
-        self.company = Companies.objects.create(
+        cls.company = Companies.objects.create(
             id=uuid4(),
             name='Test Company',
             legal_name='Test Company Legal',
@@ -41,12 +42,14 @@ class TimeTrackingTestBase(TestCase):
         )
         
         # Create UserCompany relationship
-        self.user_company = UserCompany.objects.create(
+        cls.user_company = UserCompany.objects.create(
             id=uuid4(),
-            user=self.user,
-            company=self.company,
+            user=cls.user,
+            company=cls.company,
             role=UserCompany.RoleChoices.EMPLOYEE
         )
-        
-        # Create test client and set up session
+    
+    def setUp(self):
+        """Create test client for each test"""
+        # Create test client
         self.client = Client()

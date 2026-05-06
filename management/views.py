@@ -20,7 +20,7 @@ from core.decorators import manager_or_admin_with_delegation_check
 from core.services import get_effective_context
 
 # Additional imports for entity_info
-from corrections.models import LeaveRequest, CorrectionRequests
+from requests.models import LeaveRequest, CorrectionRequests
 from admin.models import CompanySettings
 from datetime import timedelta, date
 from django.db import IntegrityError

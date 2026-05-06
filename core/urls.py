@@ -8,7 +8,7 @@ from timetracking import views as timetracking_views
 from audit import views as audit_views
 from admin import views as admin_views   
 from management import views as management_views
-from corrections import views as corrections_views
+from requests import views as requests_views
 
 urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
@@ -70,24 +70,24 @@ urlpatterns = [
     path('company-info/', management_views.entity_info, name='manager_entity_info'),
 
     # ════════════════════════════════════════════════════════════════════════
-    # CORRECTIONS - CORRECTIONS & LEAVE (corrections/)
+    # REQUESTS - CORRECTIONS & LEAVE REQUESTS (requests/)
     # ════════════════════════════════════════════════════════════════════════
 
     # Correction Requests
-    path('logs/resolve/', corrections_views.resolver_incidencia, name='resolver_incidencia'),
-    path('corrections/edit/', corrections_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
-    path('corrections/delete/', corrections_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
-    path('corrections/export/', corrections_views.exportar_logs_rechazadas, name='exportar_logs_rechazadas'),
+    path('logs/resolve/', requests_views.resolver_incidencia, name='resolver_incidencia'),
+    path('requests/edit/', requests_views.editar_incidencia_rechazada, name='editar_incidencia_rechazada'),
+    path('requests/delete/', requests_views.eliminar_incidencia_rechazada, name='eliminar_incidencia_rechazada'),
+    path('requests/export/', requests_views.exportar_logs_rechazadas, name='exportar_logs_rechazadas'),
 
     # Leave Requests (manager review)
-    path('leave/pending/', corrections_views.api_leave_pending, name='leave_pending'),
-    path('leave/<uuid:leave_id>/review/', corrections_views.api_leave_review, name='leave_review'),
-    path('leave/resolved/', corrections_views.api_leave_resolved, name='api_leave_resolved'),
-    path('leave/<uuid:leave_id>/upload/', corrections_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
-    path('calendar/events/', corrections_views.api_calendar_events, name='calendar_events'),
-    path('leave/create/', corrections_views.api_leave_request_create, name='leave_create'),
-    path('api/leave/validate-overlap/', corrections_views.api_validate_leave_overlap, name='api_validate_leave_overlap'),
-    path('leave/<uuid:leave_id>/cancel/', corrections_views.api_leave_request_cancel, name='api_leave_cancel'),
+    path('leave/pending/', requests_views.api_leave_pending, name='leave_pending'),
+    path('leave/<uuid:leave_id>/review/', requests_views.api_leave_review, name='leave_review'),
+    path('leave/resolved/', requests_views.api_leave_resolved, name='api_leave_resolved'),
+    path('leave/<uuid:leave_id>/upload/', requests_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),
+    path('calendar/events/', requests_views.api_calendar_events, name='calendar_events'),
+    path('leave/create/', requests_views.api_leave_request_create, name='leave_create'),
+    path('api/leave/validate-overlap/', requests_views.api_validate_leave_overlap, name='api_validate_leave_overlap'),
+    path('leave/<uuid:leave_id>/cancel/', requests_views.api_leave_request_cancel, name='api_leave_cancel'),
 
     # ════════════════════════════════════════════════════════════════════════
     # ADMIN - GLOBAL ADMINISTRATION (admin/)

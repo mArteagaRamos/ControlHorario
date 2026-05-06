@@ -1,5 +1,5 @@
 """
-Tests de integración para corrections
+Tests de integración para requests
 """
 from django.test import Client
 from django.urls import reverse
@@ -7,16 +7,16 @@ from django.utils import timezone
 from uuid import uuid4
 import datetime
 
-from corrections.models import CorrectionRequests, LeaveRequest
+from requests.models import CorrectionRequests, LeaveRequest
 from timetracking.models import TimeEntries
-from .fixtures import CorrectionsTestBase
+from .fixtures import RequestsTestBase
 
 
 # ========================================================================
 # INTEGRATION TESTS
 # ========================================================================
 
-class CorrectionsIntegrationTest(CorrectionsTestBase):
+class RequestsIntegrationTest(RequestsTestBase):
     """Test complete workflows and integrations"""
     
     def test_complete_correction_workflow(self):

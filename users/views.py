@@ -18,7 +18,7 @@ from .email_utils import send_new_user_email, send_new_auditor_email, send_exist
 from timetracking.models import TimeEntries
 from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
-from corrections.models import CorrectionRequests
+from requests.models import CorrectionRequests
 from audit.models import AuditLog
 from django.views.decorators.cache import never_cache
 from audit.models import AuditLog

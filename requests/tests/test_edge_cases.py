@@ -1,20 +1,20 @@
 """
-Tests para casos extremos y condiciones de error en corrections
+Tests para casos extremos y condiciones de error en requests
 """
 from django.utils import timezone
 from uuid import uuid4
 import datetime
 
-from corrections.models import CorrectionRequests, LeaveRequest
+from requests.models import CorrectionRequests, LeaveRequest
 from timetracking.models import TimeEntries
-from .fixtures import CorrectionsTestBase
+from .fixtures import RequestsTestBase
 
 
 # ========================================================================
 # EDGE CASE TESTS
 # ========================================================================
 
-class CorrectionsEdgeCasesTest(CorrectionsTestBase):
+class RequestsEdgeCasesTest(RequestsTestBase):
     """Test edge cases and error conditions"""
     
     def test_correction_with_partial_new_times(self):

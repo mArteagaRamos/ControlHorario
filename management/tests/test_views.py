@@ -8,7 +8,7 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 # ⚠️ IMPORTANTE: Ajusta los imports según la ubicación real de tus modelos
 from users.models import Users, Companies, UserCompany
 from timetracking.models import TimeEntries
-from corrections.models import CorrectionRequests
+from requests.models import CorrectionRequests
 from admin.models import CompanySettings
 
 # ═════════════════════════════════════════════════════════════════════════════

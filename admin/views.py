@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 
 from audit.models import AuditLog
 from core.decorators import admin_only_required
-from corrections.models import CorrectionRequests
+from requests.models import CorrectionRequests
 from timetracking.models import TimeEntries, TimeEntryEvent
 from users.models import Users, Companies, UserCompany
 
@@ -114,7 +114,7 @@ def admin_dashboard(request):
 def exportar_deleted_records(request):
     """
     Exporta registros eliminados agrupados por tipo a CSV.
-    POST params: record_type (users, companies, user_companies, corrections, time_entries, time_events)
+    POST params: record_type (users, companies, user_companies, requests, time_entries, time_events)
     """
 
     record_type = request.POST.get('record_type', '').strip()
@@ -369,7 +369,7 @@ def restore_record(request):
     Solo accesible para administradores.
 
     POST params:
-        record_type: Tipo de registro (users, companies, user_companies, company_settings, corrections, time_entries, time_events)
+        record_type: Tipo de registro (users, companies, user_companies, company_settings, requests, time_entries, time_events)
         record_id: UUID del registro a restaurar
     """
     record_type = request.POST.get('record_type', '').strip()

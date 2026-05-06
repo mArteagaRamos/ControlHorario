@@ -74,7 +74,7 @@ INSTALLED_APPS = [
     'dashboard',
     'admin',
     'management',
-    'corrections',
+    'requests',
 ]
 
 MIDDLEWARE = [
