@@ -18,8 +18,8 @@ from audit.models import AuditLog
 from uuid import uuid4
 
 # Import centralized decorators and services
-from core.decorators import auditor_cannot_access, manager_or_admin_with_delegation_check
-from core.services import get_company, is_manager as check_is_manager, log_leave
+from core.decorators import auditor_cannot_access
+from core.services import get_company, is_manager as check_is_manager, log_leave, get_effective_context
 
 WEEKDAY = [
     (0, 'Domingo'),
@@ -36,7 +36,6 @@ WEEKDAY = [
 @login_required
 @auditor_cannot_access
 def calendar(request):
-    from core.services import get_effective_context
 
     delegation_context = get_effective_context(request)
 
@@ -53,7 +52,7 @@ def calendar(request):
 
     is_manager = check_is_manager(request, company)
 
-    # ── Lógica de POST ──
+    # ── POST logic ──
     if request.method == 'POST':
         leave_type   = request.POST.get('leave_type')
         leave_reason = request.POST.get('leave_reason')
@@ -63,7 +62,6 @@ def calendar(request):
 
         if start_date_str and end_date_str:
             try:
-                # Usamos parse_date de Django que es más seguro
                 start = parse_date(start_date_str)
                 end   = parse_date(end_date_str)
 
@@ -92,7 +90,7 @@ def calendar(request):
                     return HttpResponse(f"Error: {str(e)}", status=400)
                 messages.error(request, f"Error al procesar: {e}")
 
-    # ── Lógica de GET ──
+    # ── GET logic ──
     team = []
     if is_manager:
         team = UserCompany.objects.filter(company=company).select_related('user')
@@ -115,7 +113,6 @@ def calendar(request):
         ],
     }
     context.update(delegation_context)
-    # Asegúrate de que la ruta al HTML sea la correcta según tu estructura
     return render(request, 'dashboard/calendar.html', context)
 
 @login_required
@@ -198,211 +195,6 @@ def security(request):
 
     return render(request, 'dashboard/security.html', context)
 
-
-# Team management views
-
-@login_required
-@manager_or_admin_with_delegation_check
-def entity_info(request):
-    from core.services import get_effective_context
-
-    delegation_context = get_effective_context(request)
-
-    # 1. Determine which company to view
-    company_id = delegation_context['delegated_company_id'] if delegation_context['is_delegating'] else None
-
-    if company_id:
-        # Using delegated company
-        company = Companies.objects.filter(id=company_id).first()
-        if not company:
-            messages.error(request, 'Empresa delegada no encontrada.')
-            return redirect('home_timetracking')
-    else:
-        # Original logic
-        company_id = request.GET.get('company_id') or request.session.get('company_id')
-
-        if company_id:
-            # Admin is inspecting a specific company OR manager checking their own
-            company = Companies.objects.filter(id=company_id).first()
-            if not company:
-                messages.error(request, 'Empresa no encontrada.')
-                return redirect('home_timetracking')
-
-            # Validate permissions:
-            # - Admins can inspect any company
-            # - Managers can only access their own company
-            if not request.user.is_admin:
-                # Manager: verify it's their own company
-                user_membership = UserCompany.objects.filter(
-                    user=request.user,
-                    company=company,
-                    deleted_at__isnull=True
-                ).first()
-                if not user_membership:
-                    return HttpResponseForbidden("No tienes acceso a esta empresa.")
-
-            request.session['company_id'] = company_id
-        else:
-            # Get the user's company membership
-            user_membership = UserCompany.objects.filter(user=request.user).first()
-            if not user_membership:
-                messages.error(request, 'No tienes empresa asignada.')
-                return redirect('home_timetracking')
-            company = user_membership.company
-
-    membership = UserCompany.objects.filter(
-        user=request.user,
-        company=company
-    ).first()
-
-    # Global admin can always edit, regardless of their role in the company
-    if request.user.is_admin:
-        user_role = 'admin'
-    elif membership and membership.role == UserCompany.RoleChoices.MANAGER:
-        user_role = 'manager'
-    else:
-        user_role = 'employee'
-
-    can_edit = user_role in ('admin', 'manager')
-
-    settings_obj = CompanySettings.objects.filter(company=company).first()
-
-    if request.method == 'POST' and can_edit:
-
-        # Update company info
-        company.name.title = request.POST.get('name', company.name.title).strip()
-        company.legal_name = request.POST.get('legal_name', company.legal_name).strip()
-        posted_tax_id = request.POST.get('tax_id', '').strip() or None
-
-        if posted_tax_id and Companies.objects.filter(tax_id=posted_tax_id).exclude(id=company.id).exists():
-            messages.error(request, 'El CIF/NIF indicado ya existe en otra empresa.')
-            context = {
-                'company': company,
-                'user_role': user_role,
-                'settings': settings_obj,
-                'weekdays': WEEKDAY,
-            }
-            context.update(delegation_context)
-            return render(request, 'team/entity_info.html', context)
-
-        company.tax_id = posted_tax_id
-        company.updated_at = timezone.now()
-
-        try:
-            company.save(update_fields=['name', 'legal_name', 'tax_id', 'updated_at'])
-        except IntegrityError:
-            messages.error(request, 'No se pudo guardar la empresa porque el CIF/NIF ya está en uso.')
-            context = {
-                'company': company,
-                'user_role': user_role,
-                'settings': settings_obj,
-                'weekdays': WEEKDAY,
-            }
-            context.update(delegation_context)
-            return render(request, 'team/entity_info.html', context)
-
-        # Workday settings
-
-        if settings_obj:
-
-            # Capturar estado ANTES
-            before_jornada = {
-                'work_start':    str(settings_obj.work_start),
-                'work_end':      str(settings_obj.work_end),
-                'max_tolerance': str(settings_obj.max_tolerance),
-                'weekend_days':  list(settings_obj.weekend_days),
-                'holidays':      [str(h) for h in settings_obj.holidays],
-            }
-            before_cierre = {
-                'auto_close_hours': settings_obj.auto_close_hours,
-            }
-
-            # Aplicar cambios
-            work_start = request.POST.get('work_start')
-            if work_start:
-                settings_obj.work_start = work_start
-
-            work_end = request.POST.get('work_end')
-            if work_end:
-                settings_obj.work_end = work_end
-
-            tolerance_min = request.POST.get('max_tolerance')
-            if tolerance_min is not None and tolerance_min != '':
-                settings_obj.max_tolerance = timedelta(minutes=int(tolerance_min))
-
-            auto_close = request.POST.get('auto_close_hours')
-            if auto_close is not None and auto_close != '':
-                settings_obj.auto_close_hours = int(auto_close)
-
-            settings_obj.weekend_days = [
-                int(day) for day in request.POST.getlist('weekend_days')
-            ]
-
-            holidays = []
-            for raw in request.POST.get('holidays', '').split(','):
-                raw = raw.strip()
-                if raw:
-                    parsed = parse_date(raw)
-                    if parsed:
-                        holidays.append(parsed)
-            settings_obj.holidays  = holidays
-            settings_obj.updated_at = timezone.now()
-            settings_obj.save()
-
-            # Capturar estado DESPUÉS
-            after_jornada = {
-                'work_start':    str(settings_obj.work_start),
-                'work_end':      str(settings_obj.work_end),
-                'max_tolerance': str(settings_obj.max_tolerance),
-                'weekend_days':  list(settings_obj.weekend_days),
-                'holidays':      [str(h) for h in settings_obj.holidays],
-            }
-            after_cierre = {
-                'auto_close_hours': settings_obj.auto_close_hours,
-            }
-
-            # Auditoría: Jornada laboral
-            if before_jornada != after_jornada:
-                AuditLog.objects.create(
-                    id=uuid4(),
-                    table_name='company_settings',
-                    record_id=settings_obj.id,
-                    user=request.user,
-                    action_type=AuditLog.AuditAction.UPDATE,
-                    before=before_jornada,
-                    after=after_jornada,
-                    reason=f'Modificación de jornada laboral en empresa {company.name}',
-                    source='web' # Añadido
-                )
-
-            # Auditoría: Cierre automático
-            if before_cierre != after_cierre:
-                AuditLog.objects.create(
-                    id=uuid4(),
-                    table_name='company_settings',
-                    record_id=settings_obj.id,
-                    user=request.user,
-                    action_type=AuditLog.AuditAction.UPDATE,
-                    before=before_cierre,
-                    after=after_cierre,
-                    reason=f'Modificación de cierre automático en empresa {company.name}',
-                    source='web' # Añadido
-                )
-
-        return redirect('entity_info')
-
-    context = {
-        'company':   company,
-        'user_role': user_role,
-        'settings':  settings_obj,
-        'weekdays':  WEEKDAY,
-    }
-    context.update(delegation_context)
-
-    return render(request, 'team/entity_info.html', context)
-
- 
-# ── Vistas de equipo ───────────────────────────────────────────────────────────
 
 @login_required
 def notes(request):

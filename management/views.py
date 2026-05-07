@@ -16,7 +16,7 @@ from django.views.decorators.cache import never_cache
 from audit.models import AuditLog
 from django.core.paginator import Paginator
 from audit.utils import safe_dict
-from core.decorators import manager_or_admin_with_delegation_check
+from core.decorators import login_required_with_delegation_support
 from core.services import get_effective_context
 
 # Additional imports for entity_info
@@ -39,7 +39,7 @@ WEEKDAY = [
 ]
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @never_cache
 def manager_logs(request):
     # Get effective context (delegation info if any)
@@ -154,7 +154,7 @@ def manager_logs(request):
 
 
 # View for exporting filtered logs to CSV, with format compatible with Excel and formatted seconds
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def exportar_logs(request):
 
     if request.method == 'POST':
@@ -217,7 +217,7 @@ def exportar_logs(request):
         return response
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def exportar_staff(request):
     """
@@ -284,7 +284,7 @@ def exportar_staff(request):
 
 
 # View for the manager to manually edit a record (in case of incident or error), creating a new corrected record and voiding the original
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def editar_registro(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
@@ -364,7 +364,7 @@ def editar_registro(request):
 
 @login_required
 @never_cache
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def staff(request):
     # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
@@ -412,13 +412,25 @@ def staff(request):
                 return HttpResponseForbidden("No estás asignado a ninguna empresa.")
             company = user_membership.company
 
-    # 2. Check if they are a manager or admin to pass it to the template
-    user_membership = UserCompany.objects.all_with_deleted().filter(
-        user=request.user,
+    # 2. Determine user role (considering delegation)
+    effective_user = request.user
+    if delegation_context['is_delegating']:
+        delegated_user_id = delegation_context.get('delegated_user_id')
+        effective_user = Users.objects.filter(id=delegated_user_id).first() or request.user
+
+    user_membership = UserCompany.objects.filter(
+        user=effective_user,
         company=company,
         deleted_at__isnull=True
     ).first()
-    is_manager = (user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER) or request.user.is_admin
+
+    # Determine user role based on effective user
+    if effective_user.is_admin:
+        user_role = 'admin'
+    elif user_membership and user_membership.role == UserCompany.RoleChoices.MANAGER:
+        user_role = 'manager'
+    else:
+        user_role = 'employee'
 
     # 3. Get ALL memberships (employees) for that company (non-deleted only)
     employee_memberships_list = UserCompany.objects.filter(
@@ -452,7 +464,7 @@ def staff(request):
 
     context = {
         'employee_memberships': employee_memberships,
-        'is_manager': is_manager,
+        'user_role': user_role,
         'company': company,
         'is_inspecting': delegation_context.get('is_inspecting', False),
     }
@@ -460,7 +472,7 @@ def staff(request):
 
     return render(request, 'team/staff.html', context)
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def edit_employee(request):
     # Get effective context (delegation info if any)
@@ -520,7 +532,7 @@ def edit_employee(request):
     return redirect('staff')
 
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def delete_employee(request):
     # Get effective context (delegation info if any)
@@ -631,7 +643,7 @@ def delete_employee(request):
 
     return redirect('deleted_records')
 
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 @require_POST
 def anular_registro(request):
     # Get effective context (delegation info if any)
@@ -688,9 +700,8 @@ def anular_registro(request):
 
 
 @login_required
-@manager_or_admin_with_delegation_check
+@login_required_with_delegation_support
 def entity_info(request):
-    from core.services import get_effective_context
 
     delegation_context = get_effective_context(request)
 
@@ -736,13 +747,19 @@ def entity_info(request):
                 return redirect('home_timetracking')
             company = user_membership.company
 
+    # Determine the effective user (delegated or current)
+    effective_user = request.user
+    if delegation_context['is_delegating']:
+        delegated_user_id = delegation_context.get('delegated_user_id')
+        effective_user = Users.objects.filter(id=delegated_user_id).first() or request.user
+
     membership = UserCompany.objects.filter(
-        user=request.user,
+        user=effective_user,
         company=company
     ).first()
 
-    # Global admin can always edit, regardless of their role in the company
-    if request.user.is_admin:
+    # Determine user role based on effective user
+    if effective_user.is_admin:
         user_role = 'admin'
     elif membership and membership.role == UserCompany.RoleChoices.MANAGER:
         user_role = 'manager'

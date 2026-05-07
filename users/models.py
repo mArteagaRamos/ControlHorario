@@ -7,6 +7,7 @@ from core.model_normalization import UppercaseNormalizationMixin
 from core.managers import UsersManager, SoftDeleteManager
 import uuid
 
+# User and company models
 class Users(UppercaseNormalizationMixin, AbstractBaseUser):
     class StatusChoices(models.TextChoices):
         ACTIVE = 'active', 'Activo'
@@ -69,7 +70,7 @@ class Users(UppercaseNormalizationMixin, AbstractBaseUser):
 
         super().save(*args, **kwargs)
 
-# Company / membership models section
+
 class Companies(UppercaseNormalizationMixin, models.Model):
     id = models.UUIDField(primary_key=True)
     name = models.CharField(max_length=100)

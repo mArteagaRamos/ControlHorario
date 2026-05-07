@@ -111,7 +111,7 @@ def admin_dashboard(request):
 
 @admin_only_required
 @require_POST
-def exportar_deleted_records(request):
+def export_deleted_records(request):
     """
     Exports deleted records grouped by type to CSV.
     POST params: record_type (users, companies, user_companies, corrections, time_entries, time_events)

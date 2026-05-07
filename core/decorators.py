@@ -2,6 +2,7 @@
 from functools import wraps
 from django.shortcuts import render, redirect
 from users.models import UserCompany, Users, Companies
+from core.services import get_effective_context
 
 
 def admin_only_required(view_func):
@@ -74,34 +75,26 @@ def auditor_or_admin_required(view_func):
     return _wrapped_view
 
 
-def manager_or_admin_with_delegation_check(view_func):
+def login_required_with_delegation_support(view_func):
     """
-    Decorator that validates manager/admin access AND checks delegation permissions.
+    Decorator that validates access for admin, manager, and employee users.
 
-    If admin is delegating to a user without proper permissions in that company,
-    it automatically clears the delegation and allows the admin to proceed with
-    their own context instead of showing an error.
-
-    This prevents admins from accessing views as employees by automatically
-    reverting to the admin's own context when delegation is invalid.
+    Allows delegation to ANY user (admin, manager, employee). Auditors are excluded.
+    Security is handled at the view/template level based on the user's role.
     """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
-        # Step 1: Validate authentication and basic role (manager or admin)
+        # Step 1: Validate authentication
         if not request.user.is_authenticated:
             return render(request, 'error/401.html', status=401)
 
-        is_admin = request.user.is_admin
-        is_manager = UserCompany.objects.all_with_deleted().filter(
-            user=request.user,
-            role=UserCompany.RoleChoices.MANAGER,
-            deleted_at__isnull=True
-        ).exists()
-
-        if not (is_admin or is_manager):
+        # Step 2: Exclude auditors only
+        if request.user.is_auditor:
             return render(request, 'error/403.html', status=403)
 
-        # Step 2: If admin is delegating, validate delegated user has permissions
+        is_admin = request.user.is_admin
+
+        # Step 3: If admin is delegating, clear invalid delegations
         if is_admin:
             from core.services import get_effective_context
             delegation_context = get_effective_context(request)
@@ -113,7 +106,7 @@ def manager_or_admin_with_delegation_check(view_func):
                 # Fetch delegated user
                 delegated_user = Users.objects.filter(id=delegated_user_id).first()
                 if not delegated_user:
-                    # Invalid delegated user: clear delegation and proceed as admin
+                    # Invalid delegated user: clear delegation
                     request.session.pop('delegated_user_id', None)
                     request.session.pop('delegated_user_name', None)
                     request.session.pop('delegated_company_id', None)
@@ -124,31 +117,13 @@ def manager_or_admin_with_delegation_check(view_func):
                 # Fetch delegated company
                 delegated_company = Companies.objects.filter(id=delegated_company_id).first()
                 if not delegated_company:
-                    # Invalid delegated company: clear delegation and proceed as admin
+                    # Invalid delegated company: clear delegation
                     request.session.pop('delegated_user_id', None)
                     request.session.pop('delegated_user_name', None)
                     request.session.pop('delegated_company_id', None)
                     request.session.pop('delegated_user_role', None)
                     request.session.modified = True
                     return view_func(request, *args, **kwargs)
-
-                # Check if delegated user is manager or admin of this company
-                is_delegated_manager = UserCompany.objects.filter(
-                    user=delegated_user,
-                    company=delegated_company,
-                    role=UserCompany.RoleChoices.MANAGER,
-                    deleted_at__isnull=True
-                ).exists()
-
-                is_delegated_admin = delegated_user.is_admin
-
-                # If delegated user is neither manager nor admin: clear delegation and proceed as admin
-                if not (is_delegated_admin or is_delegated_manager):
-                    request.session.pop('delegated_user_id', None)
-                    request.session.pop('delegated_user_name', None)
-                    request.session.pop('delegated_company_id', None)
-                    request.session.pop('delegated_user_role', None)
-                    request.session.modified = True
 
         return view_func(request, *args, **kwargs)
 
