@@ -57,7 +57,7 @@ python manage.py test corrections
 python manage.py test corrections.tests.test_models
 
 # Solo tests de vistas
-python manage.py test corrections.tests.test_views
+python manage.py test requests.tests.test_views
 
 # Solo tests de integración
 python manage.py test corrections.tests.test_integration
