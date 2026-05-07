@@ -4,6 +4,7 @@ import csv
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from users.models import Companies, UserCompany, Users
 from timetracking.models import TimeEntries
 from django.db.models import OuterRef, Subquery
@@ -624,8 +625,21 @@ def delete_employee(request):
         return redirect('deleted_records')
     # -----------------------------------------------
 
+    # Collect deleted memberships info for audit
+    deleted_memberships_info = []
+
     for membership in memberships:
         if membership.deleted_at is None:  # Only soft-delete if not already deleted
+            # Store membership info before deletion
+            deleted_memberships_info.append({
+                'user_id': str(membership.user.id),
+                'user_name': f"{membership.user.username} {membership.user.surname}",
+                'company_id': str(membership.company.id),
+                'company_name': membership.company.name,
+                'role': membership.role,
+                'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+            })
+
             membership.deleted_at = now
             membership.save()
 
@@ -640,6 +654,23 @@ def delete_employee(request):
         user.status = 'suspended'
         user.deleted_at = now
         user.save(update_fields=['status', 'deleted_at'])
+
+    # AUDIT: Employee deletion
+    if deleted_memberships_info:
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='user_action',
+            record_id=user.id,
+            user=request.user,
+            action_type=AuditLog.AuditAction.DELETE,
+            before={
+                'status': 'active',
+                'memberships_deleted': deleted_memberships_info,
+                'total_deleted': len(deleted_memberships_info),
+            },
+            reason=f'Eliminación de empleado {user.username} ({user.email}) de {len(deleted_memberships_info)} empresa(s)',
+            source='web'
+        )
 
     return redirect('deleted_records')
 

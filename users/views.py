@@ -156,6 +156,8 @@ def login_view(request):
                                         request.session['company_id'] = str(
                                             memberships.first().company.id
                                         )
+                                    if user.is_admin:
+                                        return redirect('admin_dashboard')
                                     return redirect('home_timetracking')
 
                 else:
@@ -244,6 +246,8 @@ def login_view(request):
                             request.session['company_id'] = str(
                                 memberships.first().company.id
                             )
+                        if updated_user.is_admin:
+                            return redirect('admin_dashboard')
                         return redirect('home_timetracking')
 
         # ── Step 3: select company ─────────────────────────────────────────────
@@ -263,6 +267,8 @@ def login_view(request):
                 if membership:
                     request.session['company_id'] = str(company_id)
                     request.session.pop('pending_company_selection', None)
+                    if request.user.is_admin:
+                        return redirect('admin_dashboard')
                     return redirect('home_timetracking')
 
             show_company_selector = True

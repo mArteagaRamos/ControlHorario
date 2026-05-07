@@ -491,8 +491,36 @@ def permanently_delete_record(request):
             messages.error(request, f"Registro de tipo '{record_type}' con ID '{record_id}' no encontrado.")
             return redirect('deleted_records')
 
+        # Store record data before hard-delete for audit
+        from audit.utils import safe_dict
+        record_data = safe_dict(record)
+
+        # Map record types to appropriate table names for audit
+        table_name_map = {
+            'users': 'user_action',
+            'companies': 'company_settings',
+            'user_companies': 'user_company',
+            'corrections': 'requests_correctionrequests',
+            'time_entries': 'timetracking_timeentries',
+            'time_events': 'audit_timeentryevent',
+        }
+        audit_table_name = table_name_map.get(record_type, record_type)
+
         # Permanently delete the record
         model.objects.hard_delete(record)
+
+        # AUDIT: Permanent record deletion
+        AuditLog.objects.create(
+            id=uuid4(),
+            table_name=audit_table_name,
+            record_id=record_id,
+            user=request.user,
+            action_type=AuditLog.AuditAction.DELETE,
+            before=record_data,
+            reason=f'Eliminación permanente de {record_type}: {record_id}',
+            source='web'
+        )
+
         messages.success(request, f"Registro de tipo '{record_type}' eliminado permanentemente.")
 
     except Exception as e:
@@ -529,9 +557,30 @@ def delete_company(request):
             messages.warning(request, "Esta empresa ya ha sido eliminada.")
             return redirect('admin_dashboard')
 
+        # Store company info before deletion for audit
+        company_info_before = {
+            'name': company.name,
+            'tax_id': company.tax_id,
+            'legal_name': company.legal_name,
+            'email': company.email if hasattr(company, 'email') else None,
+            'phone': company.phone if hasattr(company, 'phone') else None,
+        }
+
         # Mark the company as deleted
         company.deleted_at = timezone.now()
         company.save(update_fields=['deleted_at'])
+
+        # AUDIT: Company deletion
+        AuditLog.objects.create(
+            id=uuid4(),
+            table_name='company_settings',
+            record_id=company.id,
+            user=request.user,
+            action_type=AuditLog.AuditAction.DELETE,
+            before=company_info_before,
+            reason=f'Eliminación de empresa {company.name}',
+            source='web'
+        )
 
         # Mark all associated memberships as deleted
         memberships = UserCompany.objects.filter(company=company, deleted_at__isnull=True)

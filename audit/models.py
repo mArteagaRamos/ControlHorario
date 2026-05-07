@@ -9,6 +9,7 @@ class AuditLog(UppercaseNormalizationMixin, models.Model):
     class AuditAction(models.TextChoices):
         CREATE = 'create'
         UPDATE = 'update'
+        DELETE = 'delete'
         VOIDED = 'voided'
         MANUAL_CORRECTION = 'manual_correction'
 
