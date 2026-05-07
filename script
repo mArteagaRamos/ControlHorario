@@ -293,3 +293,122 @@ END $$;
 -- ── Auditor column ────────────────────────────────────────────────
 alter table users
 add column is_auditor boolean default false;
+
+
+-- 1. LIMPIEZA DE POSIBLES CONFLICTOS
+DROP TABLE IF EXISTS leave_requests CASCADE;
+DROP TYPE IF EXISTS leave_reason CASCADE;
+DROP TYPE IF EXISTS leave_type CASCADE;
+
+-- 2. CREACIÓN DE TIPOS ENUM (Asegurando compatibilidad con tu esquema)
+CREATE TYPE leave_type AS ENUM ('vacation', 'absence');
+
+CREATE TYPE leave_reason AS ENUM (
+    'annual',               -- Vacaciones anuales
+    'sick',                 -- Baja por enfermedad
+    'maternity',            -- Maternidad / Paternidad
+    'wedding',              -- Matrimonio
+    'bereavement',          -- Fallecimiento familiar
+    'medical_appointment',  -- Cita médica
+    'legal_duty',           -- Deber público/legal
+    'personal',             -- Asuntos propios
+    'other'                 -- Otros
+);
+
+-- 3. CREACIÓN DE LA TABLA CON RELACIONES (Foreign Keys)
+CREATE TABLE leave_requests (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Usa la extensión ya creada [cite: 1, 26]
+    
+    -- Relaciones vinculadas a tus tablas actuales [cite: 4, 5]
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
+    company_id          UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE, 
+    
+    leave_type          leave_type NOT NULL DEFAULT 'absence',
+    leave_reason        leave_reason NOT NULL DEFAULT 'other',
+    reason_note         TEXT,          
+    
+    start_date          DATE NOT NULL,
+    end_date            DATE NOT NULL,
+    
+    -- Utilizamos el tipo leave_status que ya definiste previamente [cite: 26]
+    status              leave_status NOT NULL DEFAULT 'pending', 
+    
+    -- Campos de justificante y control
+    attachment_path     VARCHAR(500),  
+    attachment_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    force_proof         BOOLEAN NOT NULL DEFAULT FALSE, 
+    
+    -- Relación con el revisor (Manager) [cite: 4, 29]
+    reviewed_by         UUID REFERENCES users(id) ON DELETE SET NULL,          
+    reviewed_at         TIMESTAMPTZ,
+    review_note         TEXT,
+    
+    created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- Validación de coherencia de fechas [cite: 30]
+    CONSTRAINT chk_dates CHECK (end_date >= start_date)
+);
+
+-- 4. LÓGICA DE NEGOCIO: RESTRICCIÓN DE JUSTIFICANTES
+-- Obliga a subir archivo si el motivo lo requiere o el manager lo fuerza, 
+-- pero permite el estado 'pending' sin archivo para que el empleado lo suba luego.
+ALTER TABLE leave_requests
+    ADD CONSTRAINT chk_requires_proof CHECK (
+        (
+            leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+            AND force_proof = FALSE
+        )
+        OR attachment_path IS NOT NULL
+        OR status = 'pending'
+    );
+
+-- 5. ÍNDICES PARA OPTIMIZACIÓN [cite: 31, 32]
+CREATE INDEX idx_leave_requests_user ON leave_requests(user_id);
+CREATE INDEX idx_leave_requests_company_status ON leave_requests(company_id, status) WHERE status = 'pending';
+CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
+
+-- 6. TRIGGER AUTOMÁTICO PARA UPDATED_AT
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_leave_requests_updated_at ON leave_requests;
+CREATE TRIGGER trg_leave_requests_updated_at
+    BEFORE UPDATE ON leave_requests
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+ALTER TABLE leave_requests 
+RENAME COLUMN reviewed_by TO reviewed_by_id;
+
+
+
+SELECT pg_get_constraintdef(oid) 
+FROM pg_constraint 
+WHERE conname = 'chk_requires_proof';
+
+SELECT conname, pg_get_constraintdef(oid, true)
+FROM pg_constraint
+WHERE conrelid = 'leave_requests'::regclass;
+
+
+ALTER TABLE leave_requests DROP CONSTRAINT chk_requires_proof;
+
+ALTER TABLE leave_requests ADD CONSTRAINT chk_requires_proof CHECK (
+    attachment_path IS NOT NULL
+    OR status = 'pending'
+    OR force_proof = true
+    OR leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+);
+
+
+ALTER TABLE audit_log
+ADD COLUMN previous_hash text,
+ADD COLUMN event_hash text;
+ 
+ALTER TABLE audit_log
+ADD COLUMN source VARCHAR(50) DEFAULT 'web';
