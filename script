@@ -408,7 +408,6 @@ ALTER TABLE leave_requests ADD CONSTRAINT chk_requires_proof CHECK (
     OR leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
 );
 
-
 ALTER TABLE audit_log
 ADD COLUMN previous_hash text,
 ADD COLUMN event_hash text;
