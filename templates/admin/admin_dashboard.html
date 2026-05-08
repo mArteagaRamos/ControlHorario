@@ -235,9 +235,9 @@
                         {% else %}
                         {% for company in all_companies %}
                         <tr class="empresa-row">
-                            <td data-label="Empresa">{{ company.name }}</td>
+                            <td data-label="Empresa">{{ company.name.title }}</td>
                             <td data-label="CIF / NIF">{{ company.tax_id|default:'--' }}</td>
-                            <td data-label="Razón Social">{{ company.legal_name|default:'--' }}</td>
+                            <td data-label="Razón Social">{{ company.legal_name.title|default:'--' }}</td>
                             <td data-label="Creada">{{ company.created_at }}</td>
                             <td data-label="Acciones">
                                 <div class="d-flex gap-2 acciones-movil">
@@ -249,8 +249,8 @@
                                     </a>
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             data-company-id="{{ company.id }}"
-                                            data-company-name="{{ company.name }}"
-                                            data-company-legal-name="{{ company.legal_name }}"
+                                            data-company-name="{{ company.name.title }}"
+                                            data-company-legal-name="{{ company.legal_name.title }}"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalEliminarEmpresa">
                                         <i class="bi bi-trash"></i> Eliminar
@@ -286,7 +286,7 @@
     <!-- ALL WORKERS TABLE -->
         <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
+                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Usuarios
             </h5>
         
         
@@ -311,8 +311,8 @@
                         {% else %}
                         {% for worker in all_workers %}
                         <tr class="worker-row">
-                            <td data-label="Nombre">{{ worker.username }} {{ worker.surname }}</td>
-                            <td data-label="Email">{{ worker.email }}</td>
+                            <td data-label="Nombre">{{ worker.username.title }} {{ worker.surname.title }}</td>
+                            <td data-label="Email">{{ worker.email.lower }}</td>
                             <td data-label="DNI">{{ worker.dni }}</td>
                             <td data-label="Estado">
                                 {% if worker.status == 'active' %}
