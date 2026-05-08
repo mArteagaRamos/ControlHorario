@@ -68,7 +68,7 @@ def login_view(request):
                             reason='Intento de login: cuenta suspendida',
                             source='web',
                         )
-                        messages.error(request, 'Tu cuenta ha sido suspendida. Puede ponerse en contacto a través de info@aeptic.es.')
+                        messages.error(request, 'Tu cuenta ha sido suspendida. Puedes ponerte en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # ── Check if user is deleted ────────────────────────────────
@@ -82,7 +82,7 @@ def login_view(request):
                             reason='Intento de login: cuenta eliminada',
                             source='web',
                         )
-                        messages.error(request, 'Tu cuenta ha sido eliminada. Puede ponerse en contacto a través de info@aeptic.es.')
+                        messages.error(request, 'Tu cuenta ha sido eliminada. Puedes ponerte en contacto a través de info@aeptic.es.')
                         return render(request, 'login/login.html', {'form': form})
 
                     # ── Check if user is auditor ────────────────────────────────
