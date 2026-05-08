@@ -210,11 +210,11 @@
     </div>
 
     <!-- ALL COMPANIES TABLE -->
-    <div id="section-all-companies" class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+        <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
             </h5>
+        
 
             <div class="table-responsive table-scroll-container" id="empresasTableContainer">
                 <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresas">
@@ -282,15 +282,15 @@
             </nav>
             {% endif %}
         </div>
-    </div>
 
     <!-- ALL WORKERS TABLE -->
-    <div id="section-all-workers" class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+        <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
             </h5>
-
+        
+        
+        <div id="section-all-workers" class="card shadow-sm border-0 mb-4">
             <div class="table-responsive table-scroll-container" id="trabajadoresTableContainer">
                 <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadores">
                     <thead class="table-dark">
@@ -363,6 +363,7 @@
                     </tbody>
                 </table>
             </div>
+            </div>
 
             {% if workers_page_obj.has_other_pages %}
             <nav aria-label="Workers pagination" class="mt-3">
@@ -382,10 +383,8 @@
             </nav>
             {% endif %}
         </div>
-    </div>
 
 
-</div>
 
 <!-- Modal Edit Worker -->
 <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-hidden="true">
