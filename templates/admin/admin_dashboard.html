@@ -210,11 +210,11 @@
     </div>
 
     <!-- ALL COMPANIES TABLE -->
-    <div id="section-all-companies" class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+        <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
                 <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
             </h5>
+        
 
             <div class="table-responsive table-scroll-container" id="empresasTableContainer">
                 <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresas">
@@ -235,9 +235,9 @@
                         {% else %}
                         {% for company in all_companies %}
                         <tr class="empresa-row">
-                            <td data-label="Empresa">{{ company.name }}</td>
+                            <td data-label="Empresa">{{ company.name.title }}</td>
                             <td data-label="CIF / NIF">{{ company.tax_id|default:'--' }}</td>
-                            <td data-label="Razón Social">{{ company.legal_name|default:'--' }}</td>
+                            <td data-label="Razón Social">{{ company.legal_name.title|default:'--' }}</td>
                             <td data-label="Creada">{{ company.created_at }}</td>
                             <td data-label="Acciones">
                                 <div class="d-flex gap-2 acciones-movil">
@@ -249,8 +249,8 @@
                                     </a>
                                     <button type="button" class="btn btn-sm btn-outline-danger"
                                             data-company-id="{{ company.id }}"
-                                            data-company-name="{{ company.name }}"
-                                            data-company-legal-name="{{ company.legal_name }}"
+                                            data-company-name="{{ company.name.title }}"
+                                            data-company-legal-name="{{ company.legal_name.title }}"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalEliminarEmpresa">
                                         <i class="bi bi-trash"></i> Eliminar
@@ -282,15 +282,15 @@
             </nav>
             {% endif %}
         </div>
-    </div>
 
     <!-- ALL WORKERS TABLE -->
-    <div id="section-all-workers" class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
+        <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
+                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Usuarios
             </h5>
-
+        
+        
+        <div id="section-all-workers" class="card shadow-sm border-0 mb-4">
             <div class="table-responsive table-scroll-container" id="trabajadoresTableContainer">
                 <table class="table table-hover align-middle table-equal-columns" id="tablaTodosTrabajadores">
                     <thead class="table-dark">
@@ -311,8 +311,8 @@
                         {% else %}
                         {% for worker in all_workers %}
                         <tr class="worker-row">
-                            <td data-label="Nombre">{{ worker.username }} {{ worker.surname }}</td>
-                            <td data-label="Email">{{ worker.email }}</td>
+                            <td data-label="Nombre">{{ worker.username.title }} {{ worker.surname.title }}</td>
+                            <td data-label="Email">{{ worker.email.lower }}</td>
                             <td data-label="DNI">{{ worker.dni }}</td>
                             <td data-label="Estado">
                                 {% if worker.status == 'active' %}
@@ -363,6 +363,7 @@
                     </tbody>
                 </table>
             </div>
+            </div>
 
             {% if workers_page_obj.has_other_pages %}
             <nav aria-label="Workers pagination" class="mt-3">
@@ -382,10 +383,8 @@
             </nav>
             {% endif %}
         </div>
-    </div>
 
 
-</div>
 
 <!-- Modal Edit Worker -->
 <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-hidden="true">
