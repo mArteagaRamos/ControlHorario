@@ -23,6 +23,8 @@ urlpatterns = [
     path('', user_views.login_view, name='login'),
     path('logout/', user_views.logout_view, name='logout'),
     path('register/', user_views.register_unified, name='register_unified'),
+    path('forgot-password/', user_views.forgot_password, name='forgot_password'),
+    path('reset-password/<uidb64>/<token>/', user_views.reset_password, name='reset_password'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
 
     # API Lookups

@@ -5,16 +5,21 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.urls import reverse
 from django.db.models import Q
 from django.views.decorators.http import require_POST
 from uuid import uuid4
 from .forms import (
     LoginForm, CompanyForm, CompanyCreateForm, CompanySelectLoginForm,
     WorkerCreateForm, WorkerSelectForm, SetPasswordForm,
+    ForgotPasswordForm, ResetPasswordForm,
 )
-from .email_utils import send_new_user_email, send_new_auditor_email, send_existing_user_email
+from .email_utils import send_new_user_email, send_new_auditor_email, send_existing_user_email, send_password_reset_email
 from timetracking.models import TimeEntries
 from users.models import Users, Companies, UserCompany
 from admin.models import CompanySettings
@@ -1120,3 +1125,87 @@ def export_workday_requests(request):
         ])
 
     return response
+
+
+# ── Password Reset ────────────────────────────────────────────────────────
+
+def forgot_password(request):
+    """
+    Vista para solicitar reset de contraseña
+    GET: muestra formulario
+    POST: envía email con link de reset
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
+    if request.method == 'POST':
+        logger.info('=== FORGOT PASSWORD: POST RECIBIDO ===')
+        form = ForgotPasswordForm(request.POST)
+        logger.info(f'Formulario válido: {form.is_valid()}')
+
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            logger.info(f'Email ingresado: {email}')
+            try:
+                user = Users.objects.get(email__iexact=email)
+                logger.info(f'✅ Usuario encontrado: {user.email}')
+
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+                reset_url = request.build_absolute_uri(
+                    reverse('reset_password', kwargs={'uidb64': uid, 'token': token})
+                )
+                logger.info(f'URL generada: {reset_url}')
+
+                logger.info(f'Llamando a send_password_reset_email()...')
+                send_password_reset_email(user, reset_url)
+                logger.info(f'send_password_reset_email() completado')
+
+            except Users.DoesNotExist:
+                logger.warning(f'❌ Usuario no encontrado: {email}')
+                pass
+            except Exception as e:
+                logger.error(f'❌ Error en forgot_password: {str(e)}')
+                import traceback
+                logger.error(traceback.format_exc())
+
+            messages.success(request, 'Si la cuenta existe, recibirás un email con instrucciones.')
+            return redirect('forgot_password')
+        else:
+            logger.error(f'Formulario inválido: {form.errors}')
+    else:
+        form = ForgotPasswordForm()
+
+    return render(request, 'login/forgot_password.html', {'form': form})
+
+
+def reset_password(request, uidb64, token):
+    """
+    Vista para resetear contraseña
+    GET: valida token y muestra formulario
+    POST: actualiza contraseña
+    """
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = Users.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, Users.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            form = ResetPasswordForm(request.POST, user=user)
+            if form.is_valid():
+                new_password = form.cleaned_data['new_password']
+                user.set_password(new_password)
+                user.save()
+
+                messages.success(request, 'Contraseña actualizada correctamente. Por favor inicia sesión.')
+                return redirect('login')
+        else:
+            form = ResetPasswordForm(user=user)
+
+        return render(request, 'login/reset_password.html', {'form': form, 'valid_link': True})
+    else:
+        messages.error(request, 'El link de reset ha expirado o es inválido. Solicita uno nuevo.')
+        return redirect('forgot_password')

@@ -375,3 +375,75 @@ class UserPersonalDataForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+# ── Password Reset ────────────────────────────────────────────────────────
+
+class ForgotPasswordForm(forms.Form):
+    """Form for requesting password reset by email."""
+    email = forms.EmailField(
+        label='Correo electrónico',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ingresa tu email registrado',
+            'autocomplete': 'email',
+        }),
+        error_messages={
+            'required': 'Debes ingresar tu correo electrónico.',
+            'invalid': 'Por favor, ingresa un correo electrónico válido.',
+        },
+    )
+
+    def clean_email(self):
+        email = self.cleaned_data['email'].lower().strip()
+        return email
+
+
+class ResetPasswordForm(forms.Form):
+    """Form for setting a new password after reset token validation."""
+    new_password = forms.CharField(
+        label='Nueva Contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nueva contraseña (mínimo 8 caracteres)',
+            'autocomplete': 'new-password',
+        }),
+        min_length=8,
+        help_text='Mínimo 8 caracteres',
+        error_messages={
+            'required': 'Debes ingresar una nueva contraseña.',
+            'min_length': 'La contraseña debe tener al menos 8 caracteres.',
+        },
+    )
+    confirm_password = forms.CharField(
+        label='Confirmar Contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Confirma tu contraseña',
+            'autocomplete': 'new-password',
+        }),
+        error_messages={
+            'required': 'Debes confirmar tu contraseña.',
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        new_password = cleaned_data.get('new_password', '')
+        confirm_password = cleaned_data.get('confirm_password', '')
+
+        if new_password and confirm_password:
+            if new_password != confirm_password:
+                self.add_error('confirm_password', 'Las contraseñas no coinciden.')
+
+        if new_password and self.user and self.user.check_password(new_password):
+            self.add_error(
+                'new_password',
+                'La nueva contraseña no puede ser igual a la anterior.',
+            )
+
+        return cleaned_data
