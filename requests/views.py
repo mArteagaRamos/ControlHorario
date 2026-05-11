@@ -686,10 +686,16 @@ def api_leave_request_create(request):
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    try:
-        data = json.loads(request.body)
-    except json.JSONDecodeError:
-        return JsonResponse({'error': 'JSON inválido'}, status=400)
+    # Parsear datos: soporta tanto JSON como FormData
+    if request.content_type and 'application/json' in request.content_type:
+        # JSON
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+    else:
+        # FormData (multipart/form-data)
+        data = request.POST.dict()
 
     start_date = data.get('start_date')
     end_date   = data.get('end_date')

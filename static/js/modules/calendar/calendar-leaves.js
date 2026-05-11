@@ -79,7 +79,17 @@ export async function sendLeaveRequest(payload, msgElementId, isFormData = false
 
   try {
     const response = await fetch(getLeaveCreateUrl(), fetchOptions);
-    const data = await response.json();
+    
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonErr) {
+      // Si no es JSON válido, es un error del servidor
+      console.error('Server error response (non-JSON):', response.status, response.statusText);
+      msgEl.className = 'mt-2 small text-danger';
+      msgEl.textContent = `Error del servidor (${response.status}). Contacta con soporte.`;
+      return;
+    }
 
     if (response.ok) {
       msgEl.className = 'mt-2 small text-success';
