@@ -264,10 +264,6 @@ export async function uploadAttachment() {
   msgEl.className = 'mt-1 small text-muted';
   msgEl.textContent = 'Subiendo…';
 
-  console.log('Subiendo archivo para leave_id:', cleanId);
-  console.log('URL:', `/leave/${cleanId}/upload/`);
-  console.log('Archivo:', fileInput.files[0].name, fileInput.files[0].size);
-
   try {
     const res = await fetch(`/leave/${cleanId}/upload/`, {
       method: 'POST',
@@ -275,10 +271,7 @@ export async function uploadAttachment() {
       body: formData,
     });
 
-    console.log('Response status:', res.status);
-
     const data = await res.json();
-    console.log('Response data:', data);
 
     if (res.ok) {
       msgEl.className = 'mt-1 small text-success';
