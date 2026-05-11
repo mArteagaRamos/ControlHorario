@@ -96,6 +96,10 @@ function initializeDeleteWorkerModal() {
 
             // Crear/actualizar input hidden de company_ids
             updateCompanyIdsInput();
+        } else {
+            // Ninguna empresa
+            toggleVisibility(singleCompanySection, false);
+            toggleVisibility(multipleCompaniesSection, false);
         }
     });
 
@@ -131,17 +135,20 @@ function updateCompanyIdsInput() {
     const eliminarModal = document.getElementById('modalEliminarTrabajador');
     if (!eliminarModal) return;
 
+    const multipleCompaniesSection = document.getElementById('multipleCompaniesSection');
+    if (!multipleCompaniesSection || multipleCompaniesSection.classList.contains('d-none')) return;
+
     const checkboxes = document.querySelectorAll('.company-checkbox:checked');
     const form = eliminarModal.querySelector('form');
     if (!form) return;
 
-    let companyIdsInput = form.querySelector('input[name="company_ids"]');
+    let companyIdsInput = form.querySelector('input[name="company_ids"]:not(#singleCompanyId)');
 
     if (!companyIdsInput) {
         companyIdsInput = document.createElement('input');
         companyIdsInput.type = 'hidden';
         companyIdsInput.name = 'company_ids';
-        form.insertBefore(companyIdsInput, form.querySelector('.modal-body').nextSibling);
+        form.querySelector('.modal-body').appendChild(companyIdsInput);
     }
 
     const selectedIds = Array.from(checkboxes).map(cb => cb.value).join(',');

@@ -38,6 +38,8 @@ export function fillFormFromDataset(mapping, sourceElement) {
  * Modal de Editar Trabajador
  * Rellena los campos del formulario cuando se abre el modal
  * Funciona en cualquier contexto (admin, staff, etc.)
+ * - admin_dashboard: solo campos globales del usuario
+ * - staff: incluye role (membresía en la empresa)
  */
 export function initializeEditWorkerModal() {
     const editarModal = document.getElementById('modalEditarTrabajador');
@@ -58,10 +60,16 @@ export function initializeEditWorkerModal() {
 
         fillFormFromDataset(mapping, button);
 
-        // editDni es opcional (puede no existir en todos los templates)
+        // editDni es opcional (puede no existir en admin_dashboard)
         const editDniField = document.getElementById('editDni');
         if (editDniField) {
             editDniField.value = button.dataset.dni || '';
+        }
+
+        // editRol es opcional (solo existe en staff.html, no en admin_dashboard)
+        const editRolField = document.getElementById('editRol');
+        if (editRolField) {
+            editRolField.value = button.dataset.rol || 'employee';
         }
     });
 

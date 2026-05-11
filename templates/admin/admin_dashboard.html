@@ -286,7 +286,7 @@
     <!-- ALL WORKERS TABLE -->
         <div class="mb-3 mt-4">
             <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Usuarios
+                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
             </h5>
         
         
@@ -386,7 +386,7 @@
 
 
 
-<!-- Modal Edit Worker -->
+<!-- Modal Edit Worker (Admin Dashboard - Global edit, no company/role) -->
 <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -398,6 +398,7 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <input type="hidden" name="user_id" id="editUserId">
+                    <!-- No company_id ni role - edita datos globales del usuario -->
 
                     <div class="row g-3">
                         <div class="col-12 col-sm-6">
@@ -428,7 +429,7 @@
                 </div>
                 <div class="modal-footer bg-light">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <button type="submit" class="std-btn">Guardar Cambios</button>
                 </div>
             </form>
         </div>
