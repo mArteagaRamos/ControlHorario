@@ -194,6 +194,7 @@ export function showEventModal(event) {
  */
 export function prepareAttachmentSection(event) {
   setCurrentLeaveId(event.id);
+  const attachmentSection = document.getElementById('attachmentSection');
   const container = document.getElementById('attachStatus');
   const uploadZone = document.getElementById('uploadZone');
   const msg = document.getElementById('uploadMsg');
@@ -201,18 +202,26 @@ export function prepareAttachmentSection(event) {
   msg.textContent = '';
   document.getElementById('fileInput').value = '';
 
-  if (event.extendedProps.attachment_path) {
-    uploadZone.classList.add('d-none');
-    container.classList.remove('d-none');
-    container.innerHTML = `
-      <div class="d-flex align-items-center gap-2 mb-2" style="font-size:.82rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.45rem; padding:.45rem .7rem; color:#166534;">
-        <i class="bi bi-check-circle-fill"></i> Justificante adjunto
-        <a href="/media/${event.extendedProps.attachment_path}" target="_blank" class="ms-2 fw-bold">Ver archivo</a>
-        <button onclick="showUploadZone()" class="ms-auto btn btn-link btn-sm p-0 text-muted" style="font-size:.7rem; text-decoration:none;">Reemplazar</button>
-      </div>`;
+  // Solo mostrar sección de justificantes para ausencias
+  if (event.extendedProps.leave_type === 'absence') {
+    attachmentSection.style.display = 'block';
+
+    if (event.extendedProps.attachment_path) {
+      uploadZone.classList.add('d-none');
+      container.classList.remove('d-none');
+      container.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-2" style="font-size:.82rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:.45rem; padding:.45rem .7rem; color:#166534;">
+          <i class="bi bi-check-circle-fill"></i> Justificante adjunto
+          <a href="/media/${event.extendedProps.attachment_path}" target="_blank" class="ms-2 fw-bold">Ver archivo</a>
+          <button onclick="showUploadZone()" class="ms-auto btn btn-link btn-sm p-0 text-muted" style="font-size:.7rem; text-decoration:none;">Reemplazar</button>
+        </div>`;
+    } else {
+      uploadZone.classList.remove('d-none');
+      container.classList.add('d-none');
+    }
   } else {
-    uploadZone.classList.remove('d-none');
-    container.classList.add('d-none');
+    // Ocultar sección para vacaciones
+    attachmentSection.style.display = 'none';
   }
 }
 
@@ -227,12 +236,18 @@ export function showUploadZone() {
 
 /**
  * Sube un adjunto a una solicitud
- * @param {string} leaveId - ID de la solicitud (puede tener prefijo "leave-")
  * @returns {Promise<void>}
  */
-export async function uploadAttachment(leaveId) {
+export async function uploadAttachment() {
+  const leaveId = getCurrentLeaveId();
   const fileInput = document.getElementById('fileInput');
   const msgEl = document.getElementById('uploadMsg');
+
+  if (!leaveId) {
+    msgEl.className = 'mt-1 small text-danger';
+    msgEl.textContent = 'Error: ID de solicitud no encontrado.';
+    return;
+  }
 
   if (!fileInput.files[0]) {
     msgEl.className = 'mt-1 small text-danger';
@@ -249,15 +264,21 @@ export async function uploadAttachment(leaveId) {
   msgEl.className = 'mt-1 small text-muted';
   msgEl.textContent = 'Subiendo…';
 
+  console.log('Subiendo archivo para leave_id:', cleanId);
+  console.log('URL:', `/leave/${cleanId}/upload/`);
+  console.log('Archivo:', fileInput.files[0].name, fileInput.files[0].size);
+
   try {
-    // Usamos el cleanId aquí
-    const res = await fetch(`/api/leave/${cleanId}/upload/`, {
+    const res = await fetch(`/leave/${cleanId}/upload/`, {
       method: 'POST',
       headers: { 'X-CSRFToken': getCsrfToken() },
       body: formData,
     });
 
+    console.log('Response status:', res.status);
+
     const data = await res.json();
+    console.log('Response data:', data);
 
     if (res.ok) {
       msgEl.className = 'mt-1 small text-success';
@@ -267,14 +288,14 @@ export async function uploadAttachment(leaveId) {
       const calendarObj = getCalendarObj();
       if (calendarObj) calendarObj.refetchEvents();
 
-      setTimeout(() => location.reload(), 1000); // Recarga para actualizar el modal
+      setTimeout(() => location.reload(), 1000);
     } else {
       msgEl.className = 'mt-1 small text-danger';
       msgEl.textContent = data.message || 'Error en el servidor';
     }
   } catch (err) {
     msgEl.className = 'mt-1 small text-danger';
-    msgEl.textContent = 'Error de conexión.';
+    msgEl.textContent = 'Error de conexión: ' + err.message;
     console.error('Upload attachment error:', err);
   }
 }

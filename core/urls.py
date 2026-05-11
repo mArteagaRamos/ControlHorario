@@ -2,6 +2,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
@@ -123,4 +125,8 @@ urlpatterns = [
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
+
+# Servir archivos media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
