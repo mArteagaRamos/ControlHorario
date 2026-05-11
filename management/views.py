@@ -572,26 +572,34 @@ def delete_employee(request):
     company_ids = []
 
     if company_ids_str:
-        # Multiple companies from multi-select
+        # Multiple companies from multi-select (staff.html)
         company_ids = [cid.strip() for cid in company_ids_str.split(',') if cid.strip()]
     elif company_id_single:
-        # Single company from manager view
+        # Single company from staff.html
         company_ids = [company_id_single]
     elif delegation_context['is_delegating']:
         # Delegated context
         company_ids = [delegation_context['delegated_company_id']]
     else:
-        # Get current manager's own company
-        membership_manager = UserCompany.objects.all_with_deleted().filter(
-            user=request.user,
-            role=UserCompany.RoleChoices.MANAGER,
-            deleted_at__isnull=True
-        ).first()
-        if membership_manager:
-            company_ids = [str(membership_manager.company.id)]
+        # ── ADMIN_DASHBOARD CONTEXT ──
+        # No company specified: get ALL active companies for this user
+        # This applies when admin deletes from admin_dashboard (without specifying companies)
+        if request.user.is_admin:
+            user_company_ids = UserCompany.objects.filter(
+                user=user,
+                deleted_at__isnull=True
+            ).values_list('company_id', flat=True)
+            company_ids = [str(cid) for cid in user_company_ids]
 
     if not company_ids:
-        return HttpResponseForbidden("No se especificaron empresas.")
+        # User has no active memberships, but we should still mark user as deleted
+        # This happens when trying to delete an already-deleted user or a user with no companies
+        if not user.deleted_at:
+            user.status = 'suspended'
+            user.deleted_at = timezone.now()
+            user.save(update_fields=['status', 'deleted_at'])
+        messages.warning(request, "El usuario no tenía empresas activas, pero ha sido marcado como eliminado.")
+        return redirect('deleted_records')
 
     # 3. Validate permissions and get companies
     companies_to_delete = []
@@ -612,7 +620,7 @@ def delete_employee(request):
         except Companies.DoesNotExist:
             return HttpResponseForbidden(f"Empresa {cid} no encontrada.")
 
-    # 4. Prevent a manager from accidentally deleting themselves
+    # 4. Prevent a manager/admin from accidentally deleting themselves
     for company in companies_to_delete:
         membership = UserCompany.objects.all_with_deleted().filter(
             user=request.user,
@@ -620,22 +628,23 @@ def delete_employee(request):
             deleted_at__isnull=True
         ).first()
         if membership and str(user_id) == str(request.user.id):
+            messages.warning(request, "⚠️ No puedes eliminar tu propia cuenta. Si deseas eliminar tu usuario, contacta con otro administrador.")
             return redirect('deleted_records')
 
-    # 5. Delete from all specified companies
+    # 5. Delete from all specified companies (soft-delete memberships)
     now = timezone.now()
 
     # Mark all memberships for these companies as deleted
     memberships = UserCompany.objects.all_with_deleted().filter(
         user=user,
-        company__in=companies_to_delete
+        company__in=companies_to_delete,
+        deleted_at__isnull=True
     )
 
     # --- COMPROBACIÓN DE ELIMINACIÓN CONCURRENTE ---
-    # Si hay membresías pero TODAS tienen ya un deleted_at, significa que
-    # otro manager/admin se te ha adelantado.
-    if memberships.exists() and all(m.deleted_at is not None for m in memberships):
-        messages.warning(request, "Este empleado ya ha sido eliminado previamente por otro administrador.")
+    if not memberships.exists():
+        # All memberships were already deleted
+        messages.warning(request, "Este empleado ya ha sido eliminado previamente de estas empresas.")
         return redirect('deleted_records')
     # -----------------------------------------------
 
@@ -643,28 +652,23 @@ def delete_employee(request):
     deleted_memberships_info = []
 
     for membership in memberships:
-        if membership.deleted_at is None:  # Only soft-delete if not already deleted
-            # Store membership info before deletion
-            deleted_memberships_info.append({
-                'user_id': str(membership.user.id),
-                'user_name': f"{membership.user.username} {membership.user.surname}",
-                'company_id': str(membership.company.id),
-                'company_name': membership.company.name,
-                'role': membership.role,
-                'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
-            })
+        # Store membership info before deletion
+        deleted_memberships_info.append({
+            'user_id': str(membership.user.id),
+            'user_name': f"{membership.user.username} {membership.user.surname}",
+            'company_id': str(membership.company.id),
+            'company_name': membership.company.name,
+            'role': membership.role,
+            'joined_at': membership.joined_at.isoformat() if membership.joined_at else None,
+        })
 
-            membership.deleted_at = now
-            membership.save()
+        # Soft-delete: mark with deletion timestamp
+        membership.deleted_at = now
+        membership.save()
 
-    # 6. Check if user belongs to any active companies after deletion
-    active_memberships = UserCompany.objects.filter(
-        user=user,
-        deleted_at__isnull=True
-    )
-
-    # If user has no more active memberships, mark user as suspended and deleted
-    if not active_memberships.exists():
+    # 6. Always mark the USER as deleted (soft-delete)
+    # This ensures the user is marked as deleted globally, not just from specific companies
+    if not user.deleted_at:
         user.status = 'suspended'
         user.deleted_at = now
         user.save(update_fields=['status', 'deleted_at'])

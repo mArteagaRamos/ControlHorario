@@ -477,6 +477,32 @@ def lookup_user(request):
 
 
 @login_required
+def user_companies_count(request):
+    """
+    Get the count of active companies for a user.
+    Used by admin_dashboard modal to show how many companies will be affected by deletion.
+
+    Params:
+        user_id: UUID of the user
+    Returns:
+        { company_count: N }
+    """
+    user_id = request.GET.get('user_id', '').strip()
+
+    if not user_id:
+        return JsonResponse({'company_count': 0})
+
+    try:
+        company_count = UserCompany.objects.filter(
+            user_id=user_id,
+            deleted_at__isnull=True
+        ).count()
+        return JsonResponse({'company_count': company_count})
+    except Exception as e:
+        return JsonResponse({'company_count': 0})
+
+
+@login_required
 def check_last_manager(request):
     """
     Check whether a user is the last manager in their company.

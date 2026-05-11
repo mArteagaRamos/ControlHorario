@@ -28,6 +28,7 @@ urlpatterns = [
     # API Lookups
     path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
     path('api/lookup-user/', user_views.lookup_user, name='lookup_user'),
+    path('api/user-companies-count/', user_views.user_companies_count, name='user_companies_count'),
     path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
 
     # ════════════════════════════════════════════════════════════════════════
