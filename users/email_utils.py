@@ -139,3 +139,47 @@ def _get_role_display(role):
     }
     role_key = str(role).lower()
     return role_map.get(role_key, role)
+
+
+def send_password_reset_email(user, reset_url):
+    """Send password reset email to user."""
+    try:
+        logger.info(f'=== INICIANDO ENVÍO DE PASSWORD RESET ===')
+        logger.info(f'EMAIL_HOST: {settings.EMAIL_HOST}')
+        logger.info(f'EMAIL_PORT: {settings.EMAIL_PORT}')
+        logger.info(f'EMAIL_USE_TLS: {settings.EMAIL_USE_TLS}')
+        logger.info(f'EMAIL_USE_SSL: {settings.EMAIL_USE_SSL}')
+        logger.info(f'EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}')
+        logger.info(f'Usuario destinatario: {user.email.lower()}')
+
+        context = {
+            'username': user.username,
+            'email': user.email.lower(),
+            'reset_url': reset_url,
+            'current_year': datetime.now().year,
+            'styles': _get_email_styles(),
+        }
+
+        html_message = render_to_string('emails/password_reset_email.html', context)
+        text_message = strip_tags(html_message)
+
+        subject = 'Recupera tu contraseña - Aeptic'
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=text_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            to=[user.email.lower()],
+        )
+        email.attach_alternative(html_message, 'text/html')
+        logger.info(f'Email creado. Intentando enviar...')
+        email.send(fail_silently=False)
+        logger.info(f'✅ Email de reset de contraseña enviado a {user.email.lower()}')
+
+        return True
+
+    except Exception as e:
+        logger.error(f'❌ Error enviando email de reset a {user.email.lower()}: {str(e)}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
