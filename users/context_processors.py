@@ -32,7 +32,8 @@ def get_breadcrumbs(request):
 
     # Add all pages from history
     for page in history:
-        label = BREADCRUMB_LABELS.get(page['name'], page['name'].replace('_', ' ').title())
+        page_name = page.get('name') or 'Página'
+        label = BREADCRUMB_LABELS.get(page_name, page_name.replace('_', ' ').title())
         breadcrumbs.append({
             'label': label,
             'url': page['path'],
