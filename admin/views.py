@@ -247,6 +247,111 @@ def export_deleted_records(request):
     return response
 
 
+@admin_only_required
+@require_POST
+def export_all_companies(request):
+    """
+    Exports all active companies to CSV.
+    """
+    companies = Companies.objects.filter(deleted_at__isnull=True).order_by('name')
+
+    if not companies.exists():
+        return HttpResponse("No hay empresas para exportar.")
+
+    # AUDIT: Export all companies
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {companies.count()} empresas',
+        after={
+            'tipo': 'Exportación Empresas',
+            'tabla': 'Todas las empresas',
+            'cantidad': companies.count(),
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y_%H%M%S')
+    response['Content-Disposition'] = f"attachment; filename=\"reporte_empresas_{fecha_reporte}.csv\""
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Nombre', 'CIF / NIF', 'Razón Social', 'Creada'])
+
+    for company in companies:
+        writer.writerow([
+            company.name,
+            company.tax_id or '--',
+            company.legal_name or '--',
+            company.created_at.strftime('%d/%m/%Y') if company.created_at else '--'
+        ])
+
+    return response
+
+
+@admin_only_required
+@require_POST
+def export_all_workers(request):
+    """
+    Exports all active workers to CSV.
+    """
+    workers = Users.objects.filter(deleted_at__isnull=True).exclude(status='suspended').order_by('username')
+
+    if not workers.exists():
+        return HttpResponse("No hay trabajadores para exportar.")
+
+    # AUDIT: Export all workers
+    AuditLog.objects.create(
+        id=uuid4(),
+        table_name='user_action',
+        record_id=request.user.id,
+        user=request.user,
+        action_type=AuditLog.AuditAction.CREATE,
+        reason=f'Exportación de {workers.count()} trabajadores',
+        after={
+            'tipo': 'Exportación Trabajadores',
+            'tabla': 'Todos los trabajadores',
+            'cantidad': workers.count(),
+        }
+    )
+
+    response = HttpResponse(content_type='text/csv')
+    fecha_reporte = timezone.now().strftime('%d_%m_%Y_%H%M%S')
+    response['Content-Disposition'] = f"attachment; filename=\"reporte_trabajadores_{fecha_reporte}.csv\""
+
+    # Byte order mark for Excel with accents
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow(['Nombre', 'Apellidos', 'Email', 'DNI', 'Estado', 'Empresas', 'Creado'])
+
+    for worker in workers:
+        # Get companies for this worker
+        companies = Companies.objects.filter(
+            usercompany__user=worker,
+            usercompany__deleted_at__isnull=True
+        ).values_list('name', flat=True).distinct()
+
+        companies_str = ' | '.join(companies) if companies else '--'
+
+        writer.writerow([
+            worker.username,
+            worker.surname or '--',
+            worker.email,
+            worker.dni or '--',
+            worker.get_status_display() if hasattr(worker, 'get_status_display') else worker.status,
+            companies_str,
+            worker.date_joined.strftime('%d/%m/%Y') if worker.date_joined else '--'
+        ])
+
+    return response
+
+
 # ── DELEGATED WORKER SYSTEM ────────────────────────────────────────────────
 
 @admin_only_required

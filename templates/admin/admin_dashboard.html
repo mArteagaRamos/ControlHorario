@@ -211,10 +211,19 @@
 
     <!-- ALL COMPANIES TABLE -->
         <div class="mb-3 mt-4">
-            <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
-            </h5>
-        
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title border-bottom pb-2 mb-0 flex-grow-1" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_companies }}</span>Todas las Empresas
+                    </div>
+                    <form method="POST" action="{% url 'export_all_companies' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="std-btn" title="Exportar todas las empresas">
+                            <i class="bi bi-download"></i> Exportar
+                        </button>
+                    </form>
+                </h5>
+            </div>
 
             <div class="table-responsive table-scroll-container" id="empresasTableContainer">
                 <table class="table table-hover align-middle table-equal-columns" id="tablaTodosEmpresas">
@@ -285,10 +294,19 @@
 
     <!-- ALL WORKERS TABLE -->
         <div class="mb-3 mt-4">
-            <h5 class="card-title border-bottom pb-2 mb-3">
-                <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
-            </h5>
-        
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title border-bottom pb-2 mb-0 flex-grow-1" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div>
+                        <span class="badge bg-primary me-2" style="background-color: #1a1f2e !important;">{{ total_workers }}</span>Todos los Trabajadores
+                    </div>
+                    <form method="POST" action="{% url 'export_all_workers' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="std-btn" title="Exportar todos los trabajadores">
+                            <i class="bi bi-download"></i> Exportar
+                        </button>
+                    </form>
+                </h5>
+            </div>
         
         <div id="section-all-workers" class="card shadow-sm border-0 mb-4">
             <div class="table-responsive table-scroll-container" id="trabajadoresTableContainer">

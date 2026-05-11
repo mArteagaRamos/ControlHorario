@@ -103,6 +103,10 @@ urlpatterns = [
     path('admin/delete-permanent/', admin_views.permanently_delete_record, name='permanently_delete_record'),
     path('admin/delete-company/', admin_views.delete_company, name='delete_company'),
 
+    # Exports
+    path('admin/export/companies/', admin_views.export_all_companies, name='export_all_companies'),
+    path('admin/export/workers/', admin_views.export_all_workers, name='export_all_workers'),
+
     # API - Admin Delegation
     path('api/admin/delegate/', admin_views.select_delegated_worker, name='select_delegated_worker'),
     path('api/admin/clear-delegate/', admin_views.clear_delegated_worker, name='clear_delegated_worker'),
