@@ -5,6 +5,62 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/audit/audit_dashboard.css' %}">
+<style>
+    .std-btn {
+        background-color: #1a1f2e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        transition: opacity 0.2s;
+        padding: 0.5rem 1rem;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .std-btn:hover {
+        opacity: 0.9;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .card-audit {
+            margin-bottom: 1rem;
+        }
+        .card-body {
+            padding: 1.5rem !important;
+        }
+        .display-4 {
+            font-size: 2rem !important;
+        }
+        .card-title {
+            font-size: 1.1rem;
+        }
+        .card-text {
+            font-size: 0.875rem;
+        }
+        .std-btn {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+    }
+    @media (max-width: 576px) {
+        .container {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        .row-cols-md-2 {
+            --bs-columns: 1;
+        }
+        .card-body {
+            padding: 1rem !important;
+        }
+        h2 {
+            font-size: 1.5rem !important;
+        }
+        .card-title {
+            font-size: 1rem;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
