@@ -545,6 +545,7 @@ def api_calendar_events(request):
                 conflict_map[str(leave.id)] = True
 
         for leave in leaves:
+            is_owner = leave.user.email == request.user.email or str(leave.user.id) == str(request.user.id)
             events.append({
                 'id': f'leave-{leave.id}',
                 'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',
@@ -559,6 +560,7 @@ def api_calendar_events(request):
                     'has_conflict': str(leave.id) in conflict_map,
                     'leave_type': leave.leave_type,
                     'attachment_path': leave.attachment_path or '',
+                    'is_owner': is_owner,
                 },
             })
         return JsonResponse(events, safe=False)
@@ -569,8 +571,18 @@ def api_calendar_events(request):
         target_user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
         if not target_user:
             return JsonResponse({'error': 'Usuario delegado no encontrado'}, status=400)
+        real_user = target_user
     else:
-        target_user = request.user
+        # Obtener el usuario personalizado (Users) correspondiente a request.user
+        real_user = Users.objects.filter(email=request.user.email).first()
+        if not real_user:
+            real_user = Users.objects.filter(username=request.user.username).first()
+        if not real_user:
+            return JsonResponse({'error': 'Usuario no encontrado en el sistema'}, status=400)
+
+        target_user = real_user
+
+        # Si es manager viendo a otro usuario específico, cambiar target_user
         if user_id and check_is_manager(request, company):
             try:
                 target_user = get_object_or_404(Users, id=user_id)
@@ -600,6 +612,7 @@ def api_calendar_events(request):
             conflict_map[str(leave.id)] = True
 
     for leave in leaves:
+        is_owner = leave.user.id == real_user.id
         events.append({
             'id': f'leave-{leave.id}',
             'title': f'{leave.get_leave_type_display()}',
@@ -614,6 +627,7 @@ def api_calendar_events(request):
                 'has_conflict': str(leave.id) in conflict_map,
                 'leave_type': leave.leave_type,
                 'attachment_path': leave.attachment_path or '',
+                'is_owner': is_owner,
             },
         })
 
@@ -750,8 +764,117 @@ def api_leave_request_create(request):
         'message': 'Solicitud enviada correctamente',
     }, status=201)
 
- 
+
 @login_required
+@require_POST
+def api_leave_request_edit(request, leave_id):
+    """Permite que el usuario edite su propia solicitud mientras esté en estado PENDIENTE."""
+    # Get effective context (delegation info if any)
+    delegation_context = get_effective_context(request)
+
+    # Determine which user and company context to use
+    if delegation_context['is_delegating']:
+        user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+        company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
+        if not user or not company:
+            return JsonResponse({'error': 'Usuario o empresa delegada no encontrada'}, status=400)
+    else:
+        user = request.user
+        company = get_company(request)
+
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    leave = get_object_or_404(LeaveRequest, id=leave_id, user=user, company=company)
+
+    # --- Validación de estado ---
+    if leave.status != LeaveRequest.LeaveStatus.PENDING:
+        return JsonResponse({'error': 'Solo se pueden editar solicitudes pendientes'}, status=403)
+
+    # Parsear datos: soporta tanto JSON como FormData
+    if request.content_type and 'application/json' in request.content_type:
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'JSON inválido'}, status=400)
+    else:
+        data = request.POST.dict()
+
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    leave_reason = data.get('leave_reason', leave.leave_reason)
+    reason_note = data.get('reason_note', '')
+
+    if not start_date or not end_date:
+        return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
+
+    try:
+        start = date.fromisoformat(start_date)
+        end = date.fromisoformat(end_date)
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+
+    # --- Validaciones de fechas ---
+    if end < start:
+        return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
+
+    if start < date.today():
+        return JsonResponse({'error': 'No puedes solicitar días anteriores a hoy'}, status=400)
+
+    # --- Validación de leave_reason ---
+    if leave_reason not in LeaveRequest.LeaveReason.values:
+        return JsonResponse({'error': 'Motivo no válido'}, status=400)
+
+    # --- Sanitización de reason_note ---
+    if reason_note and len(reason_note) > 500:
+        return JsonResponse({'error': 'La nota no puede exceder 500 caracteres'}, status=400)
+
+    # --- Validación de solapamientos (excluyendo la solicitud actual) ---
+    conflicts = LeaveRequest.objects.filter(
+        user=user,
+        company=company,
+        status__in=[LeaveRequest.LeaveStatus.PENDING, LeaveRequest.LeaveStatus.APPROVED],
+        start_date__lte=end,
+        end_date__gte=start
+    ).exclude(id=leave_id).values('id', 'leave_type', 'start_date', 'end_date', 'status')
+
+    if conflicts:
+        conflicts_list = list(conflicts)
+        return JsonResponse({
+            'error': 'Hay un solapamiento con otra solicitud',
+            'conflicts': [
+                {
+                    'id': str(c['id']),
+                    'leave_type': dict(LeaveRequest.LeaveType.choices).get(c['leave_type'], c['leave_type']),
+                    'start_date': str(c['start_date']),
+                    'end_date': str(c['end_date']),
+                }
+                for c in conflicts_list
+            ]
+        }, status=400)
+
+    # --- Capturar estado anterior para auditoría ---
+    before = serialize_leave(leave)
+
+    # --- Actualizar campos ---
+    leave.start_date = start
+    leave.end_date = end
+    leave.leave_reason = leave_reason
+    leave.reason_note = reason_note
+    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'updated_at'])
+
+    # --- Auditoría: Edición ---
+    log_leave(leave, request.user, AuditLog.AuditAction.UPDATE,
+             before=before,
+             reason='Edición de solicitud por el usuario',
+             source='web')
+
+    return JsonResponse({
+        'ok': True,
+        'message': 'Solicitud actualizada correctamente'
+    }, status=200)
+
+
 @login_required
 @require_POST
 def api_leave_upload_attachment(request, leave_id):

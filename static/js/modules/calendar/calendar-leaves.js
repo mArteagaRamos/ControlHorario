@@ -159,6 +159,14 @@ export function showEventModal(event) {
   const props = event.extendedProps;
   setCurrentLeaveId(event.id);
 
+  console.log('Event clicked:', {
+    id: event.id,
+    title: event.title,
+    status: props.status,
+    is_owner: props.is_owner,
+    leave_type: props.leave_type
+  });
+
   document.getElementById('eventModalTitle').textContent = event.title;
 
   let bodyHTML =
@@ -179,6 +187,24 @@ export function showEventModal(event) {
   document.getElementById('eventModalBody').innerHTML = bodyHTML;
 
   prepareAttachmentSection(event);
+
+  // Llenar el footer con el botón de edición si aplica
+  const footerEl = document.getElementById('eventModalFooter');
+  footerEl.innerHTML = '';
+
+  console.log('Checking edit button conditions:', {
+    status: props.status,
+    is_pending: props.status === 'Pendiente' || props.status === 'pending',
+    is_owner: props.is_owner
+  });
+
+  if ((props.status === 'Pendiente' || props.status === 'pending') && props.is_owner) {
+    footerEl.innerHTML = `
+      <button class="std-btn" onclick="editLeaveRequest('${event.id}')">
+        <i class="bi bi-pencil"></i> Editar Solicitud
+      </button>
+    `;
+  }
 
   new bootstrap.Modal(document.getElementById('eventModal')).show();
 }
@@ -299,3 +325,187 @@ export async function uploadAttachment() {
     console.error('Upload attachment error:', err);
   }
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// ✏️ Edición de Solicitudes de Ausencia
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Prepara y abre el modal de edición de solicitud
+ * @param {string} leaveId - ID de la solicitud a editar
+ * @param {Object} leaveData - Datos actuales de la solicitud
+ * @returns {void}
+ */
+export function prepareEditLeaveModal(leaveId, leaveData) {
+  const msgEl = document.getElementById('editLeaveMessage');
+  msgEl.classList.add('d-none');
+  msgEl.textContent = '';
+
+  document.getElementById('editLeaveId').value = leaveId;
+  document.getElementById('editStartDate').value = leaveData.start_date || '';
+  document.getElementById('editEndDate').value = leaveData.end_date || '';
+  document.getElementById('editLeaveReason').value = leaveData.leave_reason || '';
+  document.getElementById('editReasonNote').value = leaveData.reason_note || '';
+
+  // Establecer fecha mínima como hoy
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('editStartDate').min = today;
+  document.getElementById('editEndDate').min = today;
+
+  new bootstrap.Modal(document.getElementById('editLeaveModal')).show();
+}
+
+/**
+ * Guarda los cambios de la solicitud de edición
+ * @returns {Promise<void>}
+ */
+export async function saveEditLeaveRequest() {
+  const leaveId = document.getElementById('editLeaveId').value;
+  const startDate = document.getElementById('editStartDate').value;
+  const endDate = document.getElementById('editEndDate').value;
+  const leaveReason = document.getElementById('editLeaveReason').value;
+  const reasonNote = document.getElementById('editReasonNote').value;
+  const msgEl = document.getElementById('editLeaveMessage');
+
+  msgEl.classList.add('d-none');
+  msgEl.textContent = '';
+
+  // Validación frontal
+  if (!leaveId) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '⚠️ Error: ID de solicitud no encontrado.';
+    return;
+  }
+
+  if (!startDate || !endDate) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '⚠️ Las fechas son obligatorias.';
+    return;
+  }
+
+  if (!leaveReason) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '⚠️ El motivo es obligatorio.';
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  if (startDate < today) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '⚠️ No puedes solicitar días anteriores a hoy.';
+    return;
+  }
+
+  if (endDate < startDate) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '⚠️ La fecha fin no puede ser anterior a la fecha inicio.';
+    return;
+  }
+
+  // Deshabilitar botón mientras se procesa
+  const btnSave = document.getElementById('btnSaveEditLeave');
+  const btnSaveHTML = btnSave.innerHTML;
+  btnSave.disabled = true;
+  btnSave.innerHTML = '<i class="bi bi-hourglass-split"></i> Guardando…';
+
+  try {
+    const cleanId = leaveId.replace('leave-', '');
+    const response = await fetch(`/leave/${cleanId}/edit/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        start_date: startDate,
+        end_date: endDate,
+        leave_reason: leaveReason,
+        reason_note: reasonNote
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      msgEl.className = 'alert alert-success d-block';
+      msgEl.textContent = '✓ ' + (data.message || 'Solicitud actualizada correctamente.');
+
+      // Cerrar modal después de 1 segundo
+      setTimeout(() => {
+        bootstrap.Modal.getInstance(document.getElementById('editLeaveModal')).hide();
+
+        // Refrescar calendario
+        const calendarObj = getCalendarObj();
+        if (calendarObj) calendarObj.refetchEvents();
+
+        // Refrescar modal de evento
+        setTimeout(() => {
+          const eventModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
+          if (eventModal._isShown) {
+            eventModal.hide();
+          }
+        }, 300);
+      }, 1000);
+    } else {
+      msgEl.className = 'alert alert-danger d-block';
+      if (data.error) {
+        msgEl.textContent = '✗ ' + data.error;
+      } else if (data.conflicts) {
+        msgEl.innerHTML = '✗ Solapamiento detectado:<br>' +
+          data.conflicts.map(c => `${c.leave_type} (${c.start_date} - ${c.end_date})`).join('<br>');
+      } else {
+        msgEl.textContent = '✗ Error al actualizar la solicitud.';
+      }
+    }
+  } catch (err) {
+    msgEl.className = 'alert alert-danger d-block';
+    msgEl.textContent = '✗ Error de conexión: ' + err.message;
+    console.error('Save edit leave error:', err);
+  } finally {
+    btnSave.disabled = false;
+    btnSave.innerHTML = btnSaveHTML;
+  }
+}
+
+/**
+ * Obtiene datos de la solicitud y abre el modal de edición
+ * @param {string} leaveId - ID de la solicitud a editar
+ * @returns {Promise<void>}
+ */
+export async function editLeaveRequest(leaveId) {
+  // Cerrar modal de evento primero
+  bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+
+  const cleanId = leaveId.replace('leave-', '');
+
+  // Obtener datos de la solicitud del calendario
+  const calendarObj = getCalendarObj();
+  if (!calendarObj) {
+    console.error('Calendar object not found');
+    return;
+  }
+
+  const event = calendarObj.getEventById(leaveId);
+  if (!event) {
+    console.error('Event not found:', leaveId);
+    return;
+  }
+
+  const props = event.extendedProps;
+
+  // FullCalendar suma 1 día a endStr para eventos all-day
+  // Necesitamos restar ese día para obtener la fecha correcta
+  const startDate = new Date(event.startStr);
+  const endDate = new Date(event.endStr);
+  endDate.setDate(endDate.getDate() - 1);
+
+  const leaveData = {
+    start_date: startDate.toISOString().split('T')[0],
+    end_date: endDate.toISOString().split('T')[0],
+    leave_reason: props.leave_reason || '',
+    reason_note: props.reason_note || ''
+  };
+
+  prepareEditLeaveModal(cleanId, leaveData);
+}
+
