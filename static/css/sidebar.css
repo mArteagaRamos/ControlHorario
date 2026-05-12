@@ -11,7 +11,7 @@ nav.navbar {
 
 .main-container {
     display: grid;
-    grid-template-columns: 15% 1fr;
+    grid-template-columns: 260px 1fr;
     gap: 0;
     flex: 1;
     overflow: hidden;
@@ -29,9 +29,9 @@ nav.navbar {
     border-bottom: 1px solid #1a1f2e;
 }
 
-/* Zona izquierda: se corresponde con el ancho del aside (15%) */
+/* Zona izquierda: se corresponde con el ancho del aside */
 .navbar-aside-zone {
-    width: 15%;
+    width: 260px;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -104,36 +104,20 @@ nav.navbar {
     background: rgba(255,255,255,0.1);
 }
 
-/* Responsive: en mobile la zona-aside ocupa solo lo justo para el botón */
-@media (max-width: 767px) {
-    .navbar-aside-zone {
-        width: auto;
-        padding: 0 0.75rem;
-        border-right: none;
-    }
-}
 
-/* Tablets: el aside es 25%, la navbar debe coincidir */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .navbar-aside-zone {
-        width: 25%;
-    }
-}
-
-
-/* Sidebar */
+/* ── Sidebar ───────────────────────────────────── */
 .sidebar {
     background-color: #1a1f2e;
     color: white;
     padding: 1.5rem;
     overflow-y: auto;
+    overflow-x: hidden;
     border-right: 1px solid #1a1a1a;
     display: flex;
     flex-direction: column;
     width: 100%;
 }
 
-/* ── NUEVO HEADER DEL MENÚ ─────────────────────────────── */
 .sidebar-header {
     display: flex;
     justify-content: space-between;
@@ -144,7 +128,7 @@ nav.navbar {
 .sidebar .menu-title {
     font-size: 1.25rem;
     font-weight: 500;
-    margin-bottom: 0; /* Lo quitamos de aquí y lo pasamos al contenedor de arriba */
+    margin-bottom: 0;
 }
 
 .btn-close-sidebar {
@@ -161,7 +145,6 @@ nav.navbar {
 .btn-close-sidebar:hover {
     color: #ffffff;
 }
-/* ──────────────────────────────────────────────────────── */
 
 /* Menú items */
 .sidebar .nav {
@@ -265,61 +248,109 @@ main.main-content {
     margin: 0;
 }
 
-/* Toggle button para mobile */
 .menu-toggle {
     display: none;
 }
 
-/* Responsive - Mobile (de 0 a 767px) */
-@media (max-width: 767px) {
+
+/* Breakpoint 1280px+ */
+@media (min-width: 1280px) {
     .main-container {
-        grid-template-columns: 1fr;
-        position: relative;
+        grid-template-columns: 260px 1fr;
     }
 
-    .sidebar {
-        position: fixed;
-        left: -100%;
-        top: 56px;
-        height: calc(100vh - 56px);
-        width: 70%;
-        z-index: 1000;
-        transition: left 0.3s ease;
-        border-right: 1px solid #1a1a1a;
-    }
-
-    .sidebar.active {
-        left: 0;
-    }
-
-    .menu-toggle {
-        display: block;
-    }
-
-    main.main-content {
-        padding: 1.5rem;
+    .navbar-aside-zone {
+        width: 260px;
     }
 }
 
-/* Responsive - Mobile (de 0 a 767px) */
+/* ── Responsive: Laptop intermedio (1025–1279px) ─── */
+@media (min-width: 1025px) and (max-width: 1279px) {
+    .main-container {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .navbar-aside-zone {
+        width: 200px;
+    }
+
+    .sidebar {
+        width: 200px;
+        padding: 1.5rem 0.75rem;
+    }
+
+    .sidebar .nav-link {
+        font-size: 0.9rem;
+        padding: 0.65rem 0.75rem;
+    }
+
+    .sidebar .nav-link span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+    }
+}
+
+/* ── Responsive: Tablet pequeña (768–1024px) ──────── */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .main-container {
+        grid-template-columns: 200px 1fr;
+    }
+
+    .navbar-aside-zone {
+        width: 200px;
+    }
+
+    .sidebar {
+        min-width: 200px;
+        width: 200px;
+        padding: 1.5rem 0.75rem;
+        flex-shrink: 0;  /* ← esto es clave */
+    }
+
+    .sidebar .nav-link {
+        padding: 0.6rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .sidebar .nav-link span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .sidebar .submenu .nav-link {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.75rem;
+    }
+}
+
+/* ── Responsive: Mobile (0–767px) ─────────────────── */
 @media (max-width: 767px) {
     .main-container {
         grid-template-columns: 1fr;
         position: relative;
     }
 
+    .navbar-aside-zone {
+        width: auto;
+        padding: 0 0.75rem;
+        border-right: none;
+    }
+
     .sidebar {
         position: fixed;
-        left: -110%; /* Lo escondemos un poco más para que la animación sea más limpia */
-        top: 0; /* Que empiece desde arriba del todo, cubriendo el navbar */
-        bottom: 0; /* Forzamos a que llegue hasta abajo del todo */
-        height: 100dvh; /* Ocupa el 100% real de la pantalla del móvil */
-        width: 80%; /* Le damos un poco más de anchura */
+        left: -110%;
+        top: 0;
+        bottom: 0;
+        height: 100dvh;
+        width: 80%;
         max-width: 320px;
-        z-index: 1050; /* Lo ponemos por encima de todo */
+        z-index: 1050;
         transition: left 0.3s ease;
         border-right: none;
-        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5); /* Le damos una sombra chula para que parezca que flota */
+        box-shadow: 4px 0 15px rgba(0, 0, 0, 0.5);
     }
 
     .sidebar.active {
@@ -334,12 +365,10 @@ main.main-content {
         padding: 1.5rem;
     }
 
-    @media (max-width: 767.98px) {
-        .navbar-brand {
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    .navbar-brand {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
