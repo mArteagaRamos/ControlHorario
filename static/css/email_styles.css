@@ -157,3 +157,27 @@ body {
     color: var(--email-muted);
     margin: 10px 0 0 0;
 }
+
+/* Password Reset Email styles */
+.header.password-reset {
+    border-bottom: 2px solid var(--email-primary);
+}
+
+.header.password-reset h1 {
+    color: var(--email-primary);
+}
+
+.action-link.password-reset {
+    display: inline-block;
+    background-color: var(--email-primary);
+    color: white;
+    padding: 12px 30px;
+    text-decoration: none;
+    border-radius: 4px;
+    margin: 20px 0;
+    box-shadow: 0 8px 18px rgba(26, 31, 46, 0.16);
+}
+
+.action-link.password-reset:hover {
+    background-color: var(--email-primary-strong);
+}

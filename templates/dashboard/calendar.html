@@ -201,11 +201,11 @@
       <div class="modal-body" style="padding:1.1rem 1.25rem;background:#fff;font-size:.85rem;">
         <div id="eventModalBody"></div>
 
-        <div id="attachmentSection" class="mt-4 pt-3 border-top">
+        <div id="attachmentSection" class="mt-4 pt-3 border-top" style="display:none;">
           <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem; letter-spacing: 0.05em;">
             <i class="bi bi-paperclip"></i> Justificante de ausencia
           </h6>
-          
+
           <div id="attachmentContainer">
             <div id="attachStatus" class="d-none">
                 </div>
@@ -214,7 +214,7 @@
               <div class="input-group input-group-sm mb-2">
                 <input type="file" id="fileInput" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
               </div>
-              <button class="std-btn w-100" onclick="uploadAttachment(currentLeaveId)" style="font-weight: 500;">
+              <button class="std-btn w-100" onclick="uploadAttachment()" style="font-weight: 500;">
                 <i class="bi bi-cloud-arrow-up"></i> Subir justificante
               </button>
               <div id="uploadMsg" class="mt-2 text-center" style="font-size: 0.75rem;"></div>

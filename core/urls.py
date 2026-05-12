@@ -2,6 +2,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
@@ -23,11 +25,14 @@ urlpatterns = [
     path('', user_views.login_view, name='login'),
     path('logout/', user_views.logout_view, name='logout'),
     path('register/', user_views.register_unified, name='register_unified'),
+    path('forgot-password/', user_views.forgot_password, name='forgot_password'),
+    path('reset-password/<uidb64>/<token>/', user_views.reset_password, name='reset_password'),
     path('switch-company/<uuid:company_id>/', user_views.switch_company, name='switch_company'),
 
     # API Lookups
     path('api/lookup-company/', user_views.lookup_company, name='lookup_company'),
     path('api/lookup-user/', user_views.lookup_user, name='lookup_user'),
+    path('api/user-companies-count/', user_views.user_companies_count, name='user_companies_count'),
     path('api/check-last-manager/', user_views.check_last_manager, name='check_last_manager'),
 
     # ════════════════════════════════════════════════════════════════════════
@@ -102,6 +107,10 @@ urlpatterns = [
     path('admin/delete-permanent/', admin_views.permanently_delete_record, name='permanently_delete_record'),
     path('admin/delete-company/', admin_views.delete_company, name='delete_company'),
 
+    # Exports
+    path('admin/export/companies/', admin_views.export_all_companies, name='export_all_companies'),
+    path('admin/export/workers/', admin_views.export_all_workers, name='export_all_workers'),
+
     # API - Admin Delegation
     path('api/admin/delegate/', admin_views.select_delegated_worker, name='select_delegated_worker'),
     path('api/admin/clear-delegate/', admin_views.clear_delegated_worker, name='clear_delegated_worker'),
@@ -116,4 +125,8 @@ urlpatterns = [
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 ]
+
+# Servir archivos media en desarrollo
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
