@@ -333,6 +333,15 @@
   padding: 1rem;
 }
 
+.btn-edit-leave {
+  transition: all 0.2s ease;
+}
+
+.btn-edit-leave:hover {
+  color: #f59e0b;
+  transform: scale(1.1);
+}
+
 /* ── Tarjeta de solicitud pendiente (nueva lista) ─────────────────────── */
 .pending-item {
   background: #fff;

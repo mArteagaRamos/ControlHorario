@@ -427,11 +427,19 @@ def api_leave_resolved(request):
     user_is_manager = is_manager(request, company)
     user_id         = request.GET.get('user_id', '')
 
+    # Determinar si mostrar solicitudes PENDING
+    # Mostrar PENDING solo si:
+    # 1. El usuario NO es manager, O
+    # 2. El usuario es manager PERO está viendo su propio calendario (user_id vacío)
+    show_pending = (not user_is_manager) or (user_is_manager and not user_id)
+
     resolved_statuses = [
         LeaveRequest.LeaveStatus.APPROVED,
         LeaveRequest.LeaveStatus.REJECTED,
         LeaveRequest.LeaveStatus.CANCELED,
     ]
+    if show_pending:
+        resolved_statuses.append(LeaveRequest.LeaveStatus.PENDING)
 
     base_qs = LeaveRequest.objects.filter(
         company=company,

@@ -14,7 +14,11 @@ import {
   getCsrfToken,
   getCurrentLeaveId,
   setCurrentLeaveId,
+  getLeaveData,
+  getCurrentUserId,
 } from './calendar-state.js';
+
+import { loadResolvedRequests } from './calendar-resolved.js';
 
 // ════════════════════════════════════════════════════════════════════════════
 // 📤 Enviar Solicitud de Vacaciones/Ausencia
@@ -438,6 +442,10 @@ export async function saveEditLeaveRequest() {
         const calendarObj = getCalendarObj();
         if (calendarObj) calendarObj.refetchEvents();
 
+        // Refrescar tabla de solicitudes resueltas
+        const userId = getCurrentUserId();
+        loadResolvedRequests(userId);
+
         // Refrescar modal de evento
         setTimeout(() => {
           const eventModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('eventModal'));
@@ -473,39 +481,53 @@ export async function saveEditLeaveRequest() {
  * @returns {Promise<void>}
  */
 export async function editLeaveRequest(leaveId) {
-  // Cerrar modal de evento primero
-  bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+  try {
+    // Cerrar modal de evento primero (si está abierto)
+    const eventModal = document.getElementById('eventModal');
+    if (eventModal) {
+      const modalInstance = bootstrap.Modal.getInstance(eventModal);
+      if (modalInstance) {
+        modalInstance.hide();
+      }
+    }
 
-  const cleanId = leaveId.replace('leave-', '');
+    const cleanId = leaveId.replace('leave-', '');
 
-  // Obtener datos de la solicitud del calendario
-  const calendarObj = getCalendarObj();
-  if (!calendarObj) {
-    console.error('Calendar object not found');
-    return;
+    // 1. Intentar obtener datos del mapa primero
+    let leaveData = getLeaveData(cleanId);
+
+    // 2. Si no está en el mapa, intentar obtener del calendario
+    if (!leaveData) {
+      const calendarObj = getCalendarObj();
+      if (calendarObj) {
+        const event = calendarObj.getEventById(leaveId);
+        if (event) {
+          const props = event.extendedProps;
+          const startDate = new Date(event.startStr);
+          const endDate = new Date(event.endStr);
+          endDate.setDate(endDate.getDate() - 1);
+
+          leaveData = {
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0],
+            leave_reason: props.leave_reason || '',
+            reason_note: props.reason_note || ''
+          };
+        }
+      }
+    }
+
+    // 3. Si aún no tenemos datos, mostrar error
+    if (!leaveData) {
+      console.error('No data found for leave:', cleanId);
+      alert('Error: No se encontraron los datos de la solicitud');
+      return;
+    }
+
+    prepareEditLeaveModal(cleanId, leaveData);
+  } catch (err) {
+    console.error('Edit leave request error:', err);
+    alert('Error al abrir el formulario de edición');
   }
-
-  const event = calendarObj.getEventById(leaveId);
-  if (!event) {
-    console.error('Event not found:', leaveId);
-    return;
-  }
-
-  const props = event.extendedProps;
-
-  // FullCalendar suma 1 día a endStr para eventos all-day
-  // Necesitamos restar ese día para obtener la fecha correcta
-  const startDate = new Date(event.startStr);
-  const endDate = new Date(event.endStr);
-  endDate.setDate(endDate.getDate() - 1);
-
-  const leaveData = {
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: endDate.toISOString().split('T')[0],
-    leave_reason: props.leave_reason || '',
-    reason_note: props.reason_note || ''
-  };
-
-  prepareEditLeaveModal(cleanId, leaveData);
 }
 
