@@ -15,29 +15,55 @@
             transition: opacity 0.2s;
         }
         .std-btn:hover { opacity: 0.9; color: white; }
-    
+
         thead.table-dark,
         thead.table-dark th {
             background-color: #1a1f2e !important;
             color: white !important;
-            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+            border-bottom-color: #1a1f2e !important;
         }
 
-        /* Estilos para el paginador (cambiador de páginas) */
+        /* Estilos para el paginador */
         .pagination .page-link {
-            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
+            color: #1a1f2e;
         }
-        
+
         .pagination .page-link:hover {
             color: #1a1f2e;
-            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
+            background-color: #e9ecef;
         }
-        
+
         .pagination .page-item.active .page-link,
         .pagination .page-link.bg-corporate {
             background-color: #1a1f2e !important;
             border-color: #1a1f2e !important;
             color: white !important;
+        }
+
+        @media (max-width: 768px) {
+            .table {
+                font-size: 0.85rem;
+            }
+            .badge {
+                font-size: 0.75rem;
+                padding: 0.35rem 0.5rem !important;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .table-responsive {
+                font-size: 0.75rem;
+            }
+            .table td, .table th {
+                padding: 0.4rem !important;
+            }
+            .modal-dialog {
+                margin: 0 !important;
+            }
         }
     </style>
 {% endblock %}
@@ -51,23 +77,23 @@
     <hr>
     
     <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
-        <form id="filter-form" method="GET" class="row g-3 align-items-end">
-            <div class="col-md-5">
+        <form id="filter-form" method="GET" class="row g-2 g-md-3 align-items-end">
+            <div class="col-12 col-md-5">
                 <label for="search" class="form-label text-muted small fw-bold">Buscar en esta página</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                     <input type="text" name="search" class="form-control border-start-0" id="search" placeholder="Usuario, motivo, evento..." value="{{ search_query|default:'' }}">
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label for="desde" class="form-label text-muted small fw-bold">Desde</label>
                 <input type="date" name="desde" class="form-control" id="desde" value="{{ desde|default:'' }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label for="hasta" class="form-label text-muted small fw-bold">Hasta</label>
                 <input type="date" name="hasta" class="form-control" id="hasta" value="{{ hasta|default:'' }}">
             </div>
-            <div class="col-md-1 d-flex">
+            <div class="col-12 col-md-1 d-flex">
                 <a href="{% url 'audit_timetracking' %}" class="btn btn-outline-secondary w-100 d-flex justify-content-center align-items-center" title="Limpiar filtros" style="height: 38px;">
                     <i class="fas fa-eraser"></i>
                 </a>
