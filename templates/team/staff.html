@@ -23,38 +23,99 @@
     thead.table-dark th {
         background-color: #1a1f2e !important;
         color: white !important;
-        border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+        border-bottom-color: #1a1f2e !important;
     }
 
-    /* Estilos para el paginador (cambiador de páginas) */
-        .pagination .page-link {
-            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
+    .pagination .page-link {
+        color: #1a1f2e;
+    }
+
+    .pagination .page-link:hover {
+        color: #1a1f2e;
+        background-color: #e9ecef;
+    }
+
+    .pagination .page-item.active .page-link,
+    .pagination .page-link.bg-corporate {
+        background-color: #1a1f2e !important;
+        border-color: #1a1f2e !important;
+        color: white !important;
+    }
+
+    .std-btn, .std-btn-secondary {
+        background-color: #1a1f2e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        transition: opacity 0.2s;
+    }
+    .std-btn:hover, .std-btn-secondary:hover { opacity: 0.9; color: white; }
+
+    @media (max-width: 768px) {
+        .d-flex.flex-column.flex-sm-row {
+            flex-direction: column !important;
+            gap: 1rem;
         }
-        
-        .pagination .page-link:hover {
-            color: #1a1f2e;
-            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
+        .table {
+            font-size: 0.85rem;
         }
-        
-        .pagination .page-item.active .page-link,
-        .pagination .page-link.bg-corporate {
-            background-color: #1a1f2e !important;
-            border-color: #1a1f2e !important;
-            color: white !important;
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.5rem !important;
         }
+        .row.g-3 {
+            gap: 0.75rem !important;
+        }
+        .table-responsive {
+            font-size: 0.85rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .container-fluid {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        .h4 {
+            font-size: 1.1rem;
+        }
+        .table {
+            font-size: 0.75rem;
+        }
+        .table td, .table th {
+            padding: 0.4rem !important;
+        }
+        .modal-dialog {
+            margin: 0 !important;
+        }
+        .btn {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.5rem;
+        }
+        .form-label {
+            font-size: 0.75rem;
+        }
+        .d-flex.gap-2 {
+            gap: 0.5rem !important;
+        }
+        .row.g-3 {
+            gap: 0.5rem !important;
+        }
+    }
 
 </style>
 
 <div class="container-fluid py-4">
     <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-4 gap-3">
         <h2 class="h4 fw-bold mb-0" style="color: #1a1f2e;">Directorio de Empleados</h2>
-        <div class="d-flex gap-2 align-self-start align-self-sm-auto">
-            <button type="submit" form="exportFormEmpleados" id="btnExportarEmpleados" class="std-btn d-flex align-items-center gap-2" disabled>
-                <i class="bi bi-file-earmark-excel"></i> Exportar seleccionados
+        <div class="d-flex gap-2 align-self-start align-self-sm-auto flex-wrap">
+            <button type="submit" form="exportFormEmpleados" id="btnExportarEmpleados" class="std-btn d-flex align-items-center gap-2 flex-shrink-0" disabled>
+                <i class="bi bi-file-earmark-excel"></i> <span class="d-none d-sm-inline">Exportar seleccionados</span><span class="d-sm-none">Exportar</span>
             </button>
             {% if user_role == 'manager' or user_role == 'admin' %}
-            <a href="{% url 'register_unified' %}" class="btn btn-primary std-btn d-flex align-items-center gap-2">
-                <i class="bi bi-person-plus-fill"></i> Añadir Empleado
+            <a href="{% url 'register_unified' %}" class="btn btn-primary std-btn d-flex align-items-center gap-2 flex-shrink-0">
+                <i class="bi bi-person-plus-fill"></i> <span class="d-none d-sm-inline">Añadir Empleado</span><span class="d-sm-none">Añadir</span>
             </a>
             {% endif %}
         </div>
@@ -62,13 +123,13 @@
 
     <div class="card bg-light shadow-sm border-0 mb-4 rounded-3">
         <div class="card-body">
-            <div class="row g-3 align-items-end" id="filtros-container">
+            <div class="row g-2 g-md-3 align-items-end" id="filtros-container">
                 <div class="col-12 col-md-4">
                     <label for="filtroBusqueda" class="form-label text-muted small fw-bold mb-1">Buscar por Nombre o Email</label>
                     <input type="text" id="filtroBusqueda" class="form-control form-control-sm py-2" placeholder="Ej: Juan Pérez">
                 </div>
-                
-                <div class="col-12 col-md-4 col-lg-3">
+
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                     <label for="filtroRol" class="form-label text-muted small fw-bold mb-1">Rol en la empresa</label>
                     <select id="filtroRol" class="form-select form-select-sm py-2">
                         <option value="">Todos los roles</option>
@@ -77,7 +138,7 @@
                     </select>
                 </div>
 
-                <div class="col-12 col-md-4 col-lg-3">
+                <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                     <label for="filtroEstado" class="form-label text-muted small fw-bold mb-1">Status</label>
                     <select id="filtroEstado" class="form-select form-select-sm py-2">
                         <option value="">Todos los estados</option>
@@ -219,7 +280,7 @@
 
 {% if user_role == 'manager' or user_role == 'admin' %}
 <div class="modal fade" id="modalEditarTrabajador" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-light border-bottom-0">
                 <h5 class="modal-title fw-bold" id="modalEditarLabel" style="color: #1a1f2e;">Editar Empleado</h5>
@@ -227,10 +288,10 @@
             </div>
             <form action="{% url 'edit_employee' %}" method="POST">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-3 p-md-4">
                     <input type="hidden" name="user_id" id="editUserId">
                     <input type="hidden" name="company_id" value="{{ company.id }}">
-                    <div class="row g-3">
+                    <div class="row g-2 g-md-3">
                         <div class="col-12 col-sm-6">
                             <label for="editNombre" class="form-label small fw-semibold text-muted mb-1">Nombre</label>
                             <input type="text" name="username" id="editNombre" class="form-control" required>
@@ -260,9 +321,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top-0">
-                    <button type="button" class="btn btn-outline-secondary std-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary std-btn">Guardar Cambios</button>
+                <div class="modal-footer bg-light border-top-0 flex-column flex-sm-row gap-2">
+                    <button type="button" class="btn btn-outline-secondary std-btn-secondary w-100 w-sm-auto" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary std-btn w-100 w-sm-auto">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -278,16 +339,16 @@
             </div>
             <form action="{% url 'delete_employee' %}" method="POST">
                 {% csrf_token %}
-                <div class="modal-body text-center p-4">
+                <div class="modal-body text-center p-3 p-md-4">
                     <input type="hidden" name="user_id" id="deleteUserId">
                     <input type="hidden" name="company_id" value="{{ company.id }}">
                     <i class="bi bi-exclamation-triangle text-danger display-4 mb-3 d-block"></i>
                     <p class="fs-5">¿Estás seguro de que deseas eliminar a <br><strong id="deleteNombre"></strong>?</p>
                     <p class="text-muted small mb-0">Esta acción desvinculará al empleado, pero mantendrá el historial de sus fichajes por motivos legales.</p>
                 </div>
-                <div class="modal-footer bg-light border-top-0 justify-content-center">
-                    <button type="button" class="btn btn-outline-secondary px-4 std-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger px-4 std-btn">Sí, eliminar</button>
+                <div class="modal-footer bg-light border-top-0 justify-content-center flex-column flex-sm-row gap-2">
+                    <button type="button" class="btn btn-outline-secondary px-4 std-btn-secondary w-100 w-sm-auto" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger px-4 std-btn w-100 w-sm-auto">Sí, eliminar</button>
                 </div>
             </form>
         </div>

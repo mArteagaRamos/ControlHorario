@@ -11,25 +11,89 @@
         thead.table-dark th {
             background-color: #1a1f2e !important;
             color: white !important;
-            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
+            border-bottom-color: #1a1f2e !important;
     }
 
-    /* Estilos para el paginador (cambiador de páginas) */
-        .pagination .page-link {
-            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
+    .pagination .page-link {
+        color: #1a1f2e;
+    }
+
+    .pagination .page-link:hover {
+        color: #1a1f2e;
+        background-color: #e9ecef;
+    }
+
+    .pagination .page-item.active .page-link,
+    .pagination .page-link.bg-corporate {
+        background-color: #1a1f2e !important;
+        border-color: #1a1f2e !important;
+        color: white !important;
+    }
+
+    .std-btn, .std-btn-secondary {
+        background-color: #1a1f2e;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        transition: opacity 0.2s;
+    }
+    .std-btn:hover, .std-btn-secondary:hover { opacity: 0.9; color: white; }
+
+    @media (max-width: 768px) {
+        .d-flex.justify-content-between.align-items-center {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 1rem;
         }
-        
-        .pagination .page-link:hover {
-            color: #1a1f2e;
-            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
+        .row.g-3 {
+            gap: 0.75rem !important;
         }
-        
-        .pagination .page-item.active .page-link,
-        .pagination .page-link.bg-corporate {
-            background-color: #1a1f2e !important;
-            border-color: #1a1f2e !important;
-            color: white !important;
+        .col-md-3, .col-md-2 {
+            min-width: 0;
         }
+        .table {
+            font-size: 0.85rem;
+        }
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.5rem !important;
+        }
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+        .alert {
+            font-size: 0.875rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .container-fluid {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+        .table-responsive {
+            font-size: 0.75rem;
+        }
+        .table td, .table th {
+            padding: 0.4rem !important;
+        }
+        .modal-dialog {
+            margin: 0 !important;
+        }
+        h2 {
+            font-size: 1.25rem;
+        }
+        .btn {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.5rem;
+        }
+        .row.g-3 {
+            gap: 0.5rem !important;
+        }
+        .form-label {
+            font-size: 0.75rem;
+        }
+    }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 
@@ -54,11 +118,11 @@
 
     <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
         <form id="filterForm" onsubmit="event.preventDefault();">
-            <div class="row g-3 align-items-end" id="filtros-container">
-                <div class="col-md-3">
+            <div class="row g-2 g-md-3 align-items-end" id="filtros-container">
+                <div class="col-12 col-md-3">
                     <label class="form-label text-muted small fw-bold">Empleado</label>
                     <select id="empleado-select" name="empleado" class="form-select">
-                        <option value=""></option> 
+                        <option value=""></option>
                         {% for emp in empleados %}
                             <option value="{{ emp.id }}" {% if request.GET.empleado == emp.id|stringformat:"s" %}selected{% endif %}>
                                 {{ emp.username }} {{ emp.surname }}
@@ -66,23 +130,23 @@
                         {% endfor %}
                     </select>
                 </div>
-                
-                <div class="col-md-2">
+
+                <div class="col-12 col-sm-6 col-md-2">
                     <label class="form-label text-muted small fw-bold">Fecha de registro</label>
                     <input type="date" id="filtroFecha" name="fecha" value="{{ request.GET.fecha }}" class="form-control js-filter">
                 </div>
 
-                <div class="col-md-2">
+                <div class="col-12 col-sm-6 col-md-2">
                     <label class="form-label text-muted small fw-bold">Hora Desde</label>
                     <input type="time" id="filtroDesde" name="hora_desde" value="{{ request.GET.hora_desde }}" class="form-control js-filter">
                 </div>
 
-                <div class="col-md-2">
+                <div class="col-12 col-sm-6 col-md-2">
                     <label class="form-label text-muted small fw-bold">Hora Hasta</label>
                     <input type="time" id="filtroHasta" name="hora_hasta" value="{{ request.GET.hora_hasta }}" class="form-control js-filter">
                 </div>
 
-                <div class="col-md-3">
+                <div class="col-12 col-sm-6 col-md-3">
                     <label class="form-label d-none d-md-block">&nbsp;</label>
                     <label class="d-flex align-items-center justify-content-between border border-danger border-opacity-50 bg-danger bg-opacity-10 rounded px-3 py-2 w-100 shadow-sm" for="solo_incidencias" style="cursor: pointer; height: 38px;">
                         <div class="d-flex align-items-center">
@@ -332,37 +396,37 @@
 </div>
 
 <div class="modal fade" id="modalResolver" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
         <div class="modal-content border-0 shadow">
             <div class="modal-header text-white" style="background-color: #1a1f2e;">
                 <h5 class="modal-title"><i class="bi bi-exclamation-circle me-2"></i> Resolver Incidencia</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">×</button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body p-3 p-md-4">
                 <p><strong>Empleado:</strong> <span id="modalEmpleado" class="text-primary fw-semibold"></span></p>
                 <div class="bg-light p-3 rounded mb-4">
                     <strong class="text-muted small text-uppercase">Motivo de la solicitud:</strong>
                     <p id="modalMotivo" class="mb-0 mt-1 fst-italic"></p>
                 </div>
-                <div class="row text-center mb-3">
-                    <div class="col-md-6 border-end">
+                <div class="row row-cols-1 row-cols-md-2 text-center mb-3 g-3">
+                    <div class="col">
                         <h6 class="fw-bold text-secondary">Registros Actuales</h6>
                         <div class="d-flex flex-column gap-3 mt-3">
-                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-secondary fs-6 w-75" id="modalOldIn"></span></div>
-                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-secondary fs-6 w-75" id="modalOldOut"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-secondary fs-6 w-100 d-block" id="modalOldIn"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-secondary fs-6 w-100 d-block" id="modalOldOut"></span></div>
                         </div>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col">
                         <h6 class="fw-bold text-success">Registros Solicitados</h6>
                         <div class="d-flex flex-column gap-3 mt-3">
-                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-success fs-6 w-75" id="modalNewIn"></span></div>
-                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-success fs-6 w-75" id="modalNewOut"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Entrada</small><span class="badge bg-success fs-6 w-100 d-block" id="modalNewIn"></span></div>
+                            <div><small class="text-muted d-block fw-bold text-uppercase">Salida</small><span class="badge bg-success fs-6 w-100 d-block" id="modalNewOut"></span></div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer bg-light justify-content-center gap-2">
-                <form id="resolverForm" method="POST" action="{% url 'resolver_incidencia' %}"> 
+            <div class="modal-footer bg-light justify-content-center gap-2 flex-column flex-md-row">
+                <form id="resolverForm" method="POST" action="{% url 'resolver_incidencia' %}" class="w-100">
                     {% csrf_token %}
                     <input type="hidden" name="incidencia_id" id="incidenciaIdInput">
 
@@ -370,8 +434,8 @@
                         <label for="nota_resolucion" class="form-label small fw-bold text-muted">Nota de resolución (Opcional):</label>
                         <textarea name="nota_resolucion" class="form-control form-control-sm" rows="2" placeholder="Ej: Se acepta tras revisar cámaras..."></textarea>
                     </div>
-                    
-                    <div class="d-flex justify-content-end gap-2 w-100">
+
+                    <div class="d-flex justify-content-end gap-2 w-100 flex-column flex-sm-row">
                         <button type="submit" name="accion" value="denegar" class="std-btn-secondary px-4">Denegar</button>
                         <button type="submit" name="accion" value="aceptar" class="std-btn px-4">Aceptar Cambios</button>
                     </div>
