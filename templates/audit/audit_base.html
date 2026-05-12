@@ -18,6 +18,46 @@
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
 
+    <style>
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 1rem !important;
+                margin-left: 0 !important;
+            }
+            .container-fluid {
+                padding-left: 0.5rem;
+                padding-right: 0.5rem;
+            }
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+            .table td, .table th {
+                padding: 0.5rem !important;
+            }
+            .modal-dialog {
+                margin: 0.5rem;
+            }
+            .modal-body {
+                padding: 1rem !important;
+            }
+            .card {
+                margin-bottom: 1rem;
+            }
+        }
+        @media (max-width: 576px) {
+            .main-content {
+                padding: 0.75rem !important;
+            }
+            .navbar-user span {
+                display: none !important;
+            }
+            .btn-sm {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+
     {% block extra_head %}{% endblock %}
 </head>
 <body>

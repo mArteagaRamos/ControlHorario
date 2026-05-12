@@ -16,10 +16,10 @@
             color: white !important;
             border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
         }
-        
+
         /* Ajuste para que el amarillo se lea bien */
         .badge.bg-warning { color: #212529 !important; font-weight: 600; }
-        
+
         /* Estilo para los botones personalizados si los usas */
         .std-btn {
             background-color: #1a1f2e;
@@ -34,17 +34,62 @@
         .pagination .page-link {
             color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
         }
-        
+
         .pagination .page-link:hover {
             color: #1a1f2e;
             background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
         }
-        
+
         .pagination .page-item.active .page-link,
         .pagination .page-link.bg-corporate {
             background-color: #1a1f2e !important;
             border-color: #1a1f2e !important;
             color: white !important;
+        }
+
+        @media (max-width: 768px) {
+            .row.g-3 {
+                gap: 0.75rem !important;
+            }
+            .col-md-5, .col-md-3, .col-md-1 {
+                min-width: 0;
+            }
+            #filter-form .row {
+                gap: 0.5rem;
+            }
+            .table {
+                font-size: 0.85rem;
+            }
+            .badge {
+                font-size: 0.75rem;
+                padding: 0.35rem 0.5rem !important;
+            }
+            .pagination {
+                flex-wrap: wrap;
+            }
+            .pagination .page-item {
+                margin: 0.25rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .d-flex.justify-content-between {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .table-responsive {
+                font-size: 0.75rem;
+            }
+            .table td, .table th {
+                padding: 0.4rem !important;
+            }
+            .btn.btn-outline-secondary {
+                font-size: 0.75rem;
+                padding: 0.35rem 0.5rem;
+            }
+            .modal-dialog {
+                margin: 0 !important;
+            }
         }
     </style>
 {% endblock %}
@@ -58,23 +103,23 @@
     <hr>
     
     <div class="card p-3 mb-4 bg-light border-0 shadow-sm">
-        <form id="filter-form" method="GET" class="row g-3 align-items-end">
-            <div class="col-md-5">
+        <form id="filter-form" method="GET" class="row g-2 g-md-3 align-items-end">
+            <div class="col-12 col-md-5">
                 <label for="search" class="form-label text-muted small fw-bold">Buscar en esta página</label>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
                     <input type="text" name="search" class="form-control border-start-0" id="search" placeholder="Actor, ID, motivo..." value="{{ search_query|default:'' }}">
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label for="desde" class="form-label text-muted small fw-bold">Desde</label>
                 <input type="date" name="desde" class="form-control" id="desde" value="{{ desde|default:'' }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label for="hasta" class="form-label text-muted small fw-bold">Hasta</label>
                 <input type="date" name="hasta" class="form-control" id="hasta" value="{{ hasta|default:'' }}">
             </div>
-            <div class="col-md-1 d-flex">
+            <div class="col-12 col-md-1 d-flex">
                 <a href="{% url 'audit_users' %}" class="btn btn-outline-secondary w-100 d-flex justify-content-center align-items-center" title="Limpiar filtros" style="height: 38px;">
                     <i class="fas fa-eraser"></i>
                 </a>
@@ -159,15 +204,15 @@
 
 {% for log in logs %}
 <div class="modal fade" id="modalDetalle{{ log.id }}" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content border-0 shadow">
       <div class="modal-header text-white bg-corporate">
         <h5 class="modal-title"><i class="fas fa-search-plus me-2"></i> Detalles de la Acción</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"×></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close">×</button>
       </div>
-      <div class="modal-body p-4">
-        
-        <div class="alert alert-secondary font-monospace mb-4" style="word-break: break-all; border-left: 4px solid #1a1f2e;">
+      <div class="modal-body p-3 p-md-4">
+
+        <div class="alert alert-secondary font-monospace mb-4" style="word-break: break-all; border-left: 4px solid #1a1f2e; font-size: 0.85rem;">
             <div class="mb-2">
                 <span class="text-muted small text-uppercase fw-bold d-block"><i class="fas fa-lock me-1"></i> Firma del Evento (Hash)</span>
                 <span class="text-success fw-bold">{{ log.event_hash|default:"-" }}</span>
@@ -181,31 +226,31 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <div class="card bg-light border-0 mb-4">
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-4">
+            <div class="card-body p-2 p-md-3">
+                <div class="row row-cols-2 row-cols-md-3 text-center g-2">
+                    <div class="col">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Acción</small>
                         {% with action=log.action_type|upper %}
                             {% if action == 'CREATE' %}
-                                <span class="badge rounded-pill bg-success px-3 py-2">CREACIÓN</span>
+                                <span class="badge rounded-pill bg-success px-2 py-1" style="font-size: 0.75rem;">CREACIÓN</span>
                             {% elif action == 'UPDATE' %}
-                                <span class="badge rounded-pill bg-warning px-3 py-2">MODIFICACIÓN</span>
+                                <span class="badge rounded-pill bg-warning px-2 py-1" style="font-size: 0.75rem;">MODIFICACIÓN</span>
                             {% elif action == 'DELETE' %}
-                                <span class="badge rounded-pill bg-danger px-3 py-2">ELIMINACIÓN</span>
+                                <span class="badge rounded-pill bg-danger px-2 py-1" style="font-size: 0.75rem;">ELIMINACIÓN</span>
                             {% else %}
-                                <span class="badge rounded-pill bg-secondary px-3 py-2">{{ action }}</span>
+                                <span class="badge rounded-pill bg-secondary px-2 py-1" style="font-size: 0.75rem;">{{ action }}</span>
                             {% endif %}
                         {% endwith %}
                     </div>
-                    <div class="col-4 border-start border-end">
+                    <div class="col">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Usuario</small>
-                        <span class="fw-bold">{{ log.user.username|title|default:"Sistema" }}</span>
+                        <span class="fw-bold small">{{ log.user.username|title|default:"Sistema" }}</span>
                     </div>
-                    <div class="col-4">
+                    <div class="col">
                         <small class="text-muted d-block text-uppercase fw-bold mb-1">Fecha</small>
-                        <span class="fw-bold">{{ log.timestamp|date:"d/m/Y - H:i:s" }}</span>
+                        <span class="fw-bold small">{{ log.timestamp|date:"d/m/Y - H:i:s" }}</span>
                     </div>
                 </div>
             </div>
@@ -225,9 +270,9 @@
                 {% if log.after %}
                     <ul class="list-group list-group-flush">
                         {% for key, value in log.after.items %}
-                            <li class="list-group-item bg-transparent px-4 py-3 d-flex justify-content-between align-items-start border-bottom">
-                                <span class="text-muted text-capitalize fw-bold">{{ key|title }}</span>
-                                <span class="text-end text-break ms-3" style="max-width: 60%;">
+                            <li class="list-group-item bg-transparent px-2 px-md-4 py-2 py-md-3 d-flex justify-content-between align-items-start border-bottom flex-column flex-md-row">
+                                <span class="text-muted text-capitalize fw-bold mb-1 mb-md-0">{{ key|title }}</span>
+                                <span class="text-end text-break ms-md-3 w-100 w-md-auto" style="max-width: 60%;">
                                     {% if value is iterable and value is not string %}
                                         <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} item(s)</div>
                                         <small class="text-muted d-block mt-1">
