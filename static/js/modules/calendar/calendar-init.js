@@ -27,6 +27,9 @@ import {
   prepareAttachmentSection,
   showUploadZone,
   uploadAttachment,
+  prepareEditLeaveModal,
+  saveEditLeaveRequest,
+  editLeaveRequest,
 } from './calendar-leaves.js';
 
 import {
@@ -233,6 +236,12 @@ function setupButtonListeners() {
 
     sendLeaveRequest(formData, 'absenceMsg', true); // true indica que es FormData
   });
+
+  // Botón: Guardar cambios de edición de solicitud
+  const saveEditBtn = document.getElementById('btnSaveEditLeave');
+  if (saveEditBtn) {
+    saveEditBtn.addEventListener('click', saveEditLeaveRequest);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -268,6 +277,11 @@ function exportFunctionsToWindow() {
   window.prepareAttachmentSection = prepareAttachmentSection;
   window.showUploadZone = showUploadZone;
   window.uploadAttachment = uploadAttachment;
+
+  // Funciones de edición de solicitudes
+  window.editLeaveRequest = editLeaveRequest;
+  window.prepareEditLeaveModal = prepareEditLeaveModal;
+  window.saveEditLeaveRequest = saveEditLeaveRequest;
 
   // Funciones de pending requests
   window.loadPendingRequests = loadPendingRequests;

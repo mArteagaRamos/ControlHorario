@@ -11,6 +11,7 @@
 import {
   getLeaveResolvedUrl,
   getCurrentUserId,
+  setLeaveData,
 } from './calendar-state.js';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -36,13 +37,13 @@ export async function loadResolvedRequests(userId) {
   // Título dinámico según filtro
   if (titleEl) {
     if (!userId) {
-      titleEl.textContent = 'Mis solicitudes resueltas';
+      titleEl.textContent = 'Mis Solicitudes';
     } else if (userId === 'all') {
-      titleEl.textContent = 'Solicitudes resueltas — Todos los empleados';
+      titleEl.textContent = 'Solicitudes — Todos los empleados';
     } else {
       const sel = document.getElementById('teamSelector');
       const selectedText = sel ? sel.options[sel.selectedIndex].text : 'Empleado';
-      titleEl.textContent = `Solicitudes resueltas — ${selectedText}`;
+      titleEl.textContent = `Solicitudes — ${selectedText}`;
     }
   }
 
@@ -63,11 +64,30 @@ export async function loadResolvedRequests(userId) {
     }
 
     const STATUS_STYLE = {
+      pending: { bg: '#fef3c7', border: '#fde68a', color: '#92400e', icon: '⏱' },
       approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
       rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
     };
 
     const rows = list.map(l => {
+      // Guardar datos en el mapa para acceso posterior
+      setLeaveData(l.id, {
+        start_date: l.start_date,
+        end_date: l.end_date,
+        leave_type: l.leave_type,
+        leave_reason: l.leave_reason,
+        reason_note: l.reason_note,
+        status: l.status,
+        attachment_path: l.attachment_path,
+      });
+
+      // Validación defensiva: verificar que status sea válido
+      const validStatuses = ['pending', 'approved', 'rejected', 'canceled'];
+      if (!validStatuses.includes(l.status)) {
+        console.warn(`Invalid status received: ${l.status} for leave ${l.id}`);
+        return '';
+      }
+
       const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
       const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
       const rowId = `resolved-row-${l.id}`;
@@ -87,6 +107,17 @@ export async function loadResolvedRequests(userId) {
           </span>`
         : '';
 
+      // Icono de editar para solicitudes PENDING
+      let editIcon = '';
+      if (l.status === 'pending') {
+        editIcon = `<button onclick="editLeaveRequest('leave-${l.id}')"
+                  style="background:none;border:none;cursor:pointer;padding:0 .25rem;margin-left:.5rem;font-size:0.75rem;color:#6366f1;"
+                  title="Editar solicitud"
+                  class="btn-edit-leave">
+            <i class="bi bi-pencil"></i>
+          </button>`;
+      }
+
       const userCell = showUserCol
         ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
         : '';
@@ -97,7 +128,7 @@ export async function loadResolvedRequests(userId) {
         <td style="padding:.5rem .6rem;white-space:nowrap;">${l.end_date}</td>
         <td style="padding:.5rem .6rem;">${l.leave_type}</td>
         <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
-        <td style="padding:.5rem .6rem;">${badge}${reviewNote}</td>
+        <td style="padding:.5rem .6rem;">${badge}${reviewNote}${editIcon}</td>
         <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
       </tr>`;
     }).join('');
