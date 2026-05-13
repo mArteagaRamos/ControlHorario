@@ -116,7 +116,7 @@
           <td>
             {% if not e.clock_out %}
                 <span class="badge {% if is_paused %}bg-warning text-dark{% else %}bg-success{% endif %}">
-                    {% if is_paused %}PAUSED{% else %}ONGOING{% endif %}
+                    {% if is_paused %}PAUSADO{% else %}EN CURSO{% endif %}
                 </span>
             {% else %}
                 <span class="badge bg-secondary">{{ e.status }}</span>
@@ -125,7 +125,7 @@
           <td>{{ e.total_seconds_display|default:'--' }}</td>
         </tr>
       {% empty %}
-        <tr><td colspan="5">No time entries yet</td></tr>
+        <tr><td colspan="5">Sin registros horarios aún</td></tr>
       {% endfor %}
       </tbody>
     </table>
