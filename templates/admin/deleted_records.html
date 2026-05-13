@@ -6,16 +6,15 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/deleted_records.css' %}">
-
 {% endblock %}
 
 {% block content %}
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="h4 fw-bold">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <h2 class="h4 fw-bold mb-0">
             <i class="bi bi-trash3"></i> Registros Eliminados
             <span class="badge bg-danger">{{ total_deleted }}</span>
         </h2>
-        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary btn-sm align-self-start align-self-md-auto">
             <i class="bi bi-arrow-left"></i> Volver al Panel
         </a>
     </div>
@@ -34,47 +33,47 @@
             <i class="bi bi-info-circle"></i> No hay registros eliminados.
         </div>
     {% else %}
-        <div class="d-flex justify-content-end mb-3">
+        <div class="d-flex justify-content-center justify-content-md-end mb-3">
             <form id="exportFormDeletedRecords" action="{% url 'export_deleted_records' %}" method="POST" style="display: none;">
                 {% csrf_token %}
                 <input type="hidden" id="recordTypeInput" name="record_type" value="users">
             </form>
-            <button type="submit" form="exportFormDeletedRecords" id="btnExportarDeletedRecords" class="std-btn d-flex align-items-center gap-2">
+            <button type="submit" form="exportFormDeletedRecords" id="btnExportarDeletedRecords" class="std-btn w-100 w-md-auto d-flex align-items-center justify-content-center gap-2">
                 <i class="bi bi-file-earmark-excel"></i> Exportar Pestaña Actual
             </button>
         </div>
         
-        <!-- TABS DE TIPOS DE REGISTROS -->
-        <ul class="nav nav-tabs mb-3" role="tablist" id="my-tabs" style="--bs-nav-link-color: #6c757d; --bs-nav-link-hover-color: #ffffff; --bs-nav-tabs-link-active-color: #495057;">            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-users" data-bs-toggle="tab"
+        <ul class="nav nav-tabs mb-3 flex-nowrap overflow-x-auto pb-1" role="tablist" id="my-tabs" style="--bs-nav-link-color: #6c757d; --bs-nav-link-hover-color: #ffffff; --bs-nav-tabs-link-active-color: #495057;">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active text-nowrap" id="tab-users" data-bs-toggle="tab"
                         data-bs-target="#section-users" type="button" role="tab">
                     <i class="bi bi-person"></i> Usuarios
                     <span class="badge bg-secondary">{{ deleted_users|length }}</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-companies" data-bs-toggle="tab"
+                <button class="nav-link text-nowrap" id="tab-companies" data-bs-toggle="tab"
                         data-bs-target="#section-companies" type="button" role="tab">
                     <i class="bi bi-building"></i> Empresas
                     <span class="badge bg-secondary">{{ deleted_companies.count }}</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-memberships" data-bs-toggle="tab"
+                <button class="nav-link text-nowrap" id="tab-memberships" data-bs-toggle="tab"
                         data-bs-target="#section-memberships" type="button" role="tab">
                     <i class="bi bi-link"></i> Membresías
                     <span class="badge bg-secondary">{{ deleted_user_companies.count }}</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-corrections" data-bs-toggle="tab"
+                <button class="nav-link text-nowrap" id="tab-corrections" data-bs-toggle="tab"
                         data-bs-target="#section-corrections" type="button" role="tab">
                     <i class="bi bi-exclamation-triangle"></i> Incidencias
                     <span class="badge bg-secondary">{{ deleted_corrections.count }}</span>
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-entries" data-bs-toggle="tab"
+                <button class="nav-link text-nowrap" id="tab-entries" data-bs-toggle="tab"
                         data-bs-target="#section-entries" type="button" role="tab">
                     <i class="bi bi-clock"></i> Jornadas
                     <span class="badge bg-secondary">{{ deleted_time_entries.count }}</span>
@@ -82,14 +81,12 @@
             </li>
         </ul>
 
-        <!-- TAB CONTENT -->
         <div class="tab-content">
-            <!-- USUARIOS ELIMINADOS -->
             <div class="tab-pane fade show active" id="section-users" role="tabpanel">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         {% if deleted_users %}
-                            <div class="table-scroll-container">
+                            <div class="table-responsive table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -132,13 +129,12 @@
                                                     <small>{{ item.user.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
-                                                    <div class="action-buttons">
+                                                    <div class="action-buttons d-flex flex-nowrap gap-1">
                                                         <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="record_type" value="users">
                                                             <input type="hidden" name="record_id" value="{{ item.user.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-success"
-                                                                    title="Restaurar">
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Restaurar">
                                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                                             </button>
                                                         </form>
@@ -168,12 +164,11 @@
                 </div>
             </div>
 
-            <!-- EMPRESAS ELIMINADAS -->
             <div class="tab-pane fade" id="section-companies" role="tabpanel">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         {% if deleted_companies.count %}
-                            <div class="table-scroll-container">
+                            <div class="table-responsive table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -194,13 +189,12 @@
                                                     <small>{{ company.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
-                                                    <div class="action-buttons">
+                                                    <div class="action-buttons d-flex flex-nowrap gap-1">
                                                         <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="record_type" value="companies">
                                                             <input type="hidden" name="record_id" value="{{ company.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-success"
-                                                                    title="Restaurar">
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Restaurar">
                                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                                             </button>
                                                         </form>
@@ -230,12 +224,11 @@
                 </div>
             </div>
 
-            <!-- MEMBRESÍAS ELIMINADAS -->
             <div class="tab-pane fade" id="section-memberships" role="tabpanel">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         {% if deleted_user_companies.count %}
-                            <div class="table-scroll-container">
+                            <div class="table-responsive table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -262,13 +255,12 @@
                                                     <small>{{ membership.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
-                                                    <div class="action-buttons">
+                                                    <div class="action-buttons d-flex flex-nowrap gap-1">
                                                         <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="record_type" value="user_companies">
                                                             <input type="hidden" name="record_id" value="{{ membership.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-success"
-                                                                    title="Restaurar">
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Restaurar">
                                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                                             </button>
                                                         </form>
@@ -298,12 +290,11 @@
                 </div>
             </div>
 
-            <!-- INCIDENCIAS ELIMINADAS -->
             <div class="tab-pane fade" id="section-corrections" role="tabpanel">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         {% if deleted_corrections.count %}
-                            <div class="table-scroll-container">
+                            <div class="table-responsive table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -336,13 +327,12 @@
                                                     <small>{{ correction.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
-                                                    <div class="action-buttons">
+                                                    <div class="action-buttons d-flex flex-nowrap gap-1">
                                                         <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="record_type" value="corrections">
                                                             <input type="hidden" name="record_id" value="{{ correction.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-success"
-                                                                    title="Restaurar">
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Restaurar">
                                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                                             </button>
                                                         </form>
@@ -372,12 +362,11 @@
                 </div>
             </div>
 
-            <!-- JORNADAS ELIMINADAS -->
             <div class="tab-pane fade" id="section-entries" role="tabpanel">
                 <div class="card shadow-sm border-0">
                     <div class="card-body">
                         {% if deleted_time_entries.count %}
-                            <div class="table-scroll-container">
+                            <div class="table-responsive table-scroll-container">
                                 <table class="table table-hover mb-0">
                                     <thead class="table-light">
                                         <tr>
@@ -408,13 +397,12 @@
                                                     <small>{{ entry.deleted_at|date:"d/m/Y H:i" }}</small>
                                                 </td>
                                                 <td data-label="Acciones">
-                                                    <div class="action-buttons">
+                                                    <div class="action-buttons d-flex flex-nowrap gap-1">
                                                         <form method="post" action="{% url 'restore_record' %}" style="display: inline;">
                                                             {% csrf_token %}
                                                             <input type="hidden" name="record_type" value="time_entries">
                                                             <input type="hidden" name="record_id" value="{{ entry.id }}">
-                                                            <button type="submit" class="btn btn-sm btn-success"
-                                                                    title="Restaurar">
+                                                            <button type="submit" class="btn btn-sm btn-success" title="Restaurar">
                                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                                             </button>
                                                         </form>
