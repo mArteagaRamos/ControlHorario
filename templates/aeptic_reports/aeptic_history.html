@@ -1,0 +1,51 @@
+<form method="GET" action="{% url 'report_history' %}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" value="{{ query|default:'' }}" class="form-control" placeholder="Buscar mes o año...">
+        <button class="btn btn-primary" type="submit">Buscar</button>
+    </div>
+</form>
+
+<div class="card shadow">
+    <table class="table align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Periodo</th>
+                <th>Usuario</th>
+                <th>Estado</th>
+                <th>Adjunto</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr>
+                <td><strong>{{ report.report_date|date:"F Y" }}</strong></td>
+                <td>{{ request.user.get_full_name }}</td>
+                <td>
+                    {% if report.status == 'signed' %}
+                        <span class="badge bg-success">Firmado</span>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if report.document_path %}
+                        <a href="{{ report.document_path.url }}"><i class="bi bi-file-earmark-pdf"></i> Ver archivo</a>
+                    {% else %}
+                        <span class="text-muted small">No adjunto</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'download_excel' report.id %}" class="btn btn-sm btn-outline-secondary">
+                        Descargar Excel
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center">No se han encontrado registros para este usuario.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

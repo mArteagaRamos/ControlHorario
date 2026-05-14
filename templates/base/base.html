@@ -137,6 +137,29 @@
             </ul>
         </li>
 
+        <li class="nav-item">
+            <a class="nav-link collapse-toggle">
+                <span>
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    Reportes Aeptic
+                </span>
+                <i class="bi bi-chevron-down small chevron"></i>
+            </a>
+
+            <ul class="nav submenu">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'report_summary' %}">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Control Incurrido
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'report_history' %}">
+                        <i class="bi bi-clock-history me-2"></i> Histórico
+                    </a>
+                </li>
+            </ul>
+        </li>
+
         {% if is_admin or current_role == 'manager' %}
         <li class="nav-item">
             <a href="{% url 'manager_logs' %}" class="nav-link">
@@ -182,6 +205,21 @@
     </div>
 
 </aside>
+
+{% with alert=request.user.get_signature_alert %} {# Asumiendo que pasas la lógica #}
+    {% if alert %}
+    <div class="alert alert-{{ alert.type }} alert-dismissible fade show mx-4 mt-3 shadow-sm" role="alert" style="border-left: 5px solid;">
+        <div class="d-flex align-items-center">
+            <i class="bi {% if alert.type == 'warning' %}bi-exclamation-triangle{% else %}bi-exclamation-octagon{% endif %} fs-4 me-3"></i>
+            <div>
+                <strong>Aviso de Control Horario:</strong> {{ alert.text }}
+            </div>
+            <a href="{% url 'report_summary' %}" class="btn btn-sm btn-dark ms-auto">Ir a firmar</a>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+{% endwith %}
 
 <main class="main-content">
     {% if messages %}

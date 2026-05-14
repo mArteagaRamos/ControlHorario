@@ -11,6 +11,7 @@ from audit import views as audit_views
 from admin import views as admin_views   
 from management import views as management_views
 from requests import views as requests_views
+from aeptic_reports import views as aeptic_reports_views
 
 urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
@@ -125,6 +126,14 @@ urlpatterns = [
     path('audit/users/', audit_views.audit_users, name='audit_users'),
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
+
+# ════════════════════════════════════════════════════════════════════════
+    # AEPTIC REPORTS - CONTROL INCURRIDO (aeptic_reports/)
+    # ════════════════════════════════════════════════════════════════════════
+    path('reports/current/', aeptic_views.report_summary, name='report_summary'),
+    path('reports/history/', aeptic_views.report_history, name='report_history'),
+    #path('reports/download/<uuid:report_id>/', aeptic_views.download_excel, name='download_excel'),
+    #path('reports/sign/<uuid:report_id>/', aeptic_views.sign_report, name='sign_report'),
 ]
 
 # Servir archivos media en desarrollo
