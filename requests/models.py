@@ -63,7 +63,6 @@ class LeaveRequest(models.Model):
     leave_type   = models.CharField(max_length=20, choices=LeaveType.choices, default=LeaveType.ABSENCE)
     leave_reason = models.CharField(max_length=30, choices=LeaveReason.choices, default=LeaveReason.OTHER)
     reason_note  = models.TextField(blank=True, null=True)
-    attachment_path = models.CharField(max_length=255, null=True, blank=True)
     start_date = models.DateField()
     end_date   = models.DateField()
  
