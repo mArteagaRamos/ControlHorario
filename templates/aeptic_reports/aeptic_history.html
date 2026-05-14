@@ -49,3 +49,151 @@
         </tbody>
     </table>
 </div>
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block title %}Histórico de Reportes AePTIC{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/aeptic_reports.css' %}">
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">
+                <i class="bi bi-clock-history"></i> Histórico de Reportes
+            </h2>
+            <small class="text-muted">Consulta el histórico de todos tus informes mensuales enviados</small>
+        </div>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">Total de Reportes</h6>
+                            <p class="text-muted mb-0">Período completo</p>
+                        </div>
+                        <span class="badge bg-primary fs-5">{{ total_reports }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-0">Reportes Archivados</h6>
+                            <p class="text-muted mb-0">Procesados</p>
+                        </div>
+                        <span class="badge bg-success fs-5">{{ archived_reports }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TABLA HISTÓRICO -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-list-check"></i> Histórico Completo
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if reports %}
+                    <div class="table-scroll-container">
+                        <table class="table table-sm table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Período</th>
+                                    <th>Mes</th>
+                                    <th>Estado</th>
+                                    <th>Generado</th>
+                                    <th>Firmado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in reports %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ report.report_date|date:"Y-m" }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ report.month_name }}
+                                    </td>
+                                    <td>
+                                        {% if report.status == 'draft' %}
+                                        <span class="badge bg-secondary">Borrador</span>
+                                        {% elif report.status == 'generated' %}
+                                        <span class="badge bg-info">Generado</span>
+                                        {% elif report.status == 'signed' %}
+                                        <span class="badge bg-success">Firmado</span>
+                                        {% elif report.status == 'archived' %}
+                                        <span class="badge bg-dark">Archivado</span>
+                                        {% else %}
+                                        <span class="badge bg-light text-dark">{{ report.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if report.generated_at %}
+                                        <small class="text-muted">
+                                            {{ report.generated_at|date:"d/m/Y H:i" }}
+                                        </small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if report.signed_at %}
+                                        <small class="text-muted">
+                                            {{ report.signed_at|date:"d/m/Y H:i" }}
+                                        </small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if report.document_path %}
+                                        <a href="{{ report.document_path }}" class="btn btn-sm btn-outline-primary" download>
+                                            <i class="bi bi-download"></i> Descargar
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted small">No disponible</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>No hay reportes</strong>
+                        <p class="mb-0 mt-2">Aún no hay informes mensuales disponibles. Genera tu primer reporte en "Control Incurrido".</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN VOLVER -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'aeptic_summary' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

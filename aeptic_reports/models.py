@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 import uuid
+from users.models import company
 
 User = get_user_model()
 
@@ -14,8 +15,7 @@ class MonthlyReport(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='monthly_reports')
-    # Si tienes el modelo Company, asegúrate de importarlo o usar 'companies.Company'
-    company = models.ForeignKey('companies.Company', on_delete=models.CASCADE) 
+    company = models.ForeignKey(company, on_delete=models.CASCADE) 
     
     report_date = models.DateField()  # Primer día del mes correspondiente
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
