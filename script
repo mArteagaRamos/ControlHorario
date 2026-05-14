@@ -414,3 +414,39 @@ ADD COLUMN event_hash text;
  
 ALTER TABLE audit_log
 ADD COLUMN source VARCHAR(50) DEFAULT 'web';
+
+-- TABLA DE INFORMES MENSUALES PARA CONTROL INCURRIDO DE AEPTIC
+
+
+-- 1. Crear tipo enumerado para el estado del informe
+CREATE TYPE report_status AS ENUM ('draft', 'generated', 'signed', 'archived');
+
+-- 2. Creación de la tabla de informes mensuales
+CREATE TABLE monthly_reports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    
+    -- FKs necesarias según la documentación técnica [cite: 142, 161]
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    
+    -- Información del periodo (Mes y Año para el Excel) 
+    report_date DATE NOT NULL, -- Se recomienda el primer día del mes correspondiente
+    
+    -- Metadatos para el autocompletado y firma
+    status report_status DEFAULT 'draft',
+    generated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    signed_at TIMESTAMPTZ,
+    
+    -- Almacenamiento del documento final (opcional, ruta al PDF firmado)
+    document_path VARCHAR(500),
+    
+    -- Restricción para evitar duplicados: un informe por usuario/empresa/mes
+    UNIQUE(user_id, company_id, report_date)
+);
+
+-- 3. Índices para optimizar la generación desde la página web
+CREATE INDEX idx_reports_user_date ON monthly_reports(user_id, report_date);
+CREATE INDEX idx_reports_company ON monthly_reports(company_id);
+
+-- 4. Comentario técnico para la documentación [cite: 254]
+COMMENT ON TABLE monthly_reports IS 'Almacena la cabecera de los informes mensuales de control incurrido para su firma y exportación.';
