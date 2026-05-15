@@ -148,6 +148,16 @@ function clearLeaveFormInputs() {
   document.getElementById('absenceStart').value = '';
   document.getElementById('absenceEnd').value = '';
   document.getElementById('absenceNote').value = '';
+
+  // Limpiar campos de hora de ausencia
+  const absenceTimeStart = document.getElementById('absenceTimeStart');
+  const absenceTimeEnd   = document.getElementById('absenceTimeEnd');
+  if (absenceTimeStart) absenceTimeStart.value = '';
+  if (absenceTimeEnd)   absenceTimeEnd.value   = '';
+
+  // Ocultar los campos de hora al limpiar
+  const absenceTimeFields = document.getElementById('absenceTimeFields');
+  if (absenceTimeFields) absenceTimeFields.style.display = 'none';
 }
 
 // ════════════════════════════════════════════════════════════════════════════

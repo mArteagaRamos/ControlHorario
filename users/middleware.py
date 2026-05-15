@@ -120,29 +120,32 @@ class InactiveUserVerificationMiddleware:
     def __call__(self, request):
         if request.user.is_authenticated:
             try:
-                # Get the Django user and check whether it is inactive
-                django_user = request.user
-                user = Users.objects.filter(email=django_user.email).first()
+                user = Users.objects.filter(email=request.user.email).first()
 
-                if user and user.status == Users.StatusChoices.INACTIVE:
-                    # Check whether there are active approved leaves (end_date >= today)
+                if user and user.status in (
+                    Users.StatusChoices.ACTIVE,
+                    Users.StatusChoices.INACTIVE,
+                ):
                     today = date.today()
 
-                    # Check whether there is any active approved leave
-                    active_leave = LeaveRequest.objects.filter(
+                    has_active_leave = LeaveRequest.objects.filter(
                         user=user,
                         status=LeaveRequest.LeaveStatus.APPROVED,
-                        end_date__gte=today
+                        leave_type='absence',
+                        start_date__lte=today,
+                        end_date__gte=today,
                     ).exists()
 
-                    # If there are no active approved leaves, revert to 'active'
-                    if not active_leave:
+                    if has_active_leave and user.status == Users.StatusChoices.ACTIVE:
+                        Users.objects.filter(id=user.id).update(
+                            status=Users.StatusChoices.INACTIVE
+                        )
+                    elif not has_active_leave and user.status == Users.StatusChoices.INACTIVE:
                         Users.objects.filter(id=user.id).update(
                             status=Users.StatusChoices.ACTIVE
                         )
 
             except Exception:
-                # If something fails, continue without breaking the request
                 pass
 
         return self.get_response(request)

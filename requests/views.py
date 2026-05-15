@@ -23,6 +23,9 @@ from core.decorators import login_required_with_delegation_support
 from core.services import get_effective_context, serialize_leave, log_leave, get_company, is_manager
 from core.services import is_manager as check_is_manager
 
+# Motivos que permiten horas parciales
+TIMED_REASONS = {'medical_appointment', 'legal_duty'}
+
 
 # =============================================================================
 # CORRECTION REQUESTS MANAGEMENT
@@ -381,8 +384,6 @@ def api_leave_review(request, leave_id):
         new_status  = LeaveRequest.LeaveStatus.APPROVED
         action_type = AuditLog.AuditAction.UPDATE
         
-        # Cambiar status del usuario a 'inactive' cuando se aprueba
-        Users.objects.filter(id=leave.user.id).update(status=Users.StatusChoices.INACTIVE)
     elif action == 'reject':
         new_status  = LeaveRequest.LeaveStatus.REJECTED
         action_type = AuditLog.AuditAction.VOIDED
@@ -692,14 +693,12 @@ def api_validate_leave_overlap(request):
         return JsonResponse({'error': str(e)}, status=400)
 
 # ── API: solicitar ausencia ────────────────────────────────────────────────────
- 
+
 @login_required
 @require_POST
 def api_leave_request_create(request):
-    # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
 
-    # Determine which user to create the request for
     if delegation_context['is_delegating']:
         user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
         company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
@@ -712,20 +711,17 @@ def api_leave_request_create(request):
     if not company:
         return JsonResponse({'error': 'No company'}, status=400)
 
-    # Parsear datos: soporta tanto JSON como FormData
     if request.content_type and 'application/json' in request.content_type:
-        # JSON
         try:
             data = json.loads(request.body)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'JSON inválido'}, status=400)
     else:
-        # FormData (multipart/form-data)
         data = request.POST.dict()
 
-    start_date = data.get('start_date')
-    end_date   = data.get('end_date')
-    leave_type = data.get('leave_type', 'other')
+    start_date   = data.get('start_date')
+    end_date     = data.get('end_date')
+    leave_type   = data.get('leave_type', 'other')
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
 
@@ -750,6 +746,31 @@ def api_leave_request_create(request):
     if leave_reason not in LeaveRequest.LeaveReason.values:
         return JsonResponse({'error': 'Motivo no válido'}, status=400)
 
+    # --- Horas parciales (solo para cita médica / deber legal) ---
+    start_time = None
+    end_time   = None
+
+    if leave_reason in TIMED_REASONS:
+        from django.utils.dateparse import parse_time
+        start_time_str = data.get('start_time', '').strip() or None
+        end_time_str   = data.get('end_time', '').strip() or None
+
+        if start_time_str:
+            start_time = parse_time(start_time_str)
+            if start_time is None:
+                return JsonResponse({'error': 'Formato de hora de inicio inválido'}, status=400)
+
+        if end_time_str:
+            end_time = parse_time(end_time_str)
+            if end_time is None:
+                return JsonResponse({'error': 'Formato de hora de fin inválido'}, status=400)
+
+        if start_time and end_time and end_time <= start_time:
+            return JsonResponse(
+                {'error': 'La hora de fin debe ser posterior a la hora de inicio'},
+                status=400
+            )
+
     leave = LeaveRequest.objects.create(
         user         = user,
         company      = company,
@@ -758,10 +779,11 @@ def api_leave_request_create(request):
         reason_note  = reason_note,
         start_date   = start,
         end_date     = end,
+        start_time   = start_time,
+        end_time     = end_time,
         status       = LeaveRequest.LeaveStatus.PENDING,
     )
 
-    # AUDITORÍA: Creación (registrada bajo el usuario delegado o el actual)
     log_leave(leave, request.user, AuditLog.AuditAction.CREATE,
                reason=reason_note or 'Solicitud creada desde calendario',
                source='web')
@@ -777,10 +799,8 @@ def api_leave_request_create(request):
 @require_POST
 def api_leave_request_edit(request, leave_id):
     """Permite que el usuario edite su propia solicitud mientras esté en estado PENDIENTE."""
-    # Get effective context (delegation info if any)
     delegation_context = get_effective_context(request)
 
-    # Determine which user and company context to use
     if delegation_context['is_delegating']:
         user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
         company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first()
@@ -795,11 +815,9 @@ def api_leave_request_edit(request, leave_id):
 
     leave = get_object_or_404(LeaveRequest, id=leave_id, user=user, company=company)
 
-    # --- Validación de estado ---
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
         return JsonResponse({'error': 'Solo se pueden editar solicitudes pendientes'}, status=403)
 
-    # Parsear datos: soporta tanto JSON como FormData
     if request.content_type and 'application/json' in request.content_type:
         try:
             data = json.loads(request.body)
@@ -808,36 +826,32 @@ def api_leave_request_edit(request, leave_id):
     else:
         data = request.POST.dict()
 
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
+    start_date   = data.get('start_date')
+    end_date     = data.get('end_date')
     leave_reason = data.get('leave_reason', leave.leave_reason)
-    reason_note = data.get('reason_note', '')
+    reason_note  = data.get('reason_note', '')
 
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
 
     try:
         start = date.fromisoformat(start_date)
-        end = date.fromisoformat(end_date)
+        end   = date.fromisoformat(end_date)
     except ValueError:
         return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
 
-    # --- Validaciones de fechas ---
     if end < start:
         return JsonResponse({'error': 'La fecha fin no puede ser anterior a la fecha inicio'}, status=400)
 
     if start < date.today():
         return JsonResponse({'error': 'No puedes solicitar días anteriores a hoy'}, status=400)
 
-    # --- Validación de leave_reason ---
     if leave_reason not in LeaveRequest.LeaveReason.values:
         return JsonResponse({'error': 'Motivo no válido'}, status=400)
 
-    # --- Sanitización de reason_note ---
     if reason_note and len(reason_note) > 500:
         return JsonResponse({'error': 'La nota no puede exceder 500 caracteres'}, status=400)
 
-    # --- Validación de solapamientos (excluyendo la solicitud actual) ---
     conflicts = LeaveRequest.objects.filter(
         user=user,
         company=company,
@@ -847,7 +861,6 @@ def api_leave_request_edit(request, leave_id):
     ).exclude(id=leave_id).values('id', 'leave_type', 'start_date', 'end_date', 'status')
 
     if conflicts:
-        conflicts_list = list(conflicts)
         return JsonResponse({
             'error': 'Hay un solapamiento con otra solicitud',
             'conflicts': [
@@ -855,33 +868,59 @@ def api_leave_request_edit(request, leave_id):
                     'id': str(c['id']),
                     'leave_type': dict(LeaveRequest.LeaveType.choices).get(c['leave_type'], c['leave_type']),
                     'start_date': str(c['start_date']),
-                    'end_date': str(c['end_date']),
+                    'end_date':   str(c['end_date']),
                 }
-                for c in conflicts_list
+                for c in conflicts
             ]
         }, status=400)
 
-    # --- Capturar estado anterior para auditoría ---
+    # --- Horas parciales (solo para cita médica / deber legal) ---
+    start_time = None
+    end_time   = None
+
+    if leave_reason in TIMED_REASONS:
+        from django.utils.dateparse import parse_time
+        start_time_str = data.get('start_time', '').strip() or None
+        end_time_str   = data.get('end_time', '').strip() or None
+
+        if start_time_str:
+            start_time = parse_time(start_time_str)
+            if start_time is None:
+                return JsonResponse({'error': 'Formato de hora de inicio inválido'}, status=400)
+
+        if end_time_str:
+            end_time = parse_time(end_time_str)
+            if end_time is None:
+                return JsonResponse({'error': 'Formato de hora de fin inválido'}, status=400)
+
+        if start_time and end_time and end_time <= start_time:
+            return JsonResponse(
+                {'error': 'La hora de fin debe ser posterior a la hora de inicio'},
+                status=400
+            )
+
     before = serialize_leave(leave)
 
-    # --- Actualizar campos ---
-    leave.start_date = start
-    leave.end_date = end
+    leave.start_date  = start
+    leave.end_date    = end
     leave.leave_reason = leave_reason
     leave.reason_note = reason_note
-    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'updated_at'])
+    leave.start_time  = start_time
+    leave.end_time    = end_time
+    leave.save(update_fields=[
+        'start_date', 'end_date', 'leave_reason',
+        'reason_note', 'start_time', 'end_time', 'updated_at'
+    ])
 
-    # --- Auditoría: Edición ---
     log_leave(leave, request.user, AuditLog.AuditAction.UPDATE,
-             before=before,
-             reason='Edición de solicitud por el usuario',
-             source='web')
+              before=before,
+              reason='Edición de solicitud por el usuario',
+              source='web')
 
     return JsonResponse({
-        'ok': True,
+        'ok':     True,
         'message': 'Solicitud actualizada correctamente'
     }, status=200)
-
 
 @login_required
 @require_POST

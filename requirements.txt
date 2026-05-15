@@ -5,3 +5,4 @@ psycopg2-binary==2.9.11
 sqlparse==0.5.5
 openpyxl==3.1.5
 python-dateutil==2.8.2
+reportlab==4.2.5

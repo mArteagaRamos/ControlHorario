@@ -1,5 +1,11 @@
 # Context processor to add current company and breadcrumbs to templates
 
+# URL names to exclude from breadcrumb generation
+BREADCRUMB_EXCLUDE = {
+    'api_leave_resolved',
+    'calendar_events',
+    'aeptic_report_data',
+}
 
 # Labels for URL names - maps route names to display labels
 BREADCRUMB_LABELS = {
@@ -15,6 +21,9 @@ BREADCRUMB_LABELS = {
     'register_unified': 'Registro',
     'security': 'Seguridad',
     'admin_dashboard': 'Panel de Administración',
+    'aeptic_summary': 'Control Incurrido',
+    'aeptic_report_detail': 'Detalle del Informe',
+    'aeptic_history': 'Histórico de Reportes',
 }
 
 
@@ -33,6 +42,10 @@ def get_breadcrumbs(request):
     # Add all pages from history
     for page in history:
         page_name = page.get('name') or 'Página'
+
+        if page_name in BREADCRUMB_EXCLUDE:
+            continue
+
         label = BREADCRUMB_LABELS.get(page_name, page_name.replace('_', ' ').title())
         breadcrumbs.append({
             'label': label,
@@ -48,6 +61,7 @@ def get_breadcrumbs(request):
 
 def user_company(request):
     from .models import UserCompany
+    from core.context_processors import _translate_role
 
     memberships = UserCompany.objects.none()
     is_admin = False
@@ -57,9 +71,11 @@ def user_company(request):
 
         is_admin = getattr(request.user, 'is_admin', False)
 
+    current_role = getattr(request, 'role', None)
     return {
         'current_company': getattr(request, 'company', None),
-        'current_role': getattr(request, 'role', None),
+        'current_role': _translate_role(current_role),
+        'current_role_original': current_role,
         'memberships': memberships,
         'company_count': memberships.count(),
         'is_admin': is_admin,

@@ -120,6 +120,19 @@
               {% endfor %}
             </select>
           </div>
+          <!-- Campos de hora: solo visibles para cita médica / deber legal -->
+          <div id="absenceTimeFields" class="mb-2" style="display:none;">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Hora inicio</label>
+                <input type="time" id="absenceTimeStart" class="form-control form-control-sm">
+              </div>
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Hora fin</label>
+                <input type="time" id="absenceTimeEnd" class="form-control form-control-sm">
+              </div>
+            </div>
+          </div>
           <div class="mb-2">
             <label class="form-label form-label-sm mb-1">Desde</label>
             <input type="date" id="absenceStart" class="form-control form-control-sm">

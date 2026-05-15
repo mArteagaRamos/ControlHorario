@@ -137,7 +137,7 @@
             </ul>
         </li>
 
-        {% if is_admin or current_role == 'manager' %}
+        {% if is_admin or current_role_original == 'manager' %}
         <li class="nav-item">
             <a href="{% url 'manager_logs' %}" class="nav-link">
                 <span>
@@ -165,7 +165,7 @@
         </li>
         {% endif %}
 
-        {% if is_admin or current_role == 'manager' %}
+        {% if is_admin or current_role_original == 'manager' %}
         <li class="nav-item">
             <a href="{% url 'register_unified' %}" class="nav-link">
                 <span>

@@ -1,11 +1,10 @@
 # aeptic_reports/services.py
 
-from io import BytesIO, StringIO
 from datetime import datetime, timedelta
-import csv
+from io import BytesIO
 from decimal import Decimal
 
-from django.utils import timezone
+from django.utils import timezone as tz
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
 from openpyxl.utils import get_column_letter
@@ -13,6 +12,14 @@ from openpyxl.utils import get_column_letter
 from timetracking.models import TimeEntries, TimeEntryEvent
 from requests.models import LeaveRequest
 from admin.models import CompanySettings
+
+# Importar reportlab para generación de PDF
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 
 # --- Mapeo de leave_reason a etiqueta legible ---
@@ -119,7 +126,7 @@ def get_vacation_hours_for_day(user_id, company_id, date):
 
 
 def get_absence_for_day(user_id, company_id, date):
-    """Obtener ausencia (baja) para un día: retorna 'X - Motivo' o vacío"""
+    """Obtener ausencia (baja) para un día: retorna 'Motivo' o vacío"""
     try:
         leave_request = LeaveRequest.objects.filter(
             user_id=user_id,
@@ -131,8 +138,7 @@ def get_absence_for_day(user_id, company_id, date):
         ).first()
 
         if leave_request and leave_request.leave_reason in LEAVE_REASON_LABELS:
-            motivo = LEAVE_REASON_LABELS[leave_request.leave_reason]
-            return f"X - {motivo}"
+            return LEAVE_REASON_LABELS[leave_request.leave_reason]
 
         return ""
 
@@ -289,8 +295,8 @@ class ExcelReportGenerator:
                 date=current_date
             ).first()
 
-            entrada = time_entry.clock_in.strftime('%H:%M') if time_entry and time_entry.clock_in else ''
-            salida = time_entry.clock_out.strftime('%H:%M') if time_entry and time_entry.clock_out else ''
+            entrada = tz.localtime(time_entry.clock_in).strftime('%H:%M') if time_entry and time_entry.clock_in else ''
+            salida = tz.localtime(time_entry.clock_out).strftime('%H:%M') if time_entry and time_entry.clock_out else ''
 
             work_time = 0
             if time_entry and time_entry.clock_in and time_entry.clock_out:
@@ -352,12 +358,12 @@ class ExcelReportGenerator:
             work_time = 0
 
             if time_entry and time_entry.clock_in:
-                entrada = time_entry.clock_in.strftime('%H:%M')
+                entrada = tz.localtime(time_entry.clock_in).strftime('%H:%M')
                 self.worksheet.cell(row=row, column=3, value=entrada)
 
             # Columna D: Hora Salida
             if time_entry and time_entry.clock_out:
-                salida = time_entry.clock_out.strftime('%H:%M')
+                salida = tz.localtime(time_entry.clock_out).strftime('%H:%M')
                 self.worksheet.cell(row=row, column=4, value=salida)
 
                 # Calcular tiempo trabajado en horas
@@ -406,11 +412,13 @@ class ExcelReportGenerator:
         """Aplicar formato visual a fines de semana"""
         weekend_fill = PatternFill(start_color='DCDCDC', end_color='DCDCDC', fill_type='solid')
         weekend_font = Font(color='FF0000', bold=True)
+        center_alignment = Alignment(horizontal='center', vertical='center')
 
         for col in range(1, 12):
             cell = self.worksheet.cell(row=row, column=col)
             cell.fill = weekend_fill
             cell.font = weekend_font
+            cell.alignment = center_alignment
 
     def _apply_styles(self):
         """Aplicar estilos: bordes, alineación, etc."""
@@ -445,111 +453,144 @@ class ExcelReportGenerator:
         return output
 
 
-# --- Clase CSVReportGenerator ---
+# --- Clase PDFReportGenerator ---
 
-class CSVReportGenerator:
+class PDFReportGenerator:
 
     def __init__(self, user, company, report_date):
-        """
-        Args:
-            user: Users instance
-            company: Companies instance
-            report_date: date object for first day of month (2026-05-01)
-        """
         self.user = user
         self.company = company
         self.report_date = report_date
         self.start_date = report_date
-        # Último día del mes
         next_month = report_date + timedelta(days=31)
         self.end_date = next_month.replace(day=1) - timedelta(days=1)
 
-    def generate(self) -> str:
-        """Generate CSV file and return as string with BOM"""
-        csv_content = self._generate_csv_content()
-        return self._add_bom(csv_content)
+    def generate(self) -> BytesIO:
+        """Generar PDF y retornar como BytesIO"""
+        output = BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=landscape(A4),
+            rightMargin=1*cm,
+            leftMargin=1*cm,
+            topMargin=1.5*cm,
+            bottomMargin=1.5*cm
+        )
 
-    def _generate_csv_content(self) -> str:
-        """Construir contenido CSV con encabezados y filas"""
-        output = StringIO()
-        writer = csv.writer(output, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        styles = getSampleStyleSheet()
+        elements = []
 
-        # Encabezados
-        writer.writerow(COLUMNS)
+        # --- Cabecera ---
+        month_names = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        month_name = f"{month_names[self.report_date.month - 1]} {self.report_date.year}"
 
-        # Datos
+        title_style = ParagraphStyle(
+            'Title', parent=styles['Normal'],
+            fontSize=14, fontName='Helvetica-Bold', alignment=TA_CENTER, spaceAfter=4
+        )
+        subtitle_style = ParagraphStyle(
+            'Subtitle', parent=styles['Normal'],
+            fontSize=10, fontName='Helvetica', alignment=TA_CENTER, spaceAfter=2
+        )
+
+        elements.append(Paragraph(f"Informe Mensual de Horas — {month_name}", title_style))
+        elements.append(Paragraph(f"Trabajador: {self.user.username} {self.user.surname}", subtitle_style))
+        elements.append(Paragraph(f"Empresa: {self.company.name}", subtitle_style))
+        elements.append(Spacer(1, 0.4*cm))
+
+        # --- Tabla ---
+        data = self._build_table_data()
+        col_widths = [2.2*cm, 2.4*cm, 2*cm, 2*cm, 2*cm, 2.2*cm, 3.5*cm, 2*cm, 2.8*cm, 2.5*cm, 3*cm]
+
+        table = Table(data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(self._build_table_style(len(data)))
+        elements.append(table)
+
+        doc.build(elements)
+        output.seek(0)
+        return output
+
+    def _build_table_data(self) -> list:
+        """Construir datos de la tabla incluyendo cabecera"""
+        header = [
+            'Fecha', 'Día', 'Entrada', 'Salida', 'Ausencia',
+            'Vacaciones', 'Baja', 'Festivo', 'Ord.', 'Extras', 'Firma'
+        ]
+
+        rows = [header]
         days_in_month = (self.end_date - self.start_date).days + 1
         work_hours_per_day = get_work_hours_per_day(self.company.id)
 
         for day_offset in range(days_in_month):
             current_date = self.start_date + timedelta(days=day_offset)
-
-            # Columna A: Fecha
-            fecha = current_date.strftime('%d/%m/%Y')
-
-            # Columna B: Día Semana
             day_of_week_num = current_date.weekday()
-            day_of_week = DAYS_OF_WEEK_ES.get(day_of_week_num, 'Día')
 
-            # Obtener TimeEntry
             time_entry = TimeEntries.objects.filter(
                 user=self.user,
                 company=self.company,
                 date=current_date
             ).first()
 
-            # Columna C: Hora Entrada
-            entrada = time_entry.clock_in.strftime('%H:%M') if time_entry and time_entry.clock_in else ''
+            entrada = tz.localtime(time_entry.clock_in).strftime('%H:%M') if time_entry and time_entry.clock_in else ''
+            salida = tz.localtime(time_entry.clock_out).strftime('%H:%M') if time_entry and time_entry.clock_out else ''
 
-            # Columna D: Hora Salida
-            salida = time_entry.clock_out.strftime('%H:%M') if time_entry and time_entry.clock_out else ''
-
-            # Calcular tiempo trabajado
             work_time = 0
             if time_entry and time_entry.clock_in and time_entry.clock_out:
                 duration = time_entry.clock_out - time_entry.clock_in
                 work_time = round(duration.total_seconds() / 3600, 2)
 
-            # Columna E: Ausencia (pausas)
-            pauses = get_pause_hours_for_day(self.user.id, self.company.id, current_date)
-
-            # Columna F: Vacaciones
+            pauses    = get_pause_hours_for_day(self.user.id, self.company.id, current_date)
             vacations = get_vacation_hours_for_day(self.user.id, self.company.id, current_date)
-
-            # Columna G: Baja
-            absence = get_absence_for_day(self.user.id, self.company.id, current_date)
-
-            # Columna H: Festivo
-            holidays = get_holiday_hours_for_day(self.company.id, current_date)
-
-            # Columna I: Total Horas Ordinarias
+            absence   = get_absence_for_day(self.user.id, self.company.id, current_date)
+            holidays  = get_holiday_hours_for_day(self.company.id, current_date)
             ordinarias = calculate_ordinary_hours(work_time, pauses, vacations, holidays, work_hours_per_day)
+            extras     = calculate_extra_hours(work_time, ordinarias, work_hours_per_day)
 
-            # Columna J: Total Horas Extras
-            extras = calculate_extra_hours(work_time, ordinarias, work_hours_per_day)
-
-            # Columna K: Firma Trabajador
-            firma = ''
-
-            # Construir fila
-            row = [
-                fecha,
-                day_of_week,
+            rows.append([
+                current_date.strftime('%d/%m/%Y'),
+                DAYS_OF_WEEK_ES.get(day_of_week_num, ''),
                 entrada,
                 salida,
-                pauses if pauses > 0 else '',
-                vacations if vacations > 0 else '',
+                str(pauses) if pauses > 0 else '',
+                str(vacations) if vacations > 0 else '',
                 absence,
-                holidays if holidays > 0 else '',
-                ordinarias if ordinarias > 0 else '',
-                extras if extras > 0 else '',
-                firma
-            ]
+                str(holidays) if holidays > 0 else '',
+                str(ordinarias) if ordinarias > 0 else '',
+                str(extras) if extras > 0 else '',
+                '',  # Firma usuario
+            ])
 
-            writer.writerow(row)
+        return rows
 
-        return output.getvalue()
+    def _build_table_style(self, num_rows: int) -> TableStyle:
+        """Definir estilos de la tabla PDF"""
+        style = [
+            # Cabecera
+            ('BACKGROUND', (0, 0), (-1, 0), colors.black),
+            ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
+            ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE',   (0, 0), (-1, 0), 8),
+            ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN',     (0, 0), (-1, -1), 'MIDDLE'),
+            # Bordes
+            ('GRID',       (0, 0), (-1, -1), 0.5, colors.black),
+            # Filas de datos
+            ('FONTNAME',   (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE',   (0, 1), (-1, -1), 7.5),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F5F5')]),
+        ]
 
-    def _add_bom(self, csv_content: str) -> str:
-        """Agregar BOM UTF-8 al inicio del CSV"""
-        return '\ufeff' + csv_content
+        # Fines de semana en gris con texto rojo
+        days_in_month = (self.end_date - self.start_date).days + 1
+        for day_offset in range(days_in_month):
+            current_date = self.start_date + timedelta(days=day_offset)
+            if current_date.weekday() in [5, 6]:
+                row_idx = day_offset + 1 
+                style += [
+                    ('BACKGROUND', (0, row_idx), (-1, row_idx), colors.HexColor('#DCDCDC')),
+                    ('TEXTCOLOR',  (0, row_idx), (-1, row_idx), colors.red),
+                    ('FONTNAME',   (0, row_idx), (-1, row_idx), 'Helvetica-Bold'),
+                ]
+
+        return TableStyle(style)

@@ -219,16 +219,42 @@ function setupButtonListeners() {
     }, 'vacationMsg');
   });
 
+  // Mostrar/ocultar campos de hora según motivo de ausencia
+  const absenceReasonSelect = document.getElementById('absenceReason');
+  const absenceTimeFields   = document.getElementById('absenceTimeFields');
+  const TIMED_REASONS = ['medical_appointment', 'legal_duty'];
+  function updateTimeFieldsVisibility() {
+    const isTimedReason = TIMED_REASONS.includes(absenceReasonSelect.value);
+    absenceTimeFields.style.display = isTimedReason ? 'block' : 'none';
+    // Limpiar los valores si se ocultan
+    if (!isTimedReason) {
+      document.getElementById('absenceTimeStart').value = '';
+      document.getElementById('absenceTimeEnd').value   = '';
+    }
+  }
+  absenceReasonSelect.addEventListener('change', updateTimeFieldsVisibility);
+  // Ejecutar al inicio por si el select tiene un valor preseleccionado
+  updateTimeFieldsVisibility();
+
   // Botón: Solicitar ausencia
   document.getElementById('btnSendAbsence').addEventListener('click', function () {
-    const fileInput = document.getElementById('absenceAttachment');
-    const formData = new FormData();
+    const fileInput  = document.getElementById('absenceAttachment');
+    const formData   = new FormData();
+    const reason     = document.getElementById('absenceReason').value;
 
-    formData.append('leave_type', 'absence');
-    formData.append('leave_reason', document.getElementById('absenceReason').value);
-    formData.append('start_date', document.getElementById('absenceStart').value);
-    formData.append('end_date', document.getElementById('absenceEnd').value);
-    formData.append('reason_note', document.getElementById('absenceNote').value);
+    formData.append('leave_type',   'absence');
+    formData.append('leave_reason', reason);
+    formData.append('start_date',   document.getElementById('absenceStart').value);
+    formData.append('end_date',     document.getElementById('absenceEnd').value);
+    formData.append('reason_note',  document.getElementById('absenceNote').value);
+
+    // Añadir horas solo si el motivo las requiere
+    if (TIMED_REASONS.includes(reason)) {
+      const timeStart = document.getElementById('absenceTimeStart').value;
+      const timeEnd   = document.getElementById('absenceTimeEnd').value;
+      if (timeStart) formData.append('time_start', timeStart);
+      if (timeEnd)   formData.append('time_end',   timeEnd);
+    }
 
     if (fileInput && fileInput.files[0]) {
       formData.append('attachment', fileInput.files[0]);
