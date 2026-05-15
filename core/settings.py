@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     'admin',
     'management',
     'requests',
+    'aeptic_reports',
 ]
 
 MIDDLEWARE = [

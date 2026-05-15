@@ -11,6 +11,7 @@ from audit import views as audit_views
 from admin import views as admin_views   
 from management import views as management_views
 from requests import views as requests_views
+from aeptic_reports import views as aeptic_views
 
 urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
@@ -125,6 +126,10 @@ urlpatterns = [
     path('audit/users/', audit_views.audit_users, name='audit_users'),
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
+
+
+    path('aeptic/resumen/', aeptic_views.aeptic_summary, name='aeptic_summary'),
+
 ]
 
 # Servir archivos media en desarrollo
