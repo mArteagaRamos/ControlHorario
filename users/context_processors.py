@@ -1,5 +1,7 @@
 # Context processor to add current company and breadcrumbs to templates
 
+from datetime import date, timedelta
+
 
 # Labels for URL names - maps route names to display labels
 BREADCRUMB_LABELS = {
@@ -17,6 +19,8 @@ BREADCRUMB_LABELS = {
     'admin_dashboard': 'Panel de Administración',
 }
 
+AEPTIC_TAX_ID = 'ESA12345678'  # Ajusta al tax_id real de AEPTIC en tu BD
+
 
 def get_breadcrumbs(request):
     """Generate breadcrumbs from navigation history"""
@@ -30,7 +34,6 @@ def get_breadcrumbs(request):
 
     breadcrumbs = []
 
-    # Add all pages from history
     for page in history:
         page_name = page.get('name') or 'Página'
         label = BREADCRUMB_LABELS.get(page_name, page_name.replace('_', ' ').title())
@@ -39,11 +42,60 @@ def get_breadcrumbs(request):
             'url': page['path'],
         })
 
-    # Make the last item (current page) non-clickable
     if breadcrumbs:
         breadcrumbs[-1]['url'] = None
 
     return breadcrumbs
+
+
+def _show_excel_reminder(user):
+    """
+    Devuelve True si hoy es uno de los últimos 5 días laborables del mes
+    para un usuario de AEPTIC (ni admin ni auditor).
+    """
+    if not user.is_authenticated:
+        return False
+    if getattr(user, 'is_admin', False) or getattr(user, 'is_auditor', False):
+        return False
+
+    # Comprobar que el usuario pertenece a AEPTIC
+    from users.models import UserCompany
+    from admin.models import CompanySettings
+
+    membership = UserCompany.objects.filter(
+        user=user,
+        company__tax_id=AEPTIC_TAX_ID,
+        deleted_at__isnull=True
+    ).select_related('company').first()
+
+    if not membership:
+        return False
+
+    company = membership.company
+    today = date.today()
+
+    # Obtener festivos y días de fin de semana de la empresa
+    settings_obj = CompanySettings.objects.filter(company=company).first()
+    weekend_days = list(settings_obj.weekend_days) if settings_obj and settings_obj.weekend_days else [5, 6]
+    holidays = list(settings_obj.holidays) if settings_obj and settings_obj.holidays else []
+
+    # Calcular todos los días laborables del mes
+    # Primer día del mes siguiente - 1 = último día del mes actual
+    if today.month == 12:
+        first_next = date(today.year + 1, 1, 1)
+    else:
+        first_next = date(today.year, today.month + 1, 1)
+    last_day = first_next - timedelta(days=1)
+
+    # Recorrer desde el último día hacia atrás hasta encontrar 5 laborables
+    working_days_end = []
+    current = last_day
+    while len(working_days_end) < 5 and current.month == today.month:
+        if current.weekday() not in weekend_days and current not in holidays:
+            working_days_end.append(current)
+        current -= timedelta(days=1)
+
+    return today in working_days_end
 
 
 def user_company(request):
@@ -54,7 +106,6 @@ def user_company(request):
 
     if request.user.is_authenticated:
         memberships = UserCompany.objects.filter(user=request.user).select_related('company')
-
         is_admin = getattr(request.user, 'is_admin', False)
 
     return {
@@ -64,5 +115,5 @@ def user_company(request):
         'company_count': memberships.count(),
         'is_admin': is_admin,
         'breadcrumbs': get_breadcrumbs(request),
+        'show_excel_reminder': _show_excel_reminder(request.user),
     }
-
