@@ -4,6 +4,7 @@
 {% block title %}Resumen Mensual{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/aeptic_reports.css' %}">
 <style>
   .summary-card {
     
@@ -236,4 +237,126 @@
   </div>
 </div>
 
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">
+                <i class="bi bi-file-earmark-pdf"></i> Informes Mensuales
+            </h2>
+            <small class="text-muted">Descarga, firma y carga tus informes mensuales de horas</small>
+        </div>
+    </div>
+
+    <!-- TOGGLE SELECTOR MONTHS -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="months-toggle-section">
+                <div class="toggle-container">
+                    <!-- Mes anterior -->
+                    <div class="toggle-group" id="prev-month-group">
+                        <div class="toggle-month-info">
+                            <button class="month-toggle-btn" id="prev-month-btn" data-month="{{ prev_month_date }}">
+                                <i class="bi bi-calendar"></i>
+                                <span class="month-name">{{ prev_month_name }}</span>
+                            </button>
+                            <span class="toggle-indicator"></span>
+                        </div>
+
+                        <div class="file-input-wrapper">
+                            <input type="file" id="prev-month-file" class="month-file-input"
+                                   accept=".xlsx,.csv" data-month="{{ prev_month_date }}" hidden>
+                            <label for="prev-month-file" class="file-upload-label">
+                                <i class="bi bi-cloud-upload"></i> Subir firmado
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Mes actual -->
+                    <div class="toggle-group active" id="current-month-group">
+                        <div class="toggle-month-info">
+                            <button class="month-toggle-btn" id="current-month-btn" data-month="{{ current_month_date }}">
+                                <i class="bi bi-calendar"></i>
+                                <span class="month-name">{{ current_month_name }}</span>
+                            </button>
+                            <span class="toggle-indicator"></span>
+                        </div>
+
+                        <div class="file-input-wrapper">
+                            <input type="file" id="current-month-file" class="month-file-input"
+                                   accept=".xlsx,.csv" data-month="{{ current_month_date }}" hidden>
+                            <label for="current-month-file" class="file-upload-label">
+                                <i class="bi bi-cloud-upload"></i> Subir firmado
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTONES DESCARGA -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="download-buttons-section">
+                <button id="download-xlsx-btn" class="btn btn-primary std-btn">
+                    <i class="bi bi-file-earmark-excel"></i> Descargar Excel (.xlsx)
+                </button>
+                <button id="download-csv-btn" class="btn btn-outline-primary std-btn">
+                    <i class="bi bi-file-earmark-excel"></i> Descargar CSV (.csv)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATUS / MENSAJES -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div id="status-message" class="alert" style="display:none;" role="alert"></div>
+        </div>
+    </div>
+
+    <!-- PREVIEW / TABLA PRINCIPAL -->
+    <div class="row">
+        <div class="col-12">
+            <div id="report-preview-container" class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0">Preview de Reporte</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-scroll-container">
+                        <table id="report-table" class="table table-sm table-bordered table-hover mb-0">
+                            <thead>
+                                <!-- Headers populated by JavaScript -->
+                            </thead>
+                            <tbody>
+                                <!-- Rows populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CSRF Token helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+</script>
+
+<script src="{% static 'js/modules/aeptic_reports/monthly_reports.js' %}"></script>
 {% endblock %}

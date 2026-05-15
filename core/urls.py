@@ -1,17 +1,17 @@
 # core/urls.py
 # ═══════════════════════════════════════════════════════════════════════════
 
-from django.urls import path
+from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from users import views as user_views
 from dashboard import views as dashboard_views
 from timetracking import views as timetracking_views
 from audit import views as audit_views
-from admin import views as admin_views   
+from admin import views as admin_views
 from management import views as management_views
 from requests import views as requests_views
-from aeptic_reports import views as aeptic_views
+from aeptic_reports import views as aeptic_reports_views
 
 urlpatterns = [
     # ════════════════════════════════════════════════════════════════════════
@@ -97,6 +97,16 @@ urlpatterns = [
     path('leave/<uuid:leave_id>/edit/', requests_views.api_leave_request_edit, name='api_leave_edit'),
 
     # ════════════════════════════════════════════════════════════════════════
+    # MONTHLY REPORTS (aeptic_reports/)
+    # ════════════════════════════════════════════════════════════════════════
+    path('monthly-reports/download/', aeptic_reports_views.MonthlyReportDownloadView.as_view(), name='aeptic_download_report'),
+    path('monthly-reports/upload/', aeptic_reports_views.MonthlyReportUploadView.as_view(), name='aeptic_upload_report'),
+    path('monthly-reports/list/', aeptic_reports_views.MonthlyReportListView.as_view(), name='aeptic_list_reports'),
+    path('monthly-reports/data/', aeptic_reports_views.MonthlyReportDataView.as_view(), name='aeptic_report_data'),
+    path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
+    path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
+
+    # ════════════════════════════════════════════════════════════════════════
     # ADMIN - GLOBAL ADMINISTRATION (admin/)
     # ════════════════════════════════════════════════════════════════════════
 
@@ -128,7 +138,7 @@ urlpatterns = [
     path('audit/company/', audit_views.audit_company, name='audit_company'),
 
 
-    path('aeptic/resumen/', aeptic_views.aeptic_summary, name='aeptic_summary'),
+    path('aeptic/resumen/', aeptic_reports_views.aeptic_summary, name='aeptic_summary'),
 
 ]
 
