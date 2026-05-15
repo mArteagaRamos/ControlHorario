@@ -136,14 +136,22 @@ urlpatterns = [
     path('audit/users/', audit_views.audit_users, name='audit_users'),
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
-
-# ════════════════════════════════════════════════════════════════════════
-    # AEPTIC REPORTS - CONTROL INCURRIDO (aeptic_reports/)
+    
     # ════════════════════════════════════════════════════════════════════════
-    path('reports/current/', aeptic_views.report_summary, name='report_summary'),
-    path('reports/history/', aeptic_views.report_history, name='report_history'),
-    #path('reports/download/<uuid:report_id>/', aeptic_views.download_excel, name='download_excel'),
-    #path('reports/sign/<uuid:report_id>/', aeptic_views.sign_report, name='sign_report'),
+    # MONTHLY REPORTS (aeptic_reports/)
+    # ════════════════════════════════════════════════════════════════════════
+
+    path('monthly-reports/download/', aeptic_reports_views.MonthlyReportDownloadView.as_view(), name='aeptic_download_report'),
+
+    path('monthly-reports/upload/', aeptic_reports_views.MonthlyReportUploadView.as_view(), name='aeptic_upload_report'),
+
+    path('monthly-reports/list/', aeptic_reports_views.MonthlyReportListView.as_view(), name='aeptic_list_reports'),
+
+    path('monthly-reports/data/', aeptic_reports_views.MonthlyReportDataView.as_view(), name='aeptic_report_data'),
+
+    path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
+
+    path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
 ]
 
 # Servir archivos media en desarrollo
