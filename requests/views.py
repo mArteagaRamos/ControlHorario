@@ -751,14 +751,15 @@ def api_leave_request_create(request):
         return JsonResponse({'error': 'Motivo no válido'}, status=400)
 
     leave = LeaveRequest.objects.create(
-        user         = user,
-        company      = company,
-        leave_type   = leave_type,
-        leave_reason = leave_reason,
-        reason_note  = reason_note,
-        start_date   = start,
-        end_date     = end,
-        status       = LeaveRequest.LeaveStatus.PENDING,
+        user=user,
+        company=company,
+        start_date=start,
+        end_date=end,
+        leave_reason=data.get('leave_reason'),
+        reason_note=data.get('reason_note'),
+        start_time=data.get('start_time') if data.get('start_time') else None,
+        end_time=data.get('end_time') if data.get('end_time') else None,
+        status=LeaveRequest.LeaveStatus.PENDING
     )
 
     # AUDITORÍA: Creación (registrada bajo el usuario delegado o el actual)

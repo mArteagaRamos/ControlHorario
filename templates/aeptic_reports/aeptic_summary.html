@@ -1,0 +1,42 @@
+            <div id="report-preview-container" class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0">Preview de Reporte</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-scroll-container">
+                        <table id="report-table" class="table table-sm table-bordered table-hover mb-0">
+                            <thead>
+                                <!-- Headers populated by JavaScript -->
+                            </thead>
+                            <tbody>
+                                <!-- Rows populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // CSRF Token helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+</script>
+
+<script src="{% static 'js/modules/aeptic_reports/monthly_reports.js' %}"></script>
+{% endblock %}

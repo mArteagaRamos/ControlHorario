@@ -122,6 +122,33 @@ export async function sendLeaveRequest(payload, msgElementId, isFormData = false
   }
 }
 
+  export function submitAbsenceRequest() {
+    const reason = document.getElementById('absenceReason').value;
+    // Solo capturamos horas si el motivo es Cita Médica o Deber Inexcusable
+    const isHourly = (reason === 'medical_appointment' || reason === 'legal_duty');
+
+    const payload = {
+      start_date: document.getElementById('absenceStart').value,
+      end_date: document.getElementById('absenceEnd').value,
+      leave_type: 'absence',
+      leave_reason: reason,
+      reason_note: document.getElementById('absenceNote').value,
+      start_time: isHourly ? document.getElementById('absenceStartTime').value : null,
+      end_time: isHourly ? document.getElementById('absenceEndTime').value : null,
+    };
+
+    if (!payload.start_date || !payload.end_date) {
+      const msgEl = document.getElementById('absenceMsg');
+      if (msgEl) {
+        msgEl.className = 'mt-2 small text-danger';
+        msgEl.textContent = 'Las fechas son obligatorias.';
+      }
+      return;
+    }
+
+    sendLeaveRequest(payload, 'absenceMsg');
+  }
+
 /**
  * Limpia todos los inputs de formularios de solicitud
  * @returns {void}
@@ -178,6 +205,9 @@ export function showEventModal(event) {
     '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
     '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
 
+  if (props.start_time && props.end_time) {
+    bodyHTML += `<p class="mb-1"><strong>Horario:</strong> ${props.start_time.substring(0,5)} - ${props.end_time.substring(0,5)}</p>`;
+  }
   // Agregar indicador de conflicto
   if (props.has_conflict) {
     bodyHTML += `

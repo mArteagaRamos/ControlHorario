@@ -1,0 +1,42 @@
+                                        </small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if report.document_path %}
+                                        <a href="{{ report.document_path }}" class="btn btn-sm btn-outline-primary" download>
+                                            <i class="bi bi-download"></i> Descargar
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted small">No disponible</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info" role="alert">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>No hay reportes</strong>
+                        <p class="mb-0 mt-2">Aún no hay informes mensuales disponibles. Genera tu primer reporte en "Control Incurrido".</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN VOLVER -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'aeptic_summary' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

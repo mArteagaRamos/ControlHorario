@@ -23,6 +23,7 @@ import {
 
 import {
   sendLeaveRequest,
+  submitAbsenceRequest,
   showEventModal,
   prepareAttachmentSection,
   showUploadZone,
@@ -78,7 +79,23 @@ export async function initCalendar() {
 
     // 8. Exportar funciones a window (para onclick)
     exportFunctionsToWindow();
-  } catch (error) {
+
+  const absenceReasonSelect = document.getElementById('absenceReason');
+  if (absenceReasonSelect) {
+    absenceReasonSelect.addEventListener('change', function() {
+      const timeFields = document.getElementById('absenceTimeFields');
+      const hourlyReasons = ['medical_appointment', 'legal_duty']; 
+      
+      if (hourlyReasons.includes(this.value)) {
+        timeFields.style.display = 'block';
+      } else {
+        timeFields.style.display = 'none';
+        document.getElementById('absenceStartTime').value = '';
+        document.getElementById('absenceEndTime').value = '';
+      }
+    });
+  }
+    } catch (error) {
     console.error('[CALENDAR] Error during initialization:', error);
   }
 }
@@ -209,33 +226,18 @@ async function setupInitialData() {
  */
 function setupButtonListeners() {
   // Botón: Solicitar vacaciones
-  document.getElementById('btnSendVacation').addEventListener('click', function () {
-    sendLeaveRequest({
-      leave_type: 'vacation',
-      leave_reason: document.getElementById('vacationReason').value,
-      start_date: document.getElementById('vacationStart').value,
-      end_date: document.getElementById('vacationEnd').value,
-      reason_note: document.getElementById('vacationNote').value,
-    }, 'vacationMsg');
-  });
-
-  // Botón: Solicitar ausencia
-  document.getElementById('btnSendAbsence').addEventListener('click', function () {
-    const fileInput = document.getElementById('absenceAttachment');
-    const formData = new FormData();
-
-    formData.append('leave_type', 'absence');
-    formData.append('leave_reason', document.getElementById('absenceReason').value);
-    formData.append('start_date', document.getElementById('absenceStart').value);
-    formData.append('end_date', document.getElementById('absenceEnd').value);
-    formData.append('reason_note', document.getElementById('absenceNote').value);
-
-    if (fileInput && fileInput.files[0]) {
-      formData.append('attachment', fileInput.files[0]);
-    }
-
-    sendLeaveRequest(formData, 'absenceMsg', true); // true indica que es FormData
-  });
+  const btnVacation = document.getElementById('btnSendVacation');
+  if (btnVacation) {
+    btnVacation.addEventListener('click', function () {
+      sendLeaveRequest({
+        leave_type: 'vacation',
+        leave_reason: document.getElementById('vacationReason').value,
+        start_date: document.getElementById('vacationStart').value,
+        end_date: document.getElementById('vacationEnd').value,
+        reason_note: document.getElementById('vacationNote').value,
+      }, 'vacationMsg');
+    });
+  }
 
   // Botón: Guardar cambios de edición de solicitud
   const saveEditBtn = document.getElementById('btnSaveEditLeave');
@@ -273,6 +275,7 @@ function setupRejectListener() {
 function exportFunctionsToWindow() {
   // Funciones de leave requests
   window.sendLeaveRequest = sendLeaveRequest;
+  window.submitAbsenceRequest = submitAbsenceRequest;
   window.showEventModal = showEventModal;
   window.prepareAttachmentSection = prepareAttachmentSection;
   window.showUploadZone = showUploadZone;

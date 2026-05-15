@@ -106,6 +106,7 @@ urlpatterns = [
     path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
     path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
 
+
     # ════════════════════════════════════════════════════════════════════════
     # ADMIN - GLOBAL ADMINISTRATION (admin/)
     # ════════════════════════════════════════════════════════════════════════
@@ -137,27 +138,7 @@ urlpatterns = [
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
     
-    # ════════════════════════════════════════════════════════════════════════
-    # MONTHLY REPORTS (aeptic_reports/)
-    # ════════════════════════════════════════════════════════════════════════
-
-    path('monthly-reports/download/', aeptic_reports_views.MonthlyReportDownloadView.as_view(), name='aeptic_download_report'),
-
-    path('monthly-reports/upload/', aeptic_reports_views.MonthlyReportUploadView.as_view(), name='aeptic_upload_report'),
-
-    path('monthly-reports/list/', aeptic_reports_views.MonthlyReportListView.as_view(), name='aeptic_list_reports'),
-
-    path('monthly-reports/data/', aeptic_reports_views.MonthlyReportDataView.as_view(), name='aeptic_report_data'),
-
-    path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
-
-    path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
-
-
-    path('aeptic/resumen/', aeptic_reports_views.aeptic_summary, name='aeptic_summary'),
-
 ]
-
 # Servir archivos media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
