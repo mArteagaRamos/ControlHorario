@@ -152,6 +152,10 @@ urlpatterns = [
     path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
 
     path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
+
+
+    path('aeptic/resumen/', aeptic_reports_views.aeptic_summary, name='aeptic_summary'),
+
 ]
 
 # Servir archivos media en desarrollo
