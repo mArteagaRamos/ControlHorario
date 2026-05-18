@@ -110,7 +110,7 @@
             {% endif %}
 
             {# SECCIÓN TRABAJADOR #}
-            {% if is_admin or current_role == 'manager' %}
+            {% if is_admin or current_role_original == 'manager' %}
               <section id="section-worker" class="mb-4">
                 <h5 class="border-bottom pb-2">
                   <span class="badge me-2" style="background-color: #1a1f2e; color: #fff;">{% if is_admin %}2{% else %}1{% endif %}</span>

@@ -1,7 +1,17 @@
 # Context processor to add current company and breadcrumbs to templates
 
 from datetime import date, timedelta
+from users.models import UserCompany
+from admin.models import CompanySettings
+from .models import UserCompany
+from core.context_processors import _translate_role
 
+# URL names to exclude from breadcrumb generation
+BREADCRUMB_EXCLUDE = {
+    'api_leave_resolved',
+    'calendar_events',
+    'aeptic_report_data',
+}
 
 # Labels for URL names - maps route names to display labels
 BREADCRUMB_LABELS = {
@@ -17,6 +27,9 @@ BREADCRUMB_LABELS = {
     'register_unified': 'Registro',
     'security': 'Seguridad',
     'admin_dashboard': 'Panel de Administración',
+    'aeptic_summary': 'Control Incurrido',
+    'aeptic_report_detail': 'Detalle del Informe',
+    'aeptic_history': 'Histórico de Reportes',
 }
 
 AEPTIC_TAX_ID = 'ESA12345678'  # Ajusta al tax_id real de AEPTIC en tu BD
@@ -36,6 +49,10 @@ def get_breadcrumbs(request):
 
     for page in history:
         page_name = page.get('name') or 'Página'
+
+        if page_name in BREADCRUMB_EXCLUDE:
+            continue
+
         label = BREADCRUMB_LABELS.get(page_name, page_name.replace('_', ' ').title())
         breadcrumbs.append({
             'label': label,
@@ -57,10 +74,6 @@ def _show_excel_reminder(user):
         return False
     if getattr(user, 'is_admin', False) or getattr(user, 'is_auditor', False):
         return False
-
-    # Comprobar que el usuario pertenece a AEPTIC
-    from users.models import UserCompany
-    from admin.models import CompanySettings
 
     membership = UserCompany.objects.filter(
         user=user,
@@ -99,7 +112,6 @@ def _show_excel_reminder(user):
 
 
 def user_company(request):
-    from .models import UserCompany
 
     memberships = UserCompany.objects.none()
     is_admin = False
@@ -108,9 +120,11 @@ def user_company(request):
         memberships = UserCompany.objects.filter(user=request.user).select_related('company')
         is_admin = getattr(request.user, 'is_admin', False)
 
+    current_role = getattr(request, 'role', None)
     return {
         'current_company': getattr(request, 'company', None),
-        'current_role': getattr(request, 'role', None),
+        'current_role': _translate_role(current_role),
+        'current_role_original': current_role,
         'memberships': memberships,
         'company_count': memberships.count(),
         'is_admin': is_admin,

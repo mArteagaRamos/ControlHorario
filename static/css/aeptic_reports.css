@@ -2,7 +2,9 @@
 
 :root {
     --transition-speed: 0.2s;
-    --primary-color: #007bff;
+    --primary-color: #1a1f2e;
+    --primary-color-light: #2a3147;
+    --primary-bg-tint: #eef0f5;
     --success-color: #28a745;
     --danger-color: #dc3545;
 }
@@ -39,8 +41,8 @@
 
 .toggle-group.active {
     border-color: var(--primary-color);
-    background: #e7f3ff;
-    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+    background: var(--primary-bg-tint);
+    box-shadow: 0 4px 12px rgba(26, 31, 46, 0.15);
 }
 
 .toggle-month-info {
@@ -81,7 +83,7 @@
 
 .toggle-group.active .toggle-indicator {
     background: var(--primary-color);
-    box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+    box-shadow: 0 0 8px rgba(26, 31, 46, 0.4);
 }
 
 /* --- FILE UPLOAD --- */

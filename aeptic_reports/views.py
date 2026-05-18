@@ -15,7 +15,7 @@ from django.shortcuts import render
 
 # Create your views here.
 from aeptic_reports.models import MonthlyReport
-from aeptic_reports.services import ExcelReportGenerator, CSVReportGenerator
+from aeptic_reports.services import ExcelReportGenerator, PDFReportGenerator
 from users.models import UserCompany, Companies
 from audit.models import AuditLog
 from core.decorators import auditor_cannot_access
@@ -187,10 +187,10 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
                     'message': 'Parámetro "month" requerido'
                 }, status=400)
 
-            if format_type not in ['xlsx', 'csv']:
+            if format_type not in ['xlsx', 'pdf']:
                 return JsonResponse({
                     'status': 'error',
-                    'message': 'Formato debe ser "xlsx" o "csv"'
+                    'message': 'Formato debe ser "xlsx" o "pdf"'
                 }, status=400)
 
             # 2. Validar formato de mes
@@ -240,19 +240,11 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
                 file_content = generator.generate()
                 content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 file_ext = 'xlsx'
-            else:  # csv
-                generator = CSVReportGenerator(
-                    request.user,
-                    company,
-                    report_date
-                )
+            elif format_type == 'pdf':
+                generator = PDFReportGenerator(request.user, company, report_date)
                 file_content = generator.generate()
-                # Convertir string CSV a BytesIO
-                from io import BytesIO
-                file_bytes = BytesIO(file_content.encode('utf-8-sig'))
-                file_content = file_bytes
-                content_type = 'text/csv'
-                file_ext = 'csv'
+                content_type = 'application/pdf'
+                file_ext = 'pdf'
 
             # 8. Actualizar MonthlyReport con status=generated
             monthly_report.status = MonthlyReport.ReportStatus.GENERATED
@@ -326,7 +318,7 @@ class MonthlyReportUploadView(LoginRequiredMixin, View):
             uploaded_file = request.FILES['file']
 
             # 2. Validar extensión
-            allowed_extensions = ['xlsx', 'csv']
+            allowed_extensions = ['pdf']
             file_ext = uploaded_file.name.split('.')[-1].lower()
 
             if file_ext not in allowed_extensions:

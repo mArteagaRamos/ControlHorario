@@ -243,49 +243,28 @@
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="mb-0">
-                <i class="bi bi-file-earmark-pdf"></i> Informes Mensuales
+                <i class="bi bi-file-earmark-pdf"></i> Control Incurrido
             </h2>
-            <small class="text-muted">Descarga, firma y carga tus informes mensuales de horas</small>
+            <small class="text-muted">Descarga, firma y carga tus reportes mensuales de horas</small>
         </div>
     </div>
 
-    <!-- TOGGLE SELECTOR MONTHS -->
+    <!-- MES ACTUAL -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="months-toggle-section">
                 <div class="toggle-container">
-                    <!-- Mes anterior -->
-                    <div class="toggle-group" id="prev-month-group">
-                        <div class="toggle-month-info">
-                            <button class="month-toggle-btn" id="prev-month-btn" data-month="{{ prev_month_date }}">
-                                <i class="bi bi-calendar"></i>
-                                <span class="month-name">{{ prev_month_name }}</span>
-                            </button>
-                            <span class="toggle-indicator"></span>
-                        </div>
-
-                        <div class="file-input-wrapper">
-                            <input type="file" id="prev-month-file" class="month-file-input"
-                                   accept=".xlsx,.csv" data-month="{{ prev_month_date }}" hidden>
-                            <label for="prev-month-file" class="file-upload-label">
-                                <i class="bi bi-cloud-upload"></i> Subir firmado
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Mes actual -->
                     <div class="toggle-group active" id="current-month-group">
                         <div class="toggle-month-info">
-                            <button class="month-toggle-btn" id="current-month-btn" data-month="{{ current_month_date }}">
+                            <button class="month-toggle-btn active" id="current-month-btn" 
+                                    data-month="{{ current_month_date }}">
                                 <i class="bi bi-calendar"></i>
                                 <span class="month-name">{{ current_month_name }}</span>
                             </button>
-                            <span class="toggle-indicator"></span>
                         </div>
-
                         <div class="file-input-wrapper">
                             <input type="file" id="current-month-file" class="month-file-input"
-                                   accept=".xlsx,.csv" data-month="{{ current_month_date }}" hidden>
+                                accept=".pdf" data-month="{{ current_month_date }}" hidden>
                             <label for="current-month-file" class="file-upload-label">
                                 <i class="bi bi-cloud-upload"></i> Subir firmado
                             </label>
@@ -300,11 +279,8 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="download-buttons-section">
-                <button id="download-xlsx-btn" class="btn btn-primary std-btn">
-                    <i class="bi bi-file-earmark-excel"></i> Descargar Excel (.xlsx)
-                </button>
-                <button id="download-csv-btn" class="btn btn-outline-primary std-btn">
-                    <i class="bi bi-file-earmark-excel"></i> Descargar CSV (.csv)
+                <button id="download-pdf-btn" class="btn btn-primary std-btn">
+                    <i class="bi bi-file-earmark-pdf"></i> Descargar PDF
                 </button>
             </div>
         </div>
@@ -322,7 +298,7 @@
         <div class="col-12">
             <div id="report-preview-container" class="card">
                 <div class="card-header bg-dark text-white">
-                    <h6 class="mb-0">Preview de Reporte</h6>
+                    <h6 class="mb-0">Previsualización de Reporte</h6>
                 </div>
                 <div class="card-body">
                     <div class="table-scroll-container">
