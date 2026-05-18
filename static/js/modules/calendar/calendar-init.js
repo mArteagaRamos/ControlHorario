@@ -77,25 +77,13 @@ export async function initCalendar() {
     // 7. Configurar listener de confirmación de rechazo
     setupRejectListener();
 
-    // 8. Exportar funciones a window (para onclick)
+    // 8. Configurar listener de cambio de razón de ausencia
+    setupAbsenceReasonListener();
+
+    // 9. Exportar funciones a window (para onclick)
     exportFunctionsToWindow();
 
-  const absenceReasonSelect = document.getElementById('absenceReason');
-  if (absenceReasonSelect) {
-    absenceReasonSelect.addEventListener('change', function() {
-      const timeFields = document.getElementById('absenceTimeFields');
-      const hourlyReasons = ['medical_appointment', 'legal_duty']; 
-      
-      if (hourlyReasons.includes(this.value)) {
-        timeFields.style.display = 'block';
-      } else {
-        timeFields.style.display = 'none';
-        document.getElementById('absenceStartTime').value = '';
-        document.getElementById('absenceEndTime').value = '';
-      }
-    });
-  }
-    } catch (error) {
+  } catch (error) {
     console.error('[CALENDAR] Error during initialization:', error);
   }
 }
@@ -243,6 +231,76 @@ function setupButtonListeners() {
   const saveEditBtn = document.getElementById('btnSaveEditLeave');
   if (saveEditBtn) {
     saveEditBtn.addEventListener('click', saveEditLeaveRequest);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 🔧 Setup de Listener para Razón de Ausencia
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Configura el listener de cambio de razón de ausencia
+ * Muestra/oculta campos de hora y gestiona fecha única
+ */
+function setupAbsenceReasonListener() {
+  const absenceReasonSelect = document.getElementById('absenceReason');
+  const absenceStart = document.getElementById('absenceStart');
+  const absenceEnd = document.getElementById('absenceEnd');
+  const absenceStartTime = document.getElementById('absenceStartTime');
+  const absenceEndTime = document.getElementById('absenceEndTime');
+  const timeFields = document.getElementById('absenceTimeFields');
+  const hourlyReasons = ['medical_appointment', 'legal_duty'];
+
+  if (absenceReasonSelect) {
+    absenceReasonSelect.addEventListener('change', function() {
+      const isHourly = hourlyReasons.includes(this.value);
+      
+      if (isHourly) {
+        // Mostrar campos de hora y bloquear fecha única
+        timeFields.style.display = 'block';
+        absenceEnd.disabled = true;
+        absenceEnd.style.opacity = '0.6';
+        absenceEnd.style.cursor = 'not-allowed';
+        // Igualar fechas si la de inicio existe
+        if (absenceStart.value) {
+          absenceEnd.value = absenceStart.value;
+        }
+      } else {
+        // Ocultar campos de hora y desbloquear fecha
+        timeFields.style.display = 'none';
+        absenceEnd.disabled = false;
+        absenceEnd.style.opacity = '1';
+        absenceEnd.style.cursor = 'auto';
+        // Limpiar campos de hora
+        absenceStartTime.value = '';
+        absenceEndTime.value = '';
+        absenceEndTime.min = '';
+      }
+    });
+
+    // Listener para sincronizar fecha de fin cuando es cita médica/deber público
+    if (absenceStart) {
+      absenceStart.addEventListener('change', function() {
+        const isHourly = hourlyReasons.includes(absenceReasonSelect.value);
+        if (isHourly && this.value) {
+          absenceEnd.value = this.value;
+        }
+      });
+    }
+
+    // Listener para validar que hora fin >= hora inicio
+    if (absenceStartTime) {
+      absenceStartTime.addEventListener('change', function() {
+        if (this.value && absenceEndTime) {
+          // Establecer el mínimo de hora fin igual a la hora inicio
+          absenceEndTime.min = this.value;
+          // Si la hora fin es menor que inicio, igualarla
+          if (absenceEndTime.value && absenceEndTime.value < this.value) {
+            absenceEndTime.value = this.value;
+          }
+        }
+      });
+    }
   }
 }
 

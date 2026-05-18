@@ -127,14 +127,17 @@ export async function sendLeaveRequest(payload, msgElementId, isFormData = false
     // Solo capturamos horas si el motivo es Cita Médica o Deber Inexcusable
     const isHourly = (reason === 'medical_appointment' || reason === 'legal_duty');
 
+    const startTime = isHourly ? document.getElementById('absenceStartTime').value : null;
+    const endTime = isHourly ? document.getElementById('absenceEndTime').value : null;
+
     const payload = {
       start_date: document.getElementById('absenceStart').value,
       end_date: document.getElementById('absenceEnd').value,
       leave_type: 'absence',
       leave_reason: reason,
       reason_note: document.getElementById('absenceNote').value,
-      start_time: isHourly ? document.getElementById('absenceStartTime').value : null,
-      end_time: isHourly ? document.getElementById('absenceEndTime').value : null,
+      start_time: startTime,
+      end_time: endTime,
     };
 
     if (!payload.start_date || !payload.end_date) {
@@ -144,6 +147,26 @@ export async function sendLeaveRequest(payload, msgElementId, isFormData = false
         msgEl.textContent = 'Las fechas son obligatorias.';
       }
       return;
+    }
+
+    // Validar horas si es cita médica o deber público
+    if (isHourly) {
+      if (!startTime || !endTime) {
+        const msgEl = document.getElementById('absenceMsg');
+        if (msgEl) {
+          msgEl.className = 'mt-2 small text-danger';
+          msgEl.textContent = 'Las horas de inicio y fin son obligatorias para este tipo de ausencia.';
+        }
+        return;
+      }
+      if (endTime < startTime) {
+        const msgEl = document.getElementById('absenceMsg');
+        if (msgEl) {
+          msgEl.className = 'mt-2 small text-danger';
+          msgEl.textContent = 'La hora de fin no puede ser menor a la hora de inicio.';
+        }
+        return;
+      }
     }
 
     sendLeaveRequest(payload, 'absenceMsg');
@@ -169,12 +192,28 @@ function clearLeaveFormInputs() {
 
   // Limpiar formularios de ausencia
   const absenceReason = document.getElementById('absenceReason');
+  const absenceEnd = document.getElementById('absenceEnd');
   if (absenceReason) {
     document.getElementById('absenceReason').value = absenceReason.options[0].value;
   }
   document.getElementById('absenceStart').value = '';
   document.getElementById('absenceEnd').value = '';
   document.getElementById('absenceNote').value = '';
+  document.getElementById('absenceStartTime').value = '';
+  document.getElementById('absenceEndTime').value = '';
+  
+  // Desbloquear y mostrar campo de fecha "Hasta"
+  if (absenceEnd) {
+    absenceEnd.disabled = false;
+    absenceEnd.style.opacity = '1';
+    absenceEnd.style.cursor = 'auto';
+  }
+  
+  // Ocultar campos de hora
+  const timeFields = document.getElementById('absenceTimeFields');
+  if (timeFields) {
+    timeFields.style.display = 'none';
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
