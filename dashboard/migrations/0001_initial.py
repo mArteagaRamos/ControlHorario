@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('users', '0007_delete_companysettings_delete_correctionrequests_and_more'),
+        ('users', '0006_alter_correctionrequests_options'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

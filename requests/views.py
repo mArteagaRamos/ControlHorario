@@ -2,7 +2,7 @@
 
 import csv
 import json
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from django.contrib import messages
 from django.shortcuts import redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
@@ -555,6 +555,20 @@ def api_calendar_events(request):
 
         for leave in leaves:
             is_owner = leave.user.email == request.user.email or str(leave.user.id) == str(request.user.id)
+            extended_props = {
+                'status': leave.get_status_display(),
+                'reason': leave.reason_note or '',
+                'has_conflict': str(leave.id) in conflict_map,
+                'leave_type': leave.leave_type,
+                'attachment_path': leave.attachment_path or '',
+                'is_owner': is_owner,
+            }
+            # Añadir horas si existen
+            if leave.start_time:
+                extended_props['start_time'] = leave.start_time.isoformat()
+            if leave.end_time:
+                extended_props['end_time'] = leave.end_time.isoformat()
+            
             events.append({
                 'id': f'leave-{leave.id}',
                 'title': f'{leave.user.username.title()} · {leave.get_leave_type_display()}',
@@ -563,14 +577,7 @@ def api_calendar_events(request):
                 'color': STATUS_COLOR.get(leave.status, '#6b7280'),
                 'allDay': True,
                 'classNames': ['has-conflict'] if str(leave.id) in conflict_map else [],
-                'extendedProps': {
-                    'status': leave.get_status_display(),
-                    'reason': leave.reason_note or '',
-                    'has_conflict': str(leave.id) in conflict_map,
-                    'leave_type': leave.leave_type,
-                    'attachment_path': leave.attachment_path or '',
-                    'is_owner': is_owner,
-                },
+                'extendedProps': extended_props,
             })
         return JsonResponse(events, safe=False)
 
@@ -622,6 +629,17 @@ def api_calendar_events(request):
 
     for leave in leaves:
         is_owner = leave.user.id == real_user.id
+        extended_props = {
+            'status': leave.get_status_display(),
+            'reason': leave.reason_note or '',
+            'has_conflict': str(leave.id) in conflict_map,
+            'leave_type': leave.leave_type,
+            'attachment_path': leave.attachment_path or '',
+            'is_owner': is_owner,
+            'leave_reason': leave.leave_reason,
+            'start_time': leave.start_time.isoformat() if leave.start_time else None,
+            'end_time': leave.end_time.isoformat() if leave.end_time else None,
+        }
         events.append({
             'id': f'leave-{leave.id}',
             'title': f'{leave.get_leave_type_display()}',
@@ -630,14 +648,7 @@ def api_calendar_events(request):
             'color': STATUS_COLOR.get(leave.status, '#6b7280'),
             'allDay': True,
             'classNames': ['has-conflict'] if str(leave.id) in conflict_map else [],
-            'extendedProps': {
-                'status': leave.get_status_display(),
-                'reason': leave.reason_note or '',
-                'has_conflict': str(leave.id) in conflict_map,
-                'leave_type': leave.leave_type,
-                'attachment_path': leave.attachment_path or '',
-                'is_owner': is_owner,
-            },
+            'extendedProps': extended_props,
         })
 
     return JsonResponse(events, safe=False)
@@ -828,7 +839,9 @@ def api_leave_request_edit(request, leave_id):
     start_date   = data.get('start_date')
     end_date     = data.get('end_date')
     leave_reason = data.get('leave_reason', leave.leave_reason)
-    reason_note  = data.get('reason_note', '')
+    reason_note = data.get('reason_note', '')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
 
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
@@ -848,6 +861,24 @@ def api_leave_request_edit(request, leave_id):
     if leave_reason not in LeaveRequest.LeaveReason.values:
         return JsonResponse({'error': 'Motivo no válido'}, status=400)
 
+    # --- Validación de horas si es cita médica o deber público ---
+    hourly_reasons = ['medical_appointment', 'legal_duty']
+    if leave_reason in hourly_reasons:
+        if not start_time or not end_time:
+            return JsonResponse({'error': 'Las horas son obligatorias para este tipo de ausencia'}, status=400)
+        try:
+            start_t = datetime.strptime(start_time, '%H:%M').time()
+            end_t = datetime.strptime(end_time, '%H:%M').time()
+            if end_t < start_t:
+                return JsonResponse({'error': 'La hora fin no puede ser menor a la hora inicio'}, status=400)
+        except ValueError:
+            return JsonResponse({'error': 'Formato de hora inválido'}, status=400)
+    else:
+        # Limpiar horas si no es cita médica/deber público
+        start_time = None
+        end_time = None
+
+    # --- Sanitización de reason_note ---
     if reason_note and len(reason_note) > 500:
         return JsonResponse({'error': 'La nota no puede exceder 500 caracteres'}, status=400)
 
@@ -904,12 +935,9 @@ def api_leave_request_edit(request, leave_id):
     leave.end_date    = end
     leave.leave_reason = leave_reason
     leave.reason_note = reason_note
-    leave.start_time  = start_time
-    leave.end_time    = end_time
-    leave.save(update_fields=[
-        'start_date', 'end_date', 'leave_reason',
-        'reason_note', 'start_time', 'end_time', 'updated_at'
-    ])
+    leave.start_time = start_time
+    leave.end_time = end_time
+    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'start_time', 'end_time', 'updated_at'])
 
     log_leave(leave, request.user, AuditLog.AuditAction.UPDATE,
               before=before,
