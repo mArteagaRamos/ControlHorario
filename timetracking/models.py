@@ -10,11 +10,11 @@ from users.models import Users, Companies
 # Time entry models
 class TimeEntries(UppercaseNormalizationMixin, models.Model):
     class EntryStatus(models.TextChoices):
-        ONGOING = 'ongoing'
-        CONFIRMED = 'confirmed'
-        AUTO_CLOSED = 'auto_closed'
-        CORRECTED = 'corrected'
-        VOIDED = 'voided'
+        ONGOING = 'ongoing', 'En curso'
+        CONFIRMED = 'confirmed', 'Confirmado'
+        AUTO_CLOSED = 'auto_closed', 'Cerrado automáticamente'
+        CORRECTED = 'corrected', 'Corregido'
+        VOIDED = 'voided', 'Anulado'
 
     id = models.UUIDField(primary_key=True)
     user = models.ForeignKey(Users, on_delete=models.CASCADE, db_column='user_id')

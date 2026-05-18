@@ -125,9 +125,15 @@ def get_vacation_hours_for_day(user_id, company_id, date):
         return 0.0
 
 
-def get_absence_for_day(user_id, company_id, date):
-    """Obtener ausencia (baja) para un día: retorna 'Motivo' o vacío"""
+def get_sick_leave_for_day(user_id, company_id, date):
+    """Obtener baja para un día: retorna motivo (4 tipos específicos) o vacío.
+
+    Solo devuelve: sick, maternity, wedding, bereavement
+    Formato: "Baja por enfermedad" o "Maternidad / Paternidad", etc.
+    """
     try:
+        sick_leave_reasons = {'sick', 'maternity', 'wedding', 'bereavement'}
+
         leave_request = LeaveRequest.objects.filter(
             user_id=user_id,
             company_id=company_id,
@@ -137,13 +143,55 @@ def get_absence_for_day(user_id, company_id, date):
             end_date__gte=date
         ).first()
 
-        if leave_request and leave_request.leave_reason in LEAVE_REASON_LABELS:
-            return LEAVE_REASON_LABELS[leave_request.leave_reason]
+        if leave_request and leave_request.leave_reason in sick_leave_reasons:
+            return LEAVE_REASON_LABELS.get(leave_request.leave_reason, "")
 
         return ""
 
     except Exception:
         return ""
+
+
+def get_time_off_for_day(user_id, company_id, date):
+    """Obtener tiempo libre (ausencia) para un día: retorna (motivo, horas) o None.
+
+    Solo devuelve: medical_appointment, legal_duty
+    Formato: ("Cita médica", 2.5) o ("Deber público / legal", 4.0)
+
+    Calcula las horas reales si start_time/end_time están definidas,
+    sino devuelve la jornada laboral completa.
+    """
+    try:
+        time_off_reasons = {'medical_appointment', 'legal_duty'}
+        work_hours_per_day = get_work_hours_per_day(company_id)
+
+        leave_request = LeaveRequest.objects.filter(
+            user_id=user_id,
+            company_id=company_id,
+            leave_type='absence',
+            status='approved',
+            start_date__lte=date,
+            end_date__gte=date
+        ).first()
+
+        if leave_request and leave_request.leave_reason in time_off_reasons:
+            reason_label = LEAVE_REASON_LABELS.get(leave_request.leave_reason, "")
+
+            # Calcular horas reales si start_time y end_time están definidas
+            if leave_request.start_time and leave_request.end_time:
+                start_dt = datetime.combine(date, leave_request.start_time)
+                end_dt = datetime.combine(date, leave_request.end_time)
+                duration = end_dt - start_dt
+                hours = round(duration.total_seconds() / 3600, 2)
+                return (reason_label, hours)
+            else:
+                # Si no hay horas específicas, es un día completo
+                return (reason_label, work_hours_per_day)
+
+        return None
+
+    except Exception:
+        return None
 
 
 def get_holiday_hours_for_day(company_id, date):
@@ -305,21 +353,28 @@ class ExcelReportGenerator:
 
             pauses = get_pause_hours_for_day(self.user.id, self.company.id, current_date)
             vacations = get_vacation_hours_for_day(self.user.id, self.company.id, current_date)
-            absence = get_absence_for_day(self.user.id, self.company.id, current_date)
+            time_off = get_time_off_for_day(self.user.id, self.company.id, current_date)
+            sick_leave = get_sick_leave_for_day(self.user.id, self.company.id, current_date)
             holidays = get_holiday_hours_for_day(self.company.id, current_date)
 
             ordinarias = calculate_ordinary_hours(work_time, pauses, vacations, holidays, work_hours_per_day)
             extras = calculate_extra_hours(work_time, ordinarias, work_hours_per_day)
+
+            # Format ausencia: "Cita médica - 8.0" o vacío
+            ausencia_display = ""
+            if time_off:
+                reason_label, hours = time_off
+                ausencia_display = f"{reason_label} - {hours}h"
 
             data.append({
                 'fecha': current_date.strftime('%d/%m/%Y'),
                 'dia_semana': day_of_week,
                 'entrada': entrada,
                 'salida': salida,
-                'ausencia': pauses if pauses > 0 else '',
-                'vacaciones': vacations if vacations > 0 else '',
-                'baja': absence,
-                'festivo': holidays if holidays > 0 else '',
+                'ausencia': ausencia_display,
+                'vacaciones': 'X' if vacations > 0 else '',
+                'baja': sick_leave,
+                'festivo': 'X' if holidays > 0 else '',
                 'ordinarias': ordinarias if ordinarias > 0 else '',
                 'extras': extras if extras > 0 else '',
                 'firma': '',
@@ -370,25 +425,30 @@ class ExcelReportGenerator:
                 duration = time_entry.clock_out - time_entry.clock_in
                 work_time = round(duration.total_seconds() / 3600, 2)
 
-            # Columna E: Ausencia (pausas)
+            # Calcular pausas (se restan de horas ordinarias pero NO se muestran)
             pauses = get_pause_hours_for_day(self.user.id, self.company.id, current_date)
-            if pauses > 0:
-                self.worksheet.cell(row=row, column=5, value=pauses)
 
-            # Columna F: Vacaciones
+            # Columna E: Ausencia (time-off: cita médica, deber público/legal)
+            time_off = get_time_off_for_day(self.user.id, self.company.id, current_date)
+            if time_off:
+                reason_label, hours = time_off
+                ausencia_text = f"{reason_label} - {hours}h"
+                self.worksheet.cell(row=row, column=5, value=ausencia_text)
+
+            # Columna F: Vacaciones (mostrar "X" en lugar de horas)
             vacations = get_vacation_hours_for_day(self.user.id, self.company.id, current_date)
             if vacations > 0:
-                self.worksheet.cell(row=row, column=6, value=vacations)
+                self.worksheet.cell(row=row, column=6, value='X')
 
-            # Columna G: Baja
-            absence = get_absence_for_day(self.user.id, self.company.id, current_date)
-            if absence:
-                self.worksheet.cell(row=row, column=7, value=absence)
+            # Columna G: Baja (sick leave: enfermedad, maternidad, matrimonio, fallecimiento)
+            sick_leave = get_sick_leave_for_day(self.user.id, self.company.id, current_date)
+            if sick_leave:
+                self.worksheet.cell(row=row, column=7, value=sick_leave)
 
-            # Columna H: Festivo
+            # Columna H: Festivo (mostrar "X" en lugar de horas)
             holidays = get_holiday_hours_for_day(self.company.id, current_date)
             if holidays > 0:
-                self.worksheet.cell(row=row, column=8, value=holidays)
+                self.worksheet.cell(row=row, column=8, value='X')
 
             # Columna I: Total Horas Ordinarias
             ordinarias = calculate_ordinary_hours(work_time, pauses, vacations, holidays, work_hours_per_day)
@@ -501,7 +561,7 @@ class PDFReportGenerator:
 
         # --- Tabla ---
         data = self._build_table_data()
-        col_widths = [2.2*cm, 2.4*cm, 2*cm, 2*cm, 2*cm, 2.2*cm, 3.5*cm, 2*cm, 2.8*cm, 2.5*cm, 3*cm]
+        col_widths = [2.2*cm, 2.4*cm, 2*cm, 2*cm, 2.8*cm, 2.5*cm, 3.2*cm, 2*cm, 2.8*cm, 2.5*cm, 3*cm]
 
         table = Table(data, colWidths=col_widths, repeatRows=1)
         table.setStyle(self._build_table_style(len(data)))
@@ -542,20 +602,27 @@ class PDFReportGenerator:
 
             pauses    = get_pause_hours_for_day(self.user.id, self.company.id, current_date)
             vacations = get_vacation_hours_for_day(self.user.id, self.company.id, current_date)
-            absence   = get_absence_for_day(self.user.id, self.company.id, current_date)
+            time_off  = get_time_off_for_day(self.user.id, self.company.id, current_date)
+            sick_leave = get_sick_leave_for_day(self.user.id, self.company.id, current_date)
             holidays  = get_holiday_hours_for_day(self.company.id, current_date)
             ordinarias = calculate_ordinary_hours(work_time, pauses, vacations, holidays, work_hours_per_day)
             extras     = calculate_extra_hours(work_time, ordinarias, work_hours_per_day)
+
+            # Format ausencia para PDF
+            ausencia_text = ""
+            if time_off:
+                reason_label, hours = time_off
+                ausencia_text = f"{reason_label} - {hours}h"
 
             rows.append([
                 current_date.strftime('%d/%m/%Y'),
                 DAYS_OF_WEEK_ES.get(day_of_week_num, ''),
                 entrada,
                 salida,
-                str(pauses) if pauses > 0 else '',
-                str(vacations) if vacations > 0 else '',
-                absence,
-                str(holidays) if holidays > 0 else '',
+                ausencia_text,
+                'X' if vacations > 0 else '',
+                sick_leave,
+                'X' if holidays > 0 else '',
                 str(ordinarias) if ordinarias > 0 else '',
                 str(extras) if extras > 0 else '',
                 '',  # Firma usuario

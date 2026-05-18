@@ -570,6 +570,19 @@ def _check_aeptic_access(user):
     return aeptic_company
 
 
+def _check_aeptic_selected(request, aeptic_company):
+    """Verificar que AePTIC está seleccionada en el navbar"""
+    selected_company_id = request.session.get('company_id')
+
+    if not selected_company_id:
+        raise PermissionDenied("No hay empresa seleccionada en la sesión")
+
+    if str(aeptic_company.id) != str(selected_company_id):
+        raise PermissionDenied("Debes tener AePTIC seleccionada en el navbar")
+
+    return True
+
+
 # --- Vista: Resumen de Reportes AePTIC ---
 
 class AepticSummaryView(LoginRequiredMixin, View):
@@ -586,6 +599,7 @@ class AepticSummaryView(LoginRequiredMixin, View):
 
             # Usamos tu función actual para asegurar el acceso y obtener la empresa
             company = _check_aeptic_access(request.user)
+            _check_aeptic_selected(request, company)
 
             # ── 2. Contexto de Delegación (Admin / User) ──
             # Reutilizamos la lógica del FBV antiguo para determinar a quién miramos
@@ -717,9 +731,7 @@ class AepticSummaryView(LoginRequiredMixin, View):
             return render(request, 'aeptic_reports/aeptic_summary.html', context)
 
         except PermissionDenied:
-            return render(request, 'error.html', {
-                'error': 'No tienes acceso a esta sección'
-            }, status=403)
+            return render(request, 'error/403.html', status=403)
 
 
 # --- Vista: Histórico de Reportes AePTIC ---
@@ -736,6 +748,7 @@ class AepticHistoryView(LoginRequiredMixin, View):
                 return render(request, 'error/403.html', status=403)
 
             company = _check_aeptic_access(request.user)
+            _check_aeptic_selected(request, company)
 
             # ── Filtros ────────────────────────────────────────────────
             filter_year   = request.GET.get('year',   '').strip()
@@ -784,6 +797,4 @@ class AepticHistoryView(LoginRequiredMixin, View):
             return render(request, 'aeptic_reports/aeptic_history.html', context)
 
         except PermissionDenied:
-            return render(request, 'error.html', {
-                'error': 'No tienes acceso a esta sección'
-            }, status=403)
+            return render(request, 'error/403.html', status=403)
