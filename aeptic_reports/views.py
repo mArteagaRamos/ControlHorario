@@ -1,8 +1,10 @@
 # aeptic_reports/views.py
 
+import calendar
 import os
+from pyexpat.errors import messages
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -11,12 +13,16 @@ from django.views import View
 from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from django.conf import settings
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 # Create your views here.
+from admin.models import CompanySettings
 from aeptic_reports.models import MonthlyReport
 from aeptic_reports.services import ExcelReportGenerator, PDFReportGenerator
-from users.models import UserCompany, Companies
+from core.services import get_effective_context
+from requests.models import LeaveRequest
+from timetracking.models import TimeEntries
+from users.models import UserCompany, Companies, Users
 from audit.models import AuditLog
 from core.decorators import auditor_cannot_access
 
@@ -569,39 +575,143 @@ def _check_aeptic_access(user):
 class AepticSummaryView(LoginRequiredMixin, View):
     """
     GET /aeptic_reports/summary/
-    Mostrar resumen de reportes mensuales para AePTIC
+    Mostrar resumen de reportes mensuales para AePTIC incluyendo control de incurrido.
     """
 
     def get(self, request):
         try:
+            # ── 1. Control de acceso inicial ──
             if request.user.is_auditor:
                 return render(request, 'error/403.html', status=403)
 
+            # Usamos tu función actual para asegurar el acceso y obtener la empresa
             company = _check_aeptic_access(request.user)
 
-            # Obtener reportes del usuario en AePTIC
-            reports = MonthlyReport.objects.filter(
-                user=request.user,
-                company=company
-            ).order_by('-report_date')
+            # ── 2. Contexto de Delegación (Admin / User) ──
+            # Reutilizamos la lógica del FBV antiguo para determinar a quién miramos
+            delegation_context = get_effective_context(request)
+            
+            if delegation_context.get('is_delegating'):
+                target_user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
+                # Si está delegando, puede que esté viendo otra empresa. Si no, usamos la devuelta arriba.
+                company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first() or company
+            else:
+                target_user = request.user
 
-            # Calcular meses actual y anterior
-            today = timezone.now()
-            current_month = today.replace(day=1)
-            previous_month = (current_month - timezone.timedelta(days=1)).replace(day=1)
+            if not target_user:
+                messages.error(request, 'Usuario no encontrado.')
+                return redirect('home_timetracking')
+
+            # ── 3. Fechas del Mes Actual ──
+            # Como el selector en HTML está comentado, forzamos el mes actual
+            today = timezone.localdate()
+            first_day = date(today.year, today.month, 1)
+            last_day = date(today.year, today.month, calendar.monthrange(today.year, today.month)[1])
 
             month_names = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-                          'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+                           'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+
+            # ── 4. Configuración de Empresa (Jornada y Festivos) ──
+            settings_obj = CompanySettings.objects.filter(company=company).first() if company else None
+
+            # Jornada diaria en segundos (7h por defecto)
+            if settings_obj and settings_obj.work_start and settings_obj.work_end:
+                ws, we = settings_obj.work_start, settings_obj.work_end
+                jornada_seconds = max(((we.hour * 3600 + we.minute * 60 + we.second) -
+                                       (ws.hour * 3600 + ws.minute * 60 + ws.second)), 0)
+            else:
+                jornada_seconds = 7 * 3600  
+
+            # Tolerancia (15 min por defecto)
+            tolerance_seconds = int(settings_obj.max_tolerance.total_seconds()) if (settings_obj and settings_obj.max_tolerance) else 15 * 60
+
+            # Festivos y fines de semana
+            holidays_in_month = [h for h in settings_obj.holidays if first_day <= h <= last_day] if (settings_obj and settings_obj.holidays) else []
+            weekend_days = list(settings_obj.weekend_days) if (settings_obj and settings_obj.weekend_days) else [5, 6]
+
+            # Días laborables del mes
+            all_days = [first_day + timezone.timedelta(days=i) for i in range((last_day - first_day).days + 1)]
+            working_days = [d for d in all_days if d.weekday() not in weekend_days and d not in holidays_in_month]
+            num_working_days = len(working_days)
+
+            # ── 5. Fichajes y Horas Extra ──
+            entries_qs = TimeEntries.objects.filter(
+                user=target_user,
+                company=company,
+                date__gte=first_day,
+                date__lte=last_day,
+                deleted_at__isnull=True,
+            ).exclude(status='voided')
+
+            total_worked_seconds = sum(e.total_seconds or 0 for e in entries_qs)
+            days_with_entry = entries_qs.values('date').distinct().count()
+
+            extra_seconds = sum(
+                (e.total_seconds - jornada_seconds) 
+                for e in entries_qs 
+                if (e.total_seconds or 0) > (jornada_seconds + tolerance_seconds)
+            )
+
+            # ── 6. Vacaciones y Ausencias ──
+            leaves_qs = LeaveRequest.objects.filter(
+                user=target_user,
+                company=company,
+                status=LeaveRequest.LeaveStatus.APPROVED,
+                start_date__lte=last_day,
+                end_date__gte=first_day,
+            )
+
+            vacation_days = absence_days = 0
+            for leave in leaves_qs:
+                start = max(leave.start_date, first_day)
+                end = min(leave.end_date, last_day)
+                days = (end - start).days + 1
+                if leave.leave_type == LeaveRequest.LeaveType.VACATION:
+                    vacation_days += days
+                else:
+                    absence_days += days
+
+            # ── 7. Rol del Usuario ──
+            user_role = 'Admin' if target_user.is_admin else 'Empleado'
+            if company:
+                uc = UserCompany.objects.filter(user=target_user, company=company, deleted_at__isnull=True).first()
+                if uc:
+                    user_role = uc.get_role_display().capitalize()
+
+            # ── 8. Formateo y Contexto ──
+            def fmt_time(seconds):
+                h = int(seconds // 3600)
+                m = int((seconds % 3600) // 60)
+                return f"{h}h {m:02d}m"
+
+            target_seconds = max(0, (num_working_days - vacation_days - absence_days) * jornada_seconds)
 
             context = {
+                # Cabecera
+                'target_user': target_user,
                 'company': company,
-                'reports': reports,
-                'total_reports': reports.count(),
-                'signed_reports': reports.filter(status=MonthlyReport.ReportStatus.SIGNED).count(),
-                'prev_month_date': previous_month.strftime('%Y-%m-%d'),
-                'prev_month_name': f"{month_names[previous_month.month - 1]} {previous_month.year}",
-                'current_month_date': current_month.strftime('%Y-%m-%d'),
-                'current_month_name': f"{month_names[current_month.month - 1]} {current_month.year}",
+                'user_role': user_role,
+                'month_name': month_names[today.month - 1],
+                
+                # Datos subida PDFs (requeridos por tu nuevo diseño)
+                'current_month_date': first_day.strftime('%Y-%m-%d'),
+                'current_month_name': f"{month_names[today.month - 1]} {today.year}",
+                
+                # Columna Tiempo
+                'total_worked': fmt_time(total_worked_seconds),
+                'target_time': fmt_time(target_seconds),
+                'extra_time': fmt_time(extra_seconds),
+                'extra_time_raw': extra_seconds,
+                
+                # Columna Asistencia
+                'days_with_entry': days_with_entry,
+                'num_working_days': num_working_days,
+                'vacation_days': vacation_days,
+                'absence_days': absence_days,
+                'holidays_count': len(holidays_in_month),
+                
+                # Contexto de delegación por si otras partes de la UI lo necesitan
+                **delegation_context,
             }
 
             return render(request, 'aeptic_reports/aeptic_summary.html', context)
