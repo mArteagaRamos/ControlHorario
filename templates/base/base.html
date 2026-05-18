@@ -249,6 +249,21 @@
 
 </aside>
 
+{% with alert=request.user.get_signature_alert %} {# Asumiendo que pasas la lógica #}
+    {% if alert %}
+    <div class="alert alert-{{ alert.type }} alert-dismissible fade show mx-4 mt-3 shadow-sm" role="alert" style="border-left: 5px solid;">
+        <div class="d-flex align-items-center">
+            <i class="bi {% if alert.type == 'warning' %}bi-exclamation-triangle{% else %}bi-exclamation-octagon{% endif %} fs-4 me-3"></i>
+            <div>
+                <strong>Aviso de Control Horario:</strong> {{ alert.text }}
+            </div>
+            <a href="{% url 'report_summary' %}" class="btn btn-sm btn-dark ms-auto">Ir a firmar</a>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+{% endwith %}
+
 <main class="main-content">
     {% if messages %}
     <div id="django-messages-container">

@@ -106,6 +106,7 @@ urlpatterns = [
     path('aeptic_reports/summary/', aeptic_reports_views.AepticSummaryView.as_view(), name='aeptic_summary'),
     path('aeptic_reports/history/', aeptic_reports_views.AepticHistoryView.as_view(), name='aeptic_history'),
 
+
     # ════════════════════════════════════════════════════════════════════════
     # ADMIN - GLOBAL ADMINISTRATION (admin/)
     # ════════════════════════════════════════════════════════════════════════
@@ -136,12 +137,8 @@ urlpatterns = [
     path('audit/users/', audit_views.audit_users, name='audit_users'),
     path('audit/corrections/', audit_views.audit_corrections, name='audit_corrections'),
     path('audit/company/', audit_views.audit_company, name='audit_company'),
-
-
-    path('aeptic/resumen/', aeptic_reports_views.aeptic_summary, name='aeptic_summary'),
-
+    
 ]
-
 # Servir archivos media en desarrollo
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
