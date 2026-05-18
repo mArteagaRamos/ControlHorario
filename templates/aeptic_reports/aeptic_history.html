@@ -1,12 +1,233 @@
-{% extends 'base/base.html' %}
+{% extends "base/base.html" %}
 {% load static %}
 
-{% block title %}Histórico de Reportes AePTIC{% endblock %}
+{% block title %}Histórico de Reportes{% endblock %}
+
+{% block extra_head %}
+<style>
+  .history-card {
+    border-radius: 10px;
+    border: 1px solid #2a3047;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0,0,0,.18);
+  }
+
+  .history-card .card-header {
+    background-color: #1a1f2e;
+    color: #fff;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .75rem;
+    border-bottom: 1px solid #2a3047;
+  }
+
+  .history-card .card-header h5 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .history-stats {
+    display: flex;
+    gap: .5rem;
+  }
+
+  .stat-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .28rem .75rem;
+    border-radius: 100px;
+    font-size: .75rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+  }
+
+  .stat-badge-total {
+    background: rgba(255,255,255,.07);
+    border-color: #2a3047;
+    color: #c8cfe0;
+  }
+
+  .stat-badge-archived {
+    background: rgba(62,207,142,.1);
+    border-color: rgba(62,207,142,.3);
+    color: #3ecf8e;
+  }
+
+  /* Filtros */
+  .filters-bar {
+    background: #f8f9fa;
+    border-bottom: 1px solid #f0f2f5;
+    padding: .85rem 1.25rem;
+  }
+
+  .std-btn {
+    background-color: #1a1f2e;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    transition: opacity 0.2s;
+    padding: .4rem .9rem;
+    font-size: .82rem;
+    cursor: pointer;
+  }
+
+  .std-btn:hover { opacity: 0.9; color: white; }
+
+  .std-btn-secondary {
+    background-color: #fff;
+    color: #1a1f2e;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    transition: all 0.2s;
+    padding: .4rem .9rem;
+    font-size: .82rem;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+
+  .std-btn-secondary:hover {
+    background-color: #1a1f2e;
+    color: #fff;
+    border-color: #1a1f2e;
+  }
+
+  /* Tabla */
+  .history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+  }
+
+  .history-table thead tr {
+    background: #f4f5f8;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  .history-table thead th {
+    padding: .75rem 1.25rem;
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #8a94a6;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .history-table tbody tr {
+    border-bottom: 1px solid #f0f2f5;
+    transition: background .15s;
+  }
+
+  .history-table tbody tr:last-child { border-bottom: none; }
+  .history-table tbody tr:hover { background: #f8f9fb; }
+
+  .history-table tbody td {
+    padding: .85rem 1.25rem;
+    color: #1a1f2e;
+    vertical-align: middle;
+  }
+
+  .history-table tbody td.muted {
+    color: #adb5bd;
+    font-size: .82rem;
+  }
+
+  /* Badges de estado */
+  .status-badge {
+    display: inline-block;
+    padding: .25rem .65rem;
+    border-radius: 100px;
+    font-size: .72rem;
+    font-weight: 500;
+  }
+
+  .status-draft     { background: #f0f0f0;              color: #6c757d; }
+  .status-generated { background: rgba(74,143,255,.12); color: #4a8fff; }
+  .status-signed    { background: rgba(62,207,142,.12); color: #3ecf8e; }
+  .status-archived  { background: rgba(26,31,46,.08);   color: #495057; }
+
+  /* Botón descargar */
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .3rem .75rem;
+    border-radius: 6px;
+    font-size: .78rem;
+    border: 1px solid #2a3047;
+    color: #1a1f2e;
+    background: #fff;
+    text-decoration: none;
+    transition: background .15s, border-color .15s;
+  }
+
+  .btn-download:hover {
+    background: #1a1f2e;
+    color: #fff;
+    border-color: #1a1f2e;
+  }
+
+  /* Empty state */
+  .history-empty {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    color: #adb5bd;
+  }
+
+  .history-empty i {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: .75rem;
+    opacity: .4;
+  }
+
+  .history-empty p { font-size: .88rem; margin: 0; }
+
+  /* Botón volver */
+  .btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem 1rem;
+    border-radius: 6px;
+    font-size: .85rem;
+    border: 1px solid #2a3047;
+    color: #1a1f2e;
+    background: #fff;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    margin-top: 1.25rem;
+  }
+
+  .btn-back:hover {
+    background: #1a1f2e;
+    color: #fff;
+  }
+
+  /* Pagination */
+  .pagination .page-link { color: #1a1f2e; }
+  .pagination .page-link:hover { color: #1a1f2e; background-color: #e9ecef; }
+  .pagination .page-item.active .page-link {
+    background-color: #1a1f2e !important;
+    border-color: #1a1f2e !important;
+    color: white !important;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/aeptic_reports.css' %}">
 
-<div class="container-fluid py-4">
+<div class="py-3">
+
+    <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="mb-0">
@@ -16,133 +237,152 @@
         </div>
     </div>
 
-    <!-- ESTADÍSTICAS -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="card-title mb-0">Total de Reportes</h6>
-                            <p class="text-muted mb-0">Período completo</p>
-                        </div>
-                        <span class="badge bg-primary fs-5">{{ total_reports }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-grow-1">
-                            <h6 class="card-title mb-0">Reportes Archivados</h6>
-                            <p class="text-muted mb-0">Procesados</p>
-                        </div>
-                        <span class="badge bg-success fs-5">{{ archived_reports }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <div class="history-card">
+
+    {# ── Cabecera ── #}
+    <div class="card-header">
+      <h5>
+        <i class="bi bi-clock-history me-2"></i>Histórico de Reportes
+      </h5>
+      <div class="history-stats">
+        <span class="stat-badge stat-badge-total">
+          <i class="bi bi-files"></i> {{ total_reports }} total
+        </span>
+        <span class="stat-badge stat-badge-archived">
+          <i class="bi bi-archive"></i> {{ archived_reports }} archivados
+        </span>
+      </div>
     </div>
 
-    <!-- TABLA HISTÓRICO -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-dark text-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-list-check"></i> Histórico Completo
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if reports %}
-                    <div class="table-scroll-container">
-                        <table class="table table-sm table-striped table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Período</th>
-                                    <th>Mes</th>
-                                    <th>Estado</th>
-                                    <th>Generado</th>
-                                    <th>Firmado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for report in reports %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ report.report_date|date:"Y-m" }}</strong>
-                                    </td>
-                                    <td>
-                                        {{ report.month_name }}
-                                    </td>
-                                    <td>
-                                        {% if report.status == 'draft' %}
-                                        <span class="badge bg-secondary">Borrador</span>
-                                        {% elif report.status == 'generated' %}
-                                        <span class="badge bg-info">Generado</span>
-                                        {% elif report.status == 'signed' %}
-                                        <span class="badge bg-success">Firmado</span>
-                                        {% elif report.status == 'archived' %}
-                                        <span class="badge bg-dark">Archivado</span>
-                                        {% else %}
-                                        <span class="badge bg-light text-dark">{{ report.status }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if report.generated_at %}
-                                        <small class="text-muted">
-                                            {{ report.generated_at|date:"d/m/Y H:i" }}
-                                        </small>
-                                        {% else %}
-                                        <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if report.signed_at %}
-                                        <small class="text-muted">
-                                            {{ report.signed_at|date:"d/m/Y H:i" }}
-                                        </small>
-                                        {% else %}
-                                        <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if report.document_path %}
-                                        <a href="{{ report.document_path }}" class="btn btn-sm btn-outline-primary" download>
-                                            <i class="bi bi-download"></i> Descargar
-                                        </a>
-                                        {% else %}
-                                        <span class="text-muted small">No disponible</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-info" role="alert">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>No hay reportes</strong>
-                        <p class="mb-0 mt-2">Aún no hay informes mensuales disponibles. Genera tu primer reporte en "Control Incurrido".</p>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
+    {# ── Filtros ── #}
+    <div class="filters-bar">
+      <form method="get" class="row g-2 align-items-end">
 
-    <!-- BOTÓN VOLVER -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <a href="{% url 'aeptic_summary' %}" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label text-muted small fw-bold mb-1">Año</label>
+          <select name="year" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for yr in available_years %}
+              <option value="{{ yr }}" {% if request.GET.year == yr|stringformat:"s" %}selected{% endif %}>
+                {{ yr }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label text-muted small fw-bold mb-1">Mes</label>
+          <select name="month" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for num, name in month_names %}
+              <option value="{{ num }}" {% if request.GET.month == num|stringformat:"s" %}selected{% endif %}>
+                {{ name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label text-muted small fw-bold mb-1">Estado</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            <option value="draft"     {% if request.GET.status == 'draft'     %}selected{% endif %}>Borrador</option>
+            <option value="generated" {% if request.GET.status == 'generated' %}selected{% endif %}>Generado</option>
+            <option value="signed"    {% if request.GET.status == 'signed'    %}selected{% endif %}>Firmado</option>
+            <option value="archived"  {% if request.GET.status == 'archived'  %}selected{% endif %}>Archivado</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-sm-6 col-md-3 d-flex gap-2">
+          <button type="submit" class="std-btn w-100">
+            <i class="bi bi-search me-1"></i> Filtrar
+          </button>
+          {% if request.GET.year or request.GET.month or request.GET.status %}
+            <a href="{% url 'aeptic_history' %}" class="std-btn-secondary">
+              <i class="bi bi-x-lg"></i>
             </a>
+          {% endif %}
         </div>
+
+      </form>
     </div>
+
+    {# ── Tabla ── #}
+    {% if reports %}
+    <div style="overflow-x: auto;">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Año</th>
+            <th>Mes</th>
+            <th>Estado</th>
+            <th>Generado</th>
+            <th>Firmado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for report in reports %}
+          <tr>
+            <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
+
+            <td>{{ report.report_date|date:"F"|capfirst }}</td>
+
+            <td>
+              {% if report.status == 'draft' %}
+                <span class="status-badge status-draft">Borrador</span>
+              {% elif report.status == 'generated' %}
+                <span class="status-badge status-generated">Generado</span>
+              {% elif report.status == 'signed' %}
+                <span class="status-badge status-signed">Firmado</span>
+              {% elif report.status == 'archived' %}
+                <span class="status-badge status-archived">Archivado</span>
+              {% else %}
+                <span class="status-badge status-draft">{{ report.status }}</span>
+              {% endif %}
+            </td>
+
+            <td class="muted">
+              {% if report.generated_at %}{{ report.generated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+            </td>
+
+            <td class="muted">
+              {% if report.signed_at %}{{ report.signed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+            </td>
+
+            <td>
+              {% if report.document_path %}
+                <a href="{{ report.document_path }}" class="btn-download" download>
+                  <i class="bi bi-download"></i> Descargar
+                </a>
+              {% else %}
+                <span class="muted">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% else %}
+    <div class="history-empty">
+      <i class="bi bi-inbox"></i>
+      <p>
+        {% if request.GET.year or request.GET.month or request.GET.status %}
+          No hay reportes con estos filtros.
+        {% else %}
+          Aún no hay informes mensuales. Genera tu primer reporte en <strong>Control Incurrido</strong>.
+        {% endif %}
+      </p>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <a href="{% url 'aeptic_summary' %}" class="btn-back">
+    <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
+  </a>
 </div>
 
 {% endblock %}
