@@ -44,6 +44,6 @@ def global_context(request):
             selected_company_id = request.session.get('company_id')
             is_aeptic_selected = selected_company_id and str(aeptic_company.id) == str(selected_company_id)
 
-            context['is_aeptic_user'] = membership and is_aeptic_selected
+            context['is_aeptic_user'] = (membership and is_aeptic_selected)
 
     return context
