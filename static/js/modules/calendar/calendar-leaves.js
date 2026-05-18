@@ -234,7 +234,9 @@ export function showEventModal(event) {
     title: event.title,
     status: props.status,
     is_owner: props.is_owner,
-    leave_type: props.leave_type
+    leave_type: props.leave_type,
+    start_time: props.start_time,
+    end_time: props.end_time
   });
 
   document.getElementById('eventModalTitle').textContent = event.title;
@@ -244,9 +246,13 @@ export function showEventModal(event) {
     '<p class="mb-1"><strong>Motivo:</strong> ' + (props.reason || 'No especificado') + '</p>' +
     '<p class="mb-0 text-muted small">' + event.startStr + ' – ' + (event.endStr || '') + '</p>';
 
-  if (props.start_time && props.end_time) {
-    bodyHTML += `<p class="mb-1"><strong>Horario:</strong> ${props.start_time.substring(0,5)} - ${props.end_time.substring(0,5)}</p>`;
+  // Mostrar horas si existen
+  if (props.start_time || props.end_time) {
+    const startTime = props.start_time ? props.start_time.substring(0, 5) : 'N/A';
+    const endTime = props.end_time ? props.end_time.substring(0, 5) : 'N/A';
+    bodyHTML += `<p class="mb-1"><strong>Horario:</strong> ${startTime} - ${endTime}</p>`;
   }
+  
   // Agregar indicador de conflicto
   if (props.has_conflict) {
     bodyHTML += `
@@ -412,6 +418,99 @@ export function prepareEditLeaveModal(leaveId, leaveData) {
   document.getElementById('editEndDate').value = leaveData.end_date || '';
   document.getElementById('editLeaveReason').value = leaveData.leave_reason || '';
   document.getElementById('editReasonNote').value = leaveData.reason_note || '';
+  
+  // Llenar horas si existen
+  if (leaveData.start_time) {
+    document.getElementById('editStartTime').value = leaveData.start_time.substring(0, 5);
+  } else {
+    document.getElementById('editStartTime').value = '';
+  }
+  
+  if (leaveData.end_time) {
+    document.getElementById('editEndTime').value = leaveData.end_time.substring(0, 5);
+  } else {
+    document.getElementById('editEndTime').value = '';
+  }
+
+  // Copiar opciones de motivos del formulario de ausencia
+  const absenceReasonSelect = document.getElementById('absenceReason');
+  const editReasonSelect = document.getElementById('editLeaveReason');
+  
+  if (absenceReasonSelect && editReasonSelect) {
+    // Limpiar opciones excepto la primera (placeholder)
+    while (editReasonSelect.options.length > 1) {
+      editReasonSelect.remove(1);
+    }
+    
+    // Copiar opciones
+    for (let i = 1; i < absenceReasonSelect.options.length; i++) {
+      const option = document.createElement('option');
+      option.value = absenceReasonSelect.options[i].value;
+      option.textContent = absenceReasonSelect.options[i].textContent;
+      editReasonSelect.appendChild(option);
+    }
+  }
+
+  // Mostrar/ocultar campos de hora según el motivo
+  const hourlyReasons = ['medical_appointment', 'legal_duty'];
+  const timeFields = document.getElementById('editTimeFields');
+  const editStartTime = document.getElementById('editStartTime');
+  const editEndTime = document.getElementById('editEndTime');
+  const editStartDate = document.getElementById('editStartDate');
+  const editEndDate = document.getElementById('editEndDate');
+  
+  const updateTimeFieldsVisibility = () => {
+    const reason = editReasonSelect.value;
+    if (hourlyReasons.includes(reason)) {
+      timeFields.style.display = 'block';
+      editEndDate.disabled = true;
+      editEndDate.style.opacity = '0.6';
+      editEndDate.style.cursor = 'not-allowed';
+      // Sincronizar fecha fin con fecha inicio
+      if (editStartDate.value) {
+        editEndDate.value = editStartDate.value;
+      }
+    } else {
+      timeFields.style.display = 'none';
+      editEndDate.disabled = false;
+      editEndDate.style.opacity = '1';
+      editEndDate.style.cursor = 'auto';
+      // Limpiar campos de hora
+      editStartTime.value = '';
+      editEndTime.value = '';
+      editEndTime.min = '';
+    }
+  };
+
+  // Mostrar/ocultar inicialmente
+  updateTimeFieldsVisibility();
+
+  // Remover listeners anteriores (si existen)
+  editReasonSelect.removeEventListener('change', editReasonSelect._updateTimeFieldsHandler);
+  editStartDate.removeEventListener('change', editStartDate._syncDateHandler);
+  editStartTime.removeEventListener('change', editStartTime._validateTimeHandler);
+
+  // Guardar referencias a las funciones para poder removerlas después
+  editReasonSelect._updateTimeFieldsHandler = updateTimeFieldsVisibility;
+  editStartDate._syncDateHandler = function() {
+    const reason = editReasonSelect.value;
+    if (hourlyReasons.includes(reason) && this.value) {
+      editEndDate.value = this.value;
+    }
+  };
+  editStartTime._validateTimeHandler = function() {
+    if (this.value && editEndTime) {
+      editEndTime.min = this.value;
+      if (editEndTime.value && editEndTime.value < this.value) {
+        editEndTime.value = this.value;
+      }
+    }
+  };
+
+  // Agregar listeners
+  editReasonSelect.addEventListener('change', editReasonSelect._updateTimeFieldsHandler);
+  editStartDate.addEventListener('change', editStartDate._syncDateHandler);
+  editStartTime.addEventListener('change', editStartTime._validateTimeHandler);
 
   // Establecer fecha mínima como hoy
   const today = new Date().toISOString().split('T')[0];
@@ -431,6 +530,8 @@ export async function saveEditLeaveRequest() {
   const endDate = document.getElementById('editEndDate').value;
   const leaveReason = document.getElementById('editLeaveReason').value;
   const reasonNote = document.getElementById('editReasonNote').value;
+  const startTime = document.getElementById('editStartTime').value || null;
+  const endTime = document.getElementById('editEndTime').value || null;
   const msgEl = document.getElementById('editLeaveMessage');
 
   msgEl.classList.add('d-none');
@@ -468,6 +569,21 @@ export async function saveEditLeaveRequest() {
     return;
   }
 
+  // Validar horas si es cita médica o deber público
+  const hourlyReasons = ['medical_appointment', 'legal_duty'];
+  if (hourlyReasons.includes(leaveReason)) {
+    if (!startTime || !endTime) {
+      msgEl.className = 'alert alert-danger d-block';
+      msgEl.textContent = '⚠️ Las horas de inicio y fin son obligatorias para este tipo de ausencia.';
+      return;
+    }
+    if (endTime < startTime) {
+      msgEl.className = 'alert alert-danger d-block';
+      msgEl.textContent = '⚠️ La hora de fin no puede ser menor a la hora de inicio.';
+      return;
+    }
+  }
+
   // Deshabilitar botón mientras se procesa
   const btnSave = document.getElementById('btnSaveEditLeave');
   const btnSaveHTML = btnSave.innerHTML;
@@ -486,7 +602,9 @@ export async function saveEditLeaveRequest() {
         start_date: startDate,
         end_date: endDate,
         leave_reason: leaveReason,
-        reason_note: reasonNote
+        reason_note: reasonNote,
+        start_time: startTime,
+        end_time: endTime
       })
     });
 
