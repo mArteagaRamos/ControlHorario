@@ -1,324 +1,225 @@
-/* static/css/aeptic_reports.css */
+/* static/css/aeptic_history.css */
 
-:root {
-    --transition-speed: 0.2s;
-    --primary-color: #1a1f2e;
-    --primary-color-light: #2a3147;
-    --primary-bg-tint: #eef0f5;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
+/* ── Card principal ─────────────────────────────────────────── */
+.history-card {
+  border-radius: 10px;
+  border: 1px solid #2a3047;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,.18);
 }
 
-/* --- TOGGLE MONTHS SECTION --- */
-.months-toggle-section {
-    margin-bottom: 2rem;
+.history-card .card-header {
+  background-color: #1a1f2e;
+  color: #fff;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+  border-bottom: 1px solid #2a3047;
 }
 
-.toggle-container {
-    display: flex;
-    justify-content: space-between;
-    gap: 2rem;
-    flex-wrap: wrap;
+.history-card .card-header h5 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.toggle-group {
-    flex: 1;
-    min-width: 300px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background: #f9f9f9;
-    transition: all 0.3s ease;
+/* ── Stats badges en cabecera ───────────────────────────────── */
+.history-stats {
+  display: flex;
+  gap: .5rem;
 }
 
-.toggle-group:hover {
-    border-color: #bbb;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .28rem .75rem;
+  border-radius: 100px;
+  font-size: .75rem;
+  font-weight: 500;
+  border: 1px solid transparent;
 }
 
-.toggle-group.active {
-    border-color: var(--primary-color);
-    background: var(--primary-bg-tint);
-    box-shadow: 0 4px 12px rgba(26, 31, 46, 0.15);
+.stat-badge-total {
+  background: rgba(255,255,255,.07);
+  border-color: #2a3047;
+  color: #c8cfe0;
 }
 
-.toggle-month-info {
-    flex: 1;
+.stat-badge-archived {
+  background: rgba(62,207,142,.1);
+  border-color: rgba(62,207,142,.3);
+  color: #3ecf8e;
 }
 
-.month-toggle-btn {
-    background: none;
-    border: none;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 0.5rem;
-    color: #333;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    transition: color 0.2s;
-}
-
-.month-toggle-btn:hover {
-    color: var(--primary-color);
-}
-
-.toggle-group.active .month-toggle-btn {
-    color: var(--primary-color);
-}
-
-.toggle-indicator {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: #d0d0d0;
-    margin-left: 0.75rem;
-    transition: background 0.2s;
-}
-
-.toggle-group.active .toggle-indicator {
-    background: var(--primary-color);
-    box-shadow: 0 0 8px rgba(26, 31, 46, 0.4);
-}
-
-/* --- FILE UPLOAD --- */
-.file-input-wrapper {
-    flex-shrink: 0;
-}
-
-.file-upload-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    padding: 0.75rem 1.25rem;
-    background: var(--success-color);
-    color: white;
-    border-radius: 6px;
-    font-weight: 500;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-
-.file-upload-label:hover {
-    background: #218838;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.file-upload-label:active {
-    transform: translateY(0);
-}
-
-.file-upload-label.loading {
-    opacity: 0.7;
-    pointer-events: none;
-}
-
-/* --- DOWNLOAD BUTTONS SECTION --- */
-.download-buttons-section {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
+/* ── Filtros ────────────────────────────────────────────────── */
+.filters-bar {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05);
 }
 
 .std-btn {
-    border-radius: 6px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-    transition: all var(--transition-speed) ease-in-out;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 0.75rem 1.5rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
+  background-color: #1a1f2e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  transition: opacity 0.2s;
+  padding: .4rem .9rem;
+  font-size: .82rem;
+  cursor: pointer;
 }
 
-.std-btn:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+.std-btn:hover {
+  opacity: 0.9;
+  color: white;
 }
 
-.std-btn:active:not(:disabled) {
-    transform: translateY(0);
+.std-btn-secondary {
+  background-color: #fff;
+  color: #1a1f2e;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  transition: all 0.2s;
+  padding: .4rem .9rem;
+  font-size: .82rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
 }
 
-.std-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.std-btn-secondary:hover {
+  background-color: #1a1f2e;
+  color: #fff;
+  border-color: #1a1f2e;
 }
 
-/* --- REPORT TABLE --- */
-#report-preview-container {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* ── Tabla ──────────────────────────────────────────────────── */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
 }
 
-.table-scroll-container {
-    max-height: 600px;
-    overflow-y: auto;
-    overflow-x: auto;
+.history-table thead tr {
+  background: #f4f5f8;
+  border-bottom: 2px solid #e9ecef;
 }
 
-.table-scroll-container thead th {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #212529 !important;
-    color: white;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    font-weight: 600;
-    font-size: 0.85rem;
-    padding: 1rem 0.75rem;
-    text-align: center;
+.history-table thead th {
+  padding: .75rem 1.25rem;
+  font-size: .7rem;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: #8a94a6;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.table-scroll-container tbody td {
-    padding: 0.75rem;
-    vertical-align: middle;
-    font-size: 0.9rem;
+.history-table tbody tr {
+  border-bottom: 1px solid #f0f2f5;
+  transition: background .15s;
 }
 
-.table-scroll-container tbody tr.weekend {
-    background: #e8e8e8;
-    color: #ff0000;
+.history-table tbody tr:last-child { border-bottom: none; }
+.history-table tbody tr:hover { background: #f8f9fb; }
+
+.history-table tbody td {
+  padding: .85rem 1.25rem;
+  color: #1a1f2e;
+  vertical-align: middle;
 }
 
-.table-scroll-container tbody tr.weekend td {
-    font-weight: 500;
+.history-table tbody td.muted {
+  color: #adb5bd;
+  font-size: .82rem;
 }
 
-.table-scroll-container tbody tr:hover {
-    background: #f5f5f5;
+/* ── Badges de estado ───────────────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: .25rem .65rem;
+  border-radius: 100px;
+  font-size: .72rem;
+  font-weight: 500;
 }
 
-.table-scroll-container tbody tr.weekend:hover {
-    background: #ddd;
+.status-draft     { background: #f0f0f0;              color: #6c757d; }
+.status-generated { background: rgba(74,143,255,.12); color: #4a8fff; }
+.status-signed    { background: rgba(62,207,142,.12); color: #3ecf8e; }
+.status-archived  { background: rgba(26,31,46,.08);   color: #495057; }
+
+/* ── Botón descargar ────────────────────────────────────────── */
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .3rem .75rem;
+  border-radius: 6px;
+  font-size: .78rem;
+  border: 1px solid #2a3047;
+  color: #1a1f2e;
+  background: #fff;
+  text-decoration: none;
+  transition: background .15s, border-color .15s;
 }
 
-/* --- SCROLLBAR STYLING --- */
-.table-scroll-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+.btn-download:hover {
+  background: #1a1f2e;
+  color: #fff;
+  border-color: #1a1f2e;
 }
 
-.table-scroll-container::-webkit-scrollbar-thumb {
-    background: #adb5bd;
-    border-radius: 4px;
+/* ── Empty state ────────────────────────────────────────────── */
+.history-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #adb5bd;
 }
 
-.table-scroll-container::-webkit-scrollbar-thumb:hover {
-    background: #6c757d;
+.history-empty i {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: .75rem;
+  opacity: .4;
 }
 
-.table-scroll-container::-webkit-scrollbar-track {
-    background: #f8f9fa;
+.history-empty p { font-size: .88rem; margin: 0; }
+
+/* ── Botón volver ───────────────────────────────────────────── */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .45rem 1rem;
+  border-radius: 6px;
+  font-size: .85rem;
+  border: 1px solid #2a3047;
+  color: #1a1f2e;
+  background: #fff;
+  text-decoration: none;
+  transition: background .15s, color .15s;
+  margin-top: 1.25rem;
 }
 
-/* --- STATUS MESSAGES --- */
-.alert {
-    border-radius: 6px;
-    padding: 1rem;
-    animation: slideIn 0.3s ease-out;
+.btn-back:hover {
+  background: #1a1f2e;
+  color: #fff;
 }
 
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.alert-success {
-    background: #d4edda;
-    border: 1px solid #c3e6cb;
-    color: #155724;
-}
-
-.alert-danger {
-    background: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-}
-
-.alert-info {
-    background: #d1ecf1;
-    border: 1px solid #bee5eb;
-    color: #0c5460;
-}
-
-/* --- RESPONSIVE --- */
-@media (max-width: 768px) {
-    .toggle-container {
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .toggle-group {
-        flex-direction: column;
-        gap: 1rem;
-        min-width: auto;
-    }
-
-    .toggle-month-info {
-        width: 100%;
-    }
-
-    .file-input-wrapper {
-        width: 100%;
-    }
-
-    .file-upload-label {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .download-buttons-section {
-        flex-direction: column;
-    }
-
-    .download-buttons-section .btn {
-        width: 100%;
-        justify-content: center;
-    }
-
-    .table-scroll-container {
-        max-height: 400px;
-    }
-
-    .table-scroll-container thead th {
-        font-size: 0.75rem;
-        padding: 0.5rem 0.25rem;
-    }
-
-    .table-scroll-container tbody td {
-        font-size: 0.8rem;
-        padding: 0.5rem 0.25rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .container-fluid {
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
-
-    .std-btn {
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-    }
-
-    .month-toggle-btn {
-        font-size: 1rem;
-    }
+/* ── Paginación ─────────────────────────────────────────────── */
+.pagination .page-link { color: #1a1f2e; }
+.pagination .page-link:hover { color: #1a1f2e; background-color: #e9ecef; }
+.pagination .page-item.active .page-link {
+  background-color: #1a1f2e !important;
+  border-color: #1a1f2e !important;
+  color: white !important;
 }

@@ -617,7 +617,7 @@ class AepticSummaryView(LoginRequiredMixin, View):
 class AepticHistoryView(LoginRequiredMixin, View):
     """
     GET /aeptic_reports/history/
-    Mostrar histórico de reportes mensuales para AePTIC
+    Mostrar histórico de reportes mensuales para AePTIC con filtros.
     """
 
     def get(self, request):
@@ -627,17 +627,48 @@ class AepticHistoryView(LoginRequiredMixin, View):
 
             company = _check_aeptic_access(request.user)
 
-            # Obtener todos los reportes (incluyendo archivados)
-            reports = MonthlyReport.objects.filter(
+            # ── Filtros ────────────────────────────────────────────────
+            filter_year   = request.GET.get('year',   '').strip()
+            filter_month  = request.GET.get('month',  '').strip()
+            filter_status = request.GET.get('status', '').strip()
+
+            # Totales sin filtrar (para los badges de cabecera)
+            all_reports = MonthlyReport.objects.filter(
                 user=request.user,
                 company=company
-            ).order_by('-report_date')
+            )
+            total_reports    = all_reports.count()
+            archived_reports = all_reports.filter(
+                status=MonthlyReport.ReportStatus.ARCHIVED
+            ).count()
+
+            # QuerySet filtrado para la tabla
+            reports = all_reports.order_by('-report_date')
+
+            if filter_year:
+                reports = reports.filter(report_date__year=filter_year)
+            if filter_month:
+                reports = reports.filter(report_date__month=filter_month)
+            if filter_status:
+                reports = reports.filter(status=filter_status)
+
+            # ── Datos para los selectores ──────────────────────────────
+            today = timezone.localdate()
+            available_years = list(range(2024, today.year + 1))
+            month_names = [
+                (1, 'Enero'),    (2, 'Febrero'),   (3, 'Marzo'),
+                (4, 'Abril'),    (5, 'Mayo'),       (6, 'Junio'),
+                (7, 'Julio'),    (8, 'Agosto'),     (9, 'Septiembre'),
+                (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
+            ]
 
             context = {
-                'company': company,
-                'reports': reports,
-                'total_reports': reports.count(),
-                'archived_reports': reports.filter(status=MonthlyReport.ReportStatus.ARCHIVED).count(),
+                'company':         company,
+                'reports':         reports,
+                'total_reports':   total_reports,
+                'archived_reports': archived_reports,
+                'available_years': available_years,
+                'month_names':     month_names,
             }
 
             return render(request, 'aeptic_reports/aeptic_history.html', context)
