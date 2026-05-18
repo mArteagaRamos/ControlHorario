@@ -58,11 +58,14 @@
     color: #3ecf8e;
   }
 
-  /* Filtros */
+  /* Filtros - Modificados para estar fuera de la tabla con el color de la página */
   .filters-bar {
-    background: #f8f9fa;
-    border-bottom: 1px solid #f0f2f5;
-    padding: .85rem 1.25rem;
+    background: #fff; 
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
   }
 
   .std-btn {
@@ -227,7 +230,7 @@
 
 <div class="py-3">
 
-    <div class="container-fluid py-4">
+  <div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="mb-0">
@@ -237,24 +240,7 @@
         </div>
     </div>
 
-  <div class="history-card">
-
-    {# ── Cabecera ── #}
-    <div class="card-header">
-      <h5>
-        <i class="bi bi-clock-history me-2"></i>Histórico de Reportes
-      </h5>
-      <div class="history-stats">
-        <span class="stat-badge stat-badge-total">
-          <i class="bi bi-files"></i> {{ total_reports }} total
-        </span>
-        <span class="stat-badge stat-badge-archived">
-          <i class="bi bi-archive"></i> {{ archived_reports }} archivados
-        </span>
-      </div>
-    </div>
-
-    {# ── Filtros ── #}
+    {# ── Filtros (Fuera de la Tabla) ── #}
     <div class="filters-bar">
       <form method="get" class="row g-2 align-items-end">
 
@@ -307,82 +293,102 @@
       </form>
     </div>
 
-    {# ── Tabla ── #}
-    {% if reports %}
-    <div style="overflow-x: auto;">
-      <table class="history-table">
-        <thead>
-          <tr>
-            <th>Año</th>
-            <th>Mes</th>
-            <th>Estado</th>
-            <th>Generado</th>
-            <th>Firmado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for report in reports %}
-          <tr>
-            <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
+    {# ── Tarjeta de la Tabla ── #}
+    <div class="history-card">
 
-            <td>{{ report.report_date|date:"F"|capfirst }}</td>
+      {# ── Cabecera ── #}
+      <div class="card-header">
+        <h5>
+          <i class="bi bi-clock-history me-2"></i>Histórico de Reportes
+        </h5>
+        <div class="history-stats">
+          <span class="stat-badge stat-badge-total">
+            <i class="bi bi-files"></i> {{ total_reports }} total
+          </span>
+          <span class="stat-badge stat-badge-archived">
+            <i class="bi bi-archive"></i> {{ archived_reports }} archivados
+          </span>
+        </div>
+      </div>
 
-            <td>
-              {% if report.status == 'draft' %}
-                <span class="status-badge status-draft">Borrador</span>
-              {% elif report.status == 'generated' %}
-                <span class="status-badge status-generated">Generado</span>
-              {% elif report.status == 'signed' %}
-                <span class="status-badge status-signed">Firmado</span>
-              {% elif report.status == 'archived' %}
-                <span class="status-badge status-archived">Archivado</span>
-              {% else %}
-                <span class="status-badge status-draft">{{ report.status }}</span>
-              {% endif %}
-            </td>
+      {# ── Tabla ── #}
+      {% if reports %}
+      <div style="overflow-x: auto;">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Año</th>
+              <th>Mes</th>
+              <th>Estado</th>
+              <th>Generado</th>
+              <th>Firmado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in reports %}
+            <tr>
+              <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
 
-            <td class="muted">
-              {% if report.generated_at %}{{ report.generated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
-            </td>
+              <td>{{ report.report_date|date:"F"|capfirst }}</td>
 
-            <td class="muted">
-              {% if report.signed_at %}{{ report.signed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
-            </td>
+              <td>
+                {% if report.status == 'draft' %}
+                  <span class="status-badge status-draft">Borrador</span>
+                {% elif report.status == 'generated' %}
+                  <span class="status-badge status-generated">Generado</span>
+                {% elif report.status == 'signed' %}
+                  <span class="status-badge status-signed">Firmado</span>
+                {% elif report.status == 'archived' %}
+                  <span class="status-badge status-archived">Archivado</span>
+                {% else %}
+                  <span class="status-badge status-draft">{{ report.status }}</span>
+                {% endif %}
+              </td>
 
-            <td>
-              {% if report.document_path %}
-                <a href="{{ report.document_path }}" class="btn-download" download>
-                  <i class="bi bi-download"></i> Descargar
-                </a>
-              {% else %}
-                <span class="muted">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              <td class="muted">
+                {% if report.generated_at %}{{ report.generated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+              </td>
+
+              <td class="muted">
+                {% if report.signed_at %}{{ report.signed_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+              </td>
+
+              <td>
+                {% if report.document_path %}
+                  <a href="{{ report.document_path }}" class="btn-download" download>
+                    <i class="bi bi-download"></i> Descargar
+                  </a>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% else %}
+      <div class="history-empty">
+        <i class="bi bi-inbox"></i>
+        <p>
+          {% if request.GET.year or request.GET.month or request.GET.status %}
+            No hay reportes con estos filtros.
+          {% else %}
+            Aún no hay informes mensuales. Genera tu primer reporte en <strong>Control Incurrido</strong>.
+          {% endif %}
+        </p>
+      </div>
+      {% endif %}
+
     </div>
 
-    {% else %}
-    <div class="history-empty">
-      <i class="bi bi-inbox"></i>
-      <p>
-        {% if request.GET.year or request.GET.month or request.GET.status %}
-          No hay reportes con estos filtros.
-        {% else %}
-          Aún no hay informes mensuales. Genera tu primer reporte en <strong>Control Incurrido</strong>.
-        {% endif %}
-      </p>
-    </div>
-    {% endif %}
-
+    <a href="{% url 'aeptic_summary' %}" class="btn-back">
+      <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
+    </a>
   </div>
 
-  <a href="{% url 'aeptic_summary' %}" class="btn-back">
-    <i class="bi bi-arrow-left"></i> Volver a Control Incurrido
-  </a>
 </div>
 
-{% endblock %}
+{% endblock %}  
