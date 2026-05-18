@@ -72,20 +72,20 @@
     <div id="buttonGroup" class="d-flex justify-content-center gap-3 mt-4">
         {% if not active_entry %}
             <button class="std-btn px-5" onclick="postAction('clock_in')">
-                <i class="bi bi-play-fill"></i> Clock In
+                <i class="bi bi-play-fill"></i> Fichar Entrada
             </button>
         {% else %}
             <button class="std-btn px-5" onclick="postAction('clock_out')">
-                <i class="bi bi-stop-fill"></i> Clock Out
+                <i class="bi bi-stop-fill"></i> Fichar Salida
             </button>
             
             {% if is_paused %}
                 <button class="std-btn-secondary" onclick="postAction('pause_end')">
-                    <i class="bi bi-play-circle"></i> Resume
+                    <i class="bi bi-play-circle"></i> Reanudar
                 </button>
             {% else %}
                 <button class="std-btn-secondary" onclick="postAction('pause_start')">
-                    <i class="bi bi-pause-fill"></i> Pause
+                    <i class="bi bi-pause-fill"></i> Pausar
                 </button>
             {% endif %}
         {% endif %}
@@ -119,7 +119,7 @@
                     {% if is_paused %}PAUSADO{% else %}EN CURSO{% endif %}
                 </span>
             {% else %}
-                <span class="badge bg-secondary">{{ e.status }}</span>
+                <span class="badge bg-secondary">{{ e.status|upper }}</span>
             {% endif %}
           </td>
           <td>{{ e.total_seconds_display|default:'--' }}</td>
