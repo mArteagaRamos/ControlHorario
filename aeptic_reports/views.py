@@ -785,13 +785,19 @@ class AepticHistoryView(LoginRequiredMixin, View):
                 (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
             ]
 
+            month_names = [
+                (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+                (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+                (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+            ]
+
             context = {
-                'company':         company,
-                'reports':         reports,
-                'total_reports':   total_reports,
+                'company': company,
+                'reports': reports,
+                'total_reports': total_reports,
                 'archived_reports': archived_reports,
                 'available_years': available_years,
-                'month_names':     month_names,
+                'month_names': month_names,
             }
 
             return render(request, 'aeptic_reports/aeptic_history.html', context)

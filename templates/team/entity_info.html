@@ -1,5 +1,6 @@
 {% extends 'base/base.html' %}
 {% load static %}
+{% load role_filters %}
 
 {% block title %}Información de Empresa{% endblock %}
 
@@ -71,8 +72,8 @@
         </div>
       </div>
       <div class="card-footer text-muted small d-flex gap-3">
-        <span>Creada: {{ company.created_at|date:"d M Y" }}</span>
-        <span>Actualizada: {{ company.updated_at|date:"d M Y" }}</span>
+        <span>Creada: {{ company.created_at|spanish_date:"d M Y" }}</span>
+        <span>Actualizada: {{ company.updated_at|spanish_date:"d M Y" }}</span>
       </div>
     </div>
 
@@ -149,7 +150,7 @@
             <label class="form-label text-muted small mb-1">Festivos</label>
             <div class="view-mode">
               {% for h in settings.holidays %}
-                <span class="badge text-bg-info me-1">{{ h|date:"d M Y" }}</span>
+                <span class="badge text-bg-info me-1">{{ h|spanish_date:"d M Y" }}</span>
               {% empty %}
                 <span class="text-muted">—</span>
               {% endfor %}

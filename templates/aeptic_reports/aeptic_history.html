@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load role_filters %}
 
 {% block title %}Histórico de Reportes{% endblock %}
 
@@ -108,7 +109,9 @@
             {% for report in reports %}
             <tr>
               <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
-              <td>{{ report.report_date|date:"F"|capfirst }}</td>
+
+              <td>{{ report.report_date|spanish_date:"F"|capfirst }}</td>
+
               <td>
                 {% if report.status == 'draft' %}
                   <span class="status-badge status-draft">Borrador</span>

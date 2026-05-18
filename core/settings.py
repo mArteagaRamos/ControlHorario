@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'django.contrib.postgres',
 
     # Local apps
+    'core',
     'timetracking',
     'users',
     'audit',
