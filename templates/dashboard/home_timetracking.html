@@ -119,7 +119,7 @@
                     {% if is_paused %}PAUSADO{% else %}EN CURSO{% endif %}
                 </span>
             {% else %}
-                <span class="badge bg-secondary">{{ e.status|upper }}</span>
+                <span class="badge bg-secondary">{{ e.get_status_display|upper }}</span>
             {% endif %}
           </td>
           <td>{{ e.total_seconds_display|default:'--' }}</td>
