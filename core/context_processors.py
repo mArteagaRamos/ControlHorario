@@ -3,11 +3,26 @@
 from users.models import UserCompany, Companies
 
 
+ROLE_TRANSLATIONS = {
+    'manager': 'Manager',
+    'employee': 'Empleado',
+}
+
+
+def _translate_role(role):
+    """Translate role to Spanish"""
+    if not role:
+        return None
+    return ROLE_TRANSLATIONS.get(role, role)
+
+
 def global_context(request):
     """Agregar variables globales a todos los templates"""
+    current_role = getattr(request, 'role', None)
     context = {
         'is_admin': request.user.is_admin if request.user.is_authenticated else False,
-        'current_role': getattr(request, 'role', None),
+        'current_role': _translate_role(current_role),
+        'current_role_original': current_role,
         'is_aeptic_user': False,
     }
 

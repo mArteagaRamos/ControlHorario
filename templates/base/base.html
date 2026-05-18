@@ -186,7 +186,7 @@
             </ul>
         </li>
 
-        {% if is_admin or current_role == 'manager' %}
+        {% if is_admin or current_role_original == 'manager' %}
         <li class="nav-item">
             <a href="{% url 'manager_logs' %}" class="nav-link">
                 <span>
@@ -197,7 +197,7 @@
         </li>
         {% endif %}
 
-        {% if is_aeptic_user %}
+        {% if is_admin or is_aeptic_user %}
         <li class="nav-item">
             <a class="nav-link collapse-toggle">
                 <span>
@@ -214,7 +214,7 @@
         </li>
         {% endif %}
 
-        {% if is_admin or current_role == 'manager' %}
+        {% if is_admin or current_role_original == 'manager' %}
         <li class="nav-item">
             <a href="{% url 'register_unified' %}" class="nav-link">
                 <span>
@@ -248,6 +248,21 @@
     </div>
 
 </aside>
+
+{% with alert=request.user.get_signature_alert %} {# Asumiendo que pasas la lógica #}
+    {% if alert %}
+    <div class="alert alert-{{ alert.type }} alert-dismissible fade show mx-4 mt-3 shadow-sm" role="alert" style="border-left: 5px solid;">
+        <div class="d-flex align-items-center">
+            <i class="bi {% if alert.type == 'warning' %}bi-exclamation-triangle{% else %}bi-exclamation-octagon{% endif %} fs-4 me-3"></i>
+            <div>
+                <strong>Aviso de Control Horario:</strong> {{ alert.text }}
+            </div>
+            <a href="{% url 'report_summary' %}" class="btn btn-sm btn-dark ms-auto">Ir a firmar</a>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+{% endwith %}
 
 <main class="main-content">
     {% if messages %}

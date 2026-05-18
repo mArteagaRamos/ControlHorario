@@ -23,6 +23,7 @@ import {
 
 import {
   sendLeaveRequest,
+  submitAbsenceRequest,
   showEventModal,
   prepareAttachmentSection,
   showUploadZone,
@@ -76,8 +77,12 @@ export async function initCalendar() {
     // 7. Configurar listener de confirmación de rechazo
     setupRejectListener();
 
-    // 8. Exportar funciones a window (para onclick)
+    // 8. Configurar listener de cambio de razón de ausencia
+    setupAbsenceReasonListener();
+
+    // 9. Exportar funciones a window (para onclick)
     exportFunctionsToWindow();
+
   } catch (error) {
     console.error('[CALENDAR] Error during initialization:', error);
   }
@@ -209,38 +214,93 @@ async function setupInitialData() {
  */
 function setupButtonListeners() {
   // Botón: Solicitar vacaciones
-  document.getElementById('btnSendVacation').addEventListener('click', function () {
-    sendLeaveRequest({
-      leave_type: 'vacation',
-      leave_reason: document.getElementById('vacationReason').value,
-      start_date: document.getElementById('vacationStart').value,
-      end_date: document.getElementById('vacationEnd').value,
-      reason_note: document.getElementById('vacationNote').value,
-    }, 'vacationMsg');
-  });
-
-  // Botón: Solicitar ausencia
-  document.getElementById('btnSendAbsence').addEventListener('click', function () {
-    const fileInput = document.getElementById('absenceAttachment');
-    const formData = new FormData();
-
-    formData.append('leave_type', 'absence');
-    formData.append('leave_reason', document.getElementById('absenceReason').value);
-    formData.append('start_date', document.getElementById('absenceStart').value);
-    formData.append('end_date', document.getElementById('absenceEnd').value);
-    formData.append('reason_note', document.getElementById('absenceNote').value);
-
-    if (fileInput && fileInput.files[0]) {
-      formData.append('attachment', fileInput.files[0]);
-    }
-
-    sendLeaveRequest(formData, 'absenceMsg', true); // true indica que es FormData
-  });
+  const btnVacation = document.getElementById('btnSendVacation');
+  if (btnVacation) {
+    btnVacation.addEventListener('click', function () {
+      sendLeaveRequest({
+        leave_type: 'vacation',
+        leave_reason: document.getElementById('vacationReason').value,
+        start_date: document.getElementById('vacationStart').value,
+        end_date: document.getElementById('vacationEnd').value,
+        reason_note: document.getElementById('vacationNote').value,
+      }, 'vacationMsg');
+    });
+  }
 
   // Botón: Guardar cambios de edición de solicitud
   const saveEditBtn = document.getElementById('btnSaveEditLeave');
   if (saveEditBtn) {
     saveEditBtn.addEventListener('click', saveEditLeaveRequest);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 🔧 Setup de Listener para Razón de Ausencia
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Configura el listener de cambio de razón de ausencia
+ * Muestra/oculta campos de hora y gestiona fecha única
+ */
+function setupAbsenceReasonListener() {
+  const absenceReasonSelect = document.getElementById('absenceReason');
+  const absenceStart = document.getElementById('absenceStart');
+  const absenceEnd = document.getElementById('absenceEnd');
+  const absenceStartTime = document.getElementById('absenceStartTime');
+  const absenceEndTime = document.getElementById('absenceEndTime');
+  const timeFields = document.getElementById('absenceTimeFields');
+  const hourlyReasons = ['medical_appointment', 'legal_duty'];
+
+  if (absenceReasonSelect) {
+    absenceReasonSelect.addEventListener('change', function() {
+      const isHourly = hourlyReasons.includes(this.value);
+      
+      if (isHourly) {
+        // Mostrar campos de hora y bloquear fecha única
+        timeFields.style.display = 'block';
+        absenceEnd.disabled = true;
+        absenceEnd.style.opacity = '0.6';
+        absenceEnd.style.cursor = 'not-allowed';
+        // Igualar fechas si la de inicio existe
+        if (absenceStart.value) {
+          absenceEnd.value = absenceStart.value;
+        }
+      } else {
+        // Ocultar campos de hora y desbloquear fecha
+        timeFields.style.display = 'none';
+        absenceEnd.disabled = false;
+        absenceEnd.style.opacity = '1';
+        absenceEnd.style.cursor = 'auto';
+        // Limpiar campos de hora
+        absenceStartTime.value = '';
+        absenceEndTime.value = '';
+        absenceEndTime.min = '';
+      }
+    });
+
+    // Listener para sincronizar fecha de fin cuando es cita médica/deber público
+    if (absenceStart) {
+      absenceStart.addEventListener('change', function() {
+        const isHourly = hourlyReasons.includes(absenceReasonSelect.value);
+        if (isHourly && this.value) {
+          absenceEnd.value = this.value;
+        }
+      });
+    }
+
+    // Listener para validar que hora fin >= hora inicio
+    if (absenceStartTime) {
+      absenceStartTime.addEventListener('change', function() {
+        if (this.value && absenceEndTime) {
+          // Establecer el mínimo de hora fin igual a la hora inicio
+          absenceEndTime.min = this.value;
+          // Si la hora fin es menor que inicio, igualarla
+          if (absenceEndTime.value && absenceEndTime.value < this.value) {
+            absenceEndTime.value = this.value;
+          }
+        }
+      });
+    }
   }
 }
 
@@ -273,6 +333,7 @@ function setupRejectListener() {
 function exportFunctionsToWindow() {
   // Funciones de leave requests
   window.sendLeaveRequest = sendLeaveRequest;
+  window.submitAbsenceRequest = submitAbsenceRequest;
   window.showEventModal = showEventModal;
   window.prepareAttachmentSection = prepareAttachmentSection;
   window.showUploadZone = showUploadZone;

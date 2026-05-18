@@ -109,7 +109,7 @@
       </div>
 
       <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
-      <div class="card shadow-sm mb-3">
+<div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar ausencia</div>
         <div class="card-body">
           <div class="mb-2">
@@ -120,6 +120,19 @@
               {% endfor %}
             </select>
           </div>
+          <!-- Campos de hora: solo visibles para cita médica / deber legal -->
+          <div id="absenceTimeFields" class="mb-2" style="display:none;">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Hora inicio</label>
+                <input type="time" id="absenceTimeStart" class="form-control form-control-sm">
+              </div>
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1">Hora fin</label>
+                <input type="time" id="absenceTimeEnd" class="form-control form-control-sm">
+              </div>
+            </div>
+          </div>
           <div class="mb-2">
             <label class="form-label form-label-sm mb-1">Desde</label>
             <input type="date" id="absenceStart" class="form-control form-control-sm">
@@ -128,6 +141,21 @@
             <label class="form-label form-label-sm mb-1">Hasta</label>
             <input type="date" id="absenceEnd" class="form-control form-control-sm">
           </div>
+
+          <div id="absenceTimeFields" class="p-2 mb-2 border rounded bg-light" style="display: none;">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1 text-primary">Hora Inicio</label>
+                <input type="time" id="absenceStartTime" class="form-control form-control-sm">
+              </div>
+              <div class="col-6">
+                <label class="form-label form-label-sm mb-1 text-primary">Hora Fin</label>
+                <input type="time" id="absenceEndTime" class="form-control form-control-sm">
+              </div>
+            </div>
+            <div class="form-text mt-1" style="font-size: 0.65rem;">Indica las horas de ausencia para este trámite.</div>
+          </div>
+
           <div class="mb-3">
             <label class="form-label form-label-sm mb-1">Nota <small class="text-muted">(opcional)</small></label>
             <textarea id="absenceNote" class="form-control form-control-sm" rows="2"></textarea>
@@ -139,9 +167,9 @@
               <input type="file" id="absenceAttachment" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png">
               <div class="form-text" style="font-size: 0.7rem;">PDF, PNG o JPG (Máx. 5MB)</div>
           </div>
-          <button class="cal-btn cal-btn--absence" id="btnSendAbsence" type="button">
-            Solicitar ausencia
-          </button>
+        <button type="button" class="std-btn" id="btnSubmitAbsence" onclick="submitAbsenceRequest()">
+            Enviar Solicitud
+        </button>
           <div id="absenceMsg" class="mt-2 small"></div>
         </div>
       </div>
@@ -254,7 +282,6 @@
             <option value="annual">Vacaciones</option>
             <option value="sick">Enfermedad</option>
             <option value="personal">Personal</option>
-            <option value="unpaid">Sin pagar</option>
             <option value="other">Otro</option>
           </select>
         </div>

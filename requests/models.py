@@ -65,6 +65,8 @@ class LeaveRequest(models.Model):
     reason_note  = models.TextField(blank=True, null=True)
     start_date = models.DateField()
     end_date   = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time   = models.TimeField(null=True, blank=True)
  
     status = models.CharField(max_length=20, choices=LeaveStatus.choices, default=LeaveStatus.PENDING)
  
