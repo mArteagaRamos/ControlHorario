@@ -750,6 +750,7 @@ class AepticHistoryView(LoginRequiredMixin, View):
             company = _check_aeptic_access(request.user)
             _check_aeptic_selected(request, company)
 
+#mira desde aqui hasta
             # ── Filtros ────────────────────────────────────────────────
             filter_year   = request.GET.get('year',   '').strip()
             filter_month  = request.GET.get('month',  '').strip()
@@ -784,18 +785,102 @@ class AepticHistoryView(LoginRequiredMixin, View):
                 (7, 'Julio'),    (8, 'Agosto'),     (9, 'Septiembre'),
                 (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre'),
             ]
+#mira desde aqui hasta main
 
+#mira desde aqui hasta 
+            # Determinar si es manager
+            from core.services import is_manager
+            user_is_manager = is_manager(request, company)
+
+            # Obtener usuario seleccionado (solo para managers)
+            selected_user_id = request.GET.get('user_id')
+            
+            if user_is_manager and selected_user_id:
+                # Manager viendo reportes de un empleado específico
+                try:
+                    target_user = request.user.__class__.objects.get(id=selected_user_id, usercompany__company=company)
+                except:
+                    target_user = None
+            else:
+                target_user = None if user_is_manager else request.user
+
+            # Obtener reportes del usuario objetivo
+            if user_is_manager:
+                if target_user:
+                    # Manager viendo un empleado específico
+                    reports = MonthlyReport.objects.filter(
+                        user=target_user,
+                        company=company
+                    ).order_by('-report_date')
+                else:
+                    # Manager viendo todos los empleados
+                    reports = MonthlyReport.objects.filter(
+                        company=company,
+                        user__usercompany__company=company
+                    ).order_by('-report_date')
+            else:
+                # Usuario regular viendo solo sus reportes
+                reports = MonthlyReport.objects.filter(
+                    user=request.user,
+                    company=company
+                ).order_by('-report_date')
+
+            # Aplicar filtros
+            year = request.GET.get('year')
+            month = request.GET.get('month')
+            status = request.GET.get('status')
+
+            if year:
+                reports = reports.filter(report_date__year=int(year))
+            if month:
+                reports = reports.filter(report_date__month=int(month))
+            if status:
+                reports = reports.filter(status=status)
+
+            # Obtener años disponibles
+            available_years = set(
+                MonthlyReport.objects.filter(
+                    company=company,
+                    user__in=request.user.__class__.objects.filter(
+                        usercompany__company=company
+                    ) if user_is_manager else [request.user]
+                ).values_list('report_date__year', flat=True)
+            )
+            available_years = sorted(available_years, reverse=True)
+
+            # Mapeo de meses
+            #mira desde aqui hasta valentin
+            
             month_names = [
                 (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
                 (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
                 (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
             ]
 
+            # Obtener empleados (solo para managers)
+            team = []
+            if user_is_manager:
+                from users.models import UserCompany
+                team = UserCompany.objects.filter(
+                    company=company
+                ).select_related('user').order_by('user__surname', 'user__username')
+
             context = {
                 'company': company,
                 'reports': reports,
+
+#mira esto
                 'total_reports': total_reports,
                 'archived_reports': archived_reports,
+
+                'total_reports': reports.count(),
+                'archived_reports': reports.filter(status=MonthlyReport.ReportStatus.ARCHIVED).count(),
+
+
+                'is_manager': user_is_manager,
+                'team': team,
+                'selected_user_id': selected_user_id,
+                'target_user': target_user,
                 'available_years': available_years,
                 'month_names': month_names,
             }

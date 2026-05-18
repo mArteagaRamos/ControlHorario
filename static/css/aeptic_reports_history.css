@@ -1,0 +1,255 @@
+/* static/css/aeptic_reports_history.css - Estilos para la página de histórico de reportes */
+
+/* --- HISTORY PAGE STYLES --- */
+
+.history-card {
+  border-radius: 10px;
+  border: 1px solid #2a3047;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+}
+
+.history-card .card-header {
+  background-color: #1a1f2e;
+  color: #fff;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-bottom: 1px solid #2a3047;
+}
+
+.history-card .card-header h5 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.history-stats {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.75rem;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+
+.stat-badge-total {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: #2a3047;
+  color: #c8cfe0;
+}
+
+.stat-badge-archived {
+  background: rgba(62, 207, 142, 0.1);
+  border-color: rgba(62, 207, 142, 0.3);
+  color: #3ecf8e;
+}
+
+/* Filtros */
+.filters-bar {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.std-btn {
+  background-color: #1a1f2e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  transition: opacity 0.2s;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.std-btn:hover {
+  opacity: 0.9;
+  color: white;
+}
+
+.std-btn-secondary {
+  background-color: #fff;
+  color: #1a1f2e;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  transition: all 0.2s;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.std-btn-secondary:hover {
+  background-color: #1a1f2e;
+  color: #fff;
+  border-color: #1a1f2e;
+}
+
+/* Tabla */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.history-table thead tr {
+  background: #f4f5f8;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.history-table thead th {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8a94a6;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.history-table tbody tr {
+  border-bottom: 1px solid #f0f2f5;
+  transition: background 0.15s;
+}
+
+.history-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.history-table tbody tr:hover {
+  background: #f8f9fb;
+}
+
+.history-table tbody td {
+  padding: 0.85rem 1.25rem;
+  color: #1a1f2e;
+  vertical-align: middle;
+}
+
+.history-table tbody td.muted {
+  color: #adb5bd;
+  font-size: 0.82rem;
+}
+
+/* Badges de estado */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.status-draft {
+  background: #f0f0f0;
+  color: #6c757d;
+}
+
+.status-generated {
+  background: rgba(74, 143, 255, 0.12);
+  color: #4a8fff;
+}
+
+.status-signed {
+  background: rgba(62, 207, 142, 0.12);
+  color: #3ecf8e;
+}
+
+.status-archived {
+  background: rgba(26, 31, 46, 0.08);
+  color: #495057;
+}
+
+/* Botón descargar */
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  border: 1px solid #2a3047;
+  color: #1a1f2e;
+  background: #fff;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-download:hover {
+  background: #1a1f2e;
+  color: #fff;
+  border-color: #1a1f2e;
+}
+
+/* Empty state */
+.history-empty {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: #adb5bd;
+}
+
+.history-empty i {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.75rem;
+  opacity: 0.4;
+}
+
+.history-empty p {
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* Botón volver */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid #2a3047;
+  color: #1a1f2e;
+  background: #fff;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  margin-top: 1.25rem;
+}
+
+.btn-back:hover {
+  background: #1a1f2e;
+  color: #fff;
+}
+
+/* Pagination */
+.pagination .page-link {
+  color: #1a1f2e;
+}
+
+.pagination .page-link:hover {
+  color: #1a1f2e;
+  background-color: #e9ecef;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #1a1f2e !important;
+  border-color: #1a1f2e !important;
+  color: white !important;
+}
