@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load role_filters %}
 
 {% block title %}Histórico de Reportes{% endblock %}
 
@@ -330,7 +331,7 @@
             <tr>
               <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
 
-              <td>{{ report.report_date|date:"F"|capfirst }}</td>
+              <td>{{ report.report_date|spanish_date:"F"|capfirst }}</td>
 
               <td>
                 {% if report.status == 'draft' %}

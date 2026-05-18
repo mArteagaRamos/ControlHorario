@@ -646,11 +646,18 @@ class AepticHistoryView(LoginRequiredMixin, View):
                 company=company
             ).order_by('-report_date')
 
+            month_names = [
+                (1, 'Enero'), (2, 'Febrero'), (3, 'Marzo'), (4, 'Abril'),
+                (5, 'Mayo'), (6, 'Junio'), (7, 'Julio'), (8, 'Agosto'),
+                (9, 'Septiembre'), (10, 'Octubre'), (11, 'Noviembre'), (12, 'Diciembre')
+            ]
+
             context = {
                 'company': company,
                 'reports': reports,
                 'total_reports': reports.count(),
                 'archived_reports': reports.filter(status=MonthlyReport.ReportStatus.ARCHIVED).count(),
+                'month_names': month_names,
             }
 
             return render(request, 'aeptic_reports/aeptic_history.html', context)

@@ -53,3 +53,19 @@
         width: 100%;
     }
 }
+
+/* ── Anchos proporcionales para tabla de empresas ───────────────────────── */
+#tablaTodosEmpresas th:nth-child(1),
+#tablaTodosEmpresas td:nth-child(1) { width: 22%; }   /* Empresa */
+
+#tablaTodosEmpresas th:nth-child(2),
+#tablaTodosEmpresas td:nth-child(2) { width: 16%; }   /* CIF / NIF */
+
+#tablaTodosEmpresas th:nth-child(3),
+#tablaTodosEmpresas td:nth-child(3) { width: 24%; }   /* Razón Social */
+
+#tablaTodosEmpresas th:nth-child(4),
+#tablaTodosEmpresas td:nth-child(4) { width: 14%; }   /* Creada */
+
+#tablaTodosEmpresas th:nth-child(5),
+#tablaTodosEmpresas td:nth-child(5) { width: 24%; }   /* Acciones */
