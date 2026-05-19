@@ -1,10 +1,11 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load role_filters %}
 
 {% block title %}Histórico de Reportes{% endblock %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/aeptic_reports.css' %}">
+<link href="{% static 'css/aeptic_reports_history.css' %}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}
@@ -13,19 +14,37 @@
   <div class="container-fluid py-4">
 
     <div class="row mb-4">
-      <div class="col-12">
-        <h2 class="mb-0">
-          <i class="bi bi-clock-history"></i> Histórico de Reportes
-        </h2>
-        <small class="text-muted">Consulta el histórico de todos tus informes mensuales enviados</small>
-      </div>
+        <div class="col-12">
+            <h2 class="mb-0">
+                <i class="bi bi-clock-history"></i> Histórico de Reportes
+            </h2>
+            {% if is_manager and selected_user_id %}
+              <small class="text-muted">Reportes de <strong>{{ target_user.get_full_name|default:target_user.email }}</strong></small>
+            {% else %}
+              <small class="text-muted">Consulta el histórico de todos tus informes mensuales enviados</small>
+            {% endif %}
+        </div>
     </div>
 
     {# ── Filtros ── #}
     <div class="filters-bar">
       <form method="get" class="row g-2 align-items-end">
 
+        {% if is_manager %}
         <div class="col-12 col-sm-6 col-md-3">
+          <label class="form-label text-muted small fw-bold mb-1">Empleado</label>
+          <select name="user_id" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for team_member in team %}
+              <option value="{{ team_member.user.id }}" {% if request.GET.user_id == team_member.user.id|stringformat:"s" %}selected{% endif %}>
+                {{ team_member.user.get_full_name|default:team_member.user.email }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+
+        <div class="col-12 col-sm-6 col-md-2">
           <label class="form-label text-muted small fw-bold mb-1">Año</label>
           <select name="year" class="form-select form-select-sm">
             <option value="">Todos</option>
@@ -37,7 +56,7 @@
           </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3">
+        <div class="col-12 col-sm-6 col-md-2">
           <label class="form-label text-muted small fw-bold mb-1">Mes</label>
           <select name="month" class="form-select form-select-sm">
             <option value="">Todos</option>
@@ -60,12 +79,12 @@
           </select>
         </div>
 
-        <div class="col-12 col-sm-6 col-md-3 d-flex gap-2">
-          <button type="submit" class="std-btn w-100">
-            <i class="bi bi-search me-1"></i> Filtrar
+        <div class="col-12 col-sm-6 col-md-2 d-flex gap-2">
+          <button type="submit" class="std-btn flex-shrink-0">
+            <i class="bi bi-search"></i>
           </button>
-          {% if request.GET.year or request.GET.month or request.GET.status %}
-            <a href="{% url 'aeptic_history' %}" class="std-btn-secondary">
+          {% if request.GET.year or request.GET.month or request.GET.status or request.GET.user_id %}
+            <a href="{% url 'aeptic_history' %}" class="std-btn-secondary flex-shrink-0">
               <i class="bi bi-x-lg"></i>
             </a>
           {% endif %}
@@ -96,6 +115,9 @@
         <table class="history-table">
           <thead>
             <tr>
+              {% if is_manager %}
+              <th>Empleado</th>
+              {% endif %}
               <th>Año</th>
               <th>Mes</th>
               <th>Estado</th>
@@ -107,8 +129,16 @@
           <tbody>
             {% for report in reports %}
             <tr>
+              {% if is_manager %}
+              <td>
+                <strong>{{ report.user.get_full_name|default:report.user.email }}</strong>
+                {% if report.user == request.user %}<span class="badge bg-light text-dark ms-1">Tú</span>{% endif %}
+              </td>
+              {% endif %}
               <td><strong>{{ report.report_date|date:"Y" }}</strong></td>
-              <td>{{ report.report_date|date:"F"|capfirst }}</td>
+
+              <td>{{ report.report_date|spanish_date:"F"|capfirst }}</td>
+
               <td>
                 {% if report.status == 'draft' %}
                   <span class="status-badge status-draft">Borrador</span>

@@ -147,6 +147,15 @@ function setupFullCalendar() {
     headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
     height: 'auto',
     firstDay: 1,
+    locales: [{
+      code: 'es',
+      buttonText: {
+        today: 'hoy',
+        month: 'mes',
+        list: 'lista'
+      },
+      allDayText: 'todo el día'
+    }],
     events: function (info, successCb, failureCb) {
       const params = new URLSearchParams({
         start: info.startStr.slice(0, 10),
