@@ -215,6 +215,118 @@
   color: #fff;
 }
 
+/* --- TOGGLE MONTHS SECTION --- */
+.months-toggle-section {
+    margin-bottom: 2rem;
+}
+
+.toggle-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.toggle-group {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: #f9f9f9;
+    transition: all 0.3s ease;
+}
+
+.toggle-group:hover {
+    border-color: #bbb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-group.active {
+    border-color: var(--primary-color);
+    background: var(--primary-bg-tint);
+    box-shadow: 0 4px 12px rgba(26, 31, 46, 0.15);
+}
+
+
+.toggle-month-info {
+    flex: 1;
+}
+
+.month-toggle-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: color 0.2s;
+}
+
+.month-toggle-btn:hover {
+    color: var(--primary-color);
+}
+
+.toggle-group.active .month-toggle-btn {
+    color: var(--primary-color);
+}
+
+.toggle-indicator {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #d0d0d0;
+    margin-left: 0.75rem;
+    transition: background 0.2s;
+}
+
+.toggle-group.active .toggle-indicator {
+    background: var(--primary-color);
+    box-shadow: 0 0 8px rgba(26, 31, 46, 0.4);
+}
+
+/* --- FILE UPLOAD --- */
+.file-input-wrapper {
+    flex-shrink: 0;
+}
+
+.file-upload-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.75rem 1.25rem;
+    background: var(--success-color);
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.file-upload-label:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.file-upload-label:active {
+    transform: translateY(0);
+}
+
+.file-upload-label.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
 /* ── Paginación ─────────────────────────────────────────────── */
 .pagination .page-link { color: #1a1f2e; }
 .pagination .page-link:hover { color: #1a1f2e; background-color: #e9ecef; }
