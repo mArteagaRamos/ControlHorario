@@ -97,6 +97,12 @@ urlpatterns = [
     path('leave/<uuid:leave_id>/cancel/', requests_views.api_leave_request_cancel, name='api_leave_cancel'),
     path('leave/<uuid:leave_id>/edit/', requests_views.api_leave_request_edit, name='api_leave_edit'),
 
+    # Vacation Period Multipliers (manager only)
+    path('api/vacation-periods/', requests_views.list_vacation_periods, name='list_vacation_periods'),
+    path('api/vacation-period/create/', requests_views.create_vacation_period, name='create_vacation_period'),
+    path('api/vacation-period/edit/', requests_views.edit_vacation_period, name='edit_vacation_period'),
+    path('api/vacation-period/delete/', requests_views.delete_vacation_period, name='delete_vacation_period'),
+
     # ════════════════════════════════════════════════════════════════════════
     # MONTHLY REPORTS (aeptic_reports/)
     # ════════════════════════════════════════════════════════════════════════
