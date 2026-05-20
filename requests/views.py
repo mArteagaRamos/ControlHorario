@@ -1084,19 +1084,243 @@ def api_leave_request_cancel(request, leave_id):
     """El empleado puede cancelar sus propias solicitudes pendientes."""
     company = get_company(request)
     leave = get_object_or_404(LeaveRequest, id=leave_id, user=request.user, company=company)
- 
+
     # --- COMPROBACION DE CONCURRENCIA ---
     if leave.status != LeaveRequest.LeaveStatus.PENDING:
         return JsonResponse({'error': 'Solo se pueden cancelar solicitudes pendientes'}, status=400)
     # ------------------------------------
- 
+
     before = serialize_leave(leave)
     leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save(update_fields=['status', 'updated_at'])
-    
+
     # AUDITORÍA: Cancelación
     log_leave(leave, request.user, AuditLog.AuditAction.VOIDED,
                before=before, reason='Cancelación por el empleado',
                source='web') # Añadido
+
+    return JsonResponse({'ok': True})
+
+
+# =============================================================================
+# VACATION PERIOD MULTIPLIERS MANAGEMENT (BLOQUE 4)
+# =============================================================================
+
+@login_required_with_delegation_support
+def list_vacation_periods(request):
+    """Lista todos los periodos vacacionales de la empresa del manager."""
+    company = get_company(request)
+
+    if not is_manager(request, company):
+        raise PermissionDenied()
+
+    periods = VacationPeriodMultiplier.objects.filter(
+        company=company,
+        deleted_at__isnull=True
+    ).order_by('date_from')
+
+    return JsonResponse({
+        'periods': [
+            {
+                'id': str(p.id),
+                'name': p.name,
+                'date_from': p.date_from.isoformat(),
+                'date_to': p.date_to.isoformat(),
+                'multiplier': float(p.multiplier),
+                'created_by': p.created_by.username if p.created_by else 'Sistema',
+                'created_at': p.created_at.isoformat(),
+            }
+            for p in periods
+        ]
+    })
+
+
+@login_required_with_delegation_support
+@require_POST
+def create_vacation_period(request):
+    """Crea un nuevo periodo de multiplicador."""
+    company = get_company(request)
+
+    if not is_manager(request, company):
+        raise PermissionDenied()
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    required = ['name', 'date_from', 'date_to', 'multiplier']
+    if not all(data.get(f) for f in required):
+        return JsonResponse({'error': 'Campos requeridos incompletos'}, status=400)
+
+    try:
+        name = data.get('name').strip()
+        date_from = datetime.strptime(data.get('date_from'), '%Y-%m-%d').date()
+        date_to = datetime.strptime(data.get('date_to'), '%Y-%m-%d').date()
+        multiplier = float(data.get('multiplier'))
+
+        # Validaciones
+        if not (0.1 <= multiplier <= 2.0):
+            return JsonResponse({'error': 'Multiplicador debe estar entre 0.1 y 2.0'}, status=400)
+        if date_from > date_to:
+            return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
+        if len(name) > 100:
+            return JsonResponse({'error': 'Nombre muy largo'}, status=400)
+
+        # Crear periodo
+        period = VacationPeriodMultiplier.objects.create(
+            id=uuid.uuid4(),
+            company=company,
+            name=name,
+            date_from=date_from,
+            date_to=date_to,
+            multiplier=multiplier,
+            created_by=request.user,
+            created_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+
+        # Auditoría
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='vacation_period_multipliers',
+            record_id=str(period.id),
+            user=request.user,
+            action_type='create',
+            reason=f"Creación de periodo vacacional '{name}'",
+            source='web'
+        )
+
+        return JsonResponse({'ok': True, 'id': str(period.id)})
+
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'error': f'Datos inválidos: {str(e)}'}, status=400)
+
+
+@login_required_with_delegation_support
+@require_POST
+def edit_vacation_period(request):
+    """Edita un periodo existente."""
+    company = get_company(request)
+
+    if not is_manager(request, company):
+        raise PermissionDenied()
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    period_id = data.get('id')
+    if not period_id:
+        return JsonResponse({'error': 'ID del periodo requerido'}, status=400)
+
+    period = get_object_or_404(
+        VacationPeriodMultiplier,
+        id=period_id,
+        company=company
+    )
+
+    try:
+        # Guardamos el estado anterior
+        before = {
+            'name': period.name,
+            'date_from': str(period.date_from),
+            'date_to': str(period.date_to),
+            'multiplier': float(period.multiplier),
+        }
+
+        # Actualizar campos si se proporcionan
+        if 'name' in data:
+            period.name = data['name'].strip()
+        if 'date_from' in data:
+            period.date_from = datetime.strptime(data['date_from'], '%Y-%m-%d').date()
+        if 'date_to' in data:
+            period.date_to = datetime.strptime(data['date_to'], '%Y-%m-%d').date()
+        if 'multiplier' in data:
+            mult = float(data['multiplier'])
+            if not (0.1 <= mult <= 2.0):
+                return JsonResponse({'error': 'Multiplicador debe estar entre 0.1 y 2.0'}, status=400)
+            period.multiplier = mult
+
+        # Validación de fechas
+        if period.date_from > period.date_to:
+            return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
+
+        period.updated_at = timezone.now()
+        period.save()
+
+        # Auditoría
+        after = {
+            'name': period.name,
+            'date_from': str(period.date_from),
+            'date_to': str(period.date_to),
+            'multiplier': float(period.multiplier),
+        }
+
+        AuditLog.objects.create(
+            id=uuid.uuid4(),
+            table_name='vacation_period_multipliers',
+            record_id=str(period.id),
+            user=request.user,
+            action_type='update',
+            before=before,
+            after=after,
+            reason=f"Edición de periodo vacacional '{period.name}'",
+            source='web'
+        )
+
+        return JsonResponse({'ok': True})
+
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'error': f'Datos inválidos: {str(e)}'}, status=400)
+
+
+@login_required_with_delegation_support
+@require_POST
+def delete_vacation_period(request):
+    """Soft-delete de un periodo vacacional."""
+    company = get_company(request)
+
+    if not is_manager(request, company):
+        raise PermissionDenied()
+
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    period_id = data.get('id')
+    if not period_id:
+        return JsonResponse({'error': 'ID del periodo requerido'}, status=400)
+
+    period = get_object_or_404(
+        VacationPeriodMultiplier,
+        id=period_id,
+        company=company,
+        deleted_at__isnull=True
+    )
+
+    # Soft-delete
+    before = {
+        'name': period.name,
+        'deleted_at': None,
+    }
+
+    period.deleted_at = timezone.now()
+    period.save()
+
+    # Auditoría
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='vacation_period_multipliers',
+        record_id=str(period.id),
+        user=request.user,
+        action_type='voided',
+        before=before,
+        after={'deleted_at': str(period.deleted_at)},
+        reason=f"Eliminación (soft-delete) de periodo '{period.name}'",
+        source='web'
+    )
 
     return JsonResponse({'ok': True})

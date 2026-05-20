@@ -264,7 +264,7 @@ Mostrar solo si `leave.leave_type == 'vacation'`:
 
 ---
 
-## BLOQUE 4: Vistas CRUD para VacationPeriodMultiplier
+## BLOQUE 4: Vistas CRUD para VacationPeriodMultiplier ✅ COMPLETADO
 
 ### Archivo a crear/modificar:
 - `requests/views.py` → Agregar 4 nuevas funciones
