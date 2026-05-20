@@ -9,9 +9,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (modalElement) {
     vacationPeriodsModal = new bootstrap.Modal(modalElement);
     loadVacationPeriods();
-    
-    // Cargar periodos cada vez que se abre el modal
-    modalElement.addEventListener('show.bs.modal', loadVacationPeriods);
   }
 });
 
@@ -55,19 +52,19 @@ function renderVacationPeriods(periods) {
   periods.forEach(p => {
     const dateFrom = new Date(p.date_from).toLocaleDateString('es-ES');
     const dateTo = new Date(p.date_to).toLocaleDateString('es-ES');
-    
+
     html += `
       <tr>
         <td><strong>${p.name}</strong></td>
         <td><small>${dateFrom} → ${dateTo}</small></td>
         <td><span class="badge text-bg-info">${p.multiplier}×</span></td>
         <td class="text-end">
-          <button class="btn btn-xs btn-warning py-0 px-1" 
+          <button type="button" class="btn btn-xs btn-warning py-0 px-1"
             onclick="editPeriod('${p.id}', '${p.name}', '${p.date_from}', '${p.date_to}', ${p.multiplier})"
             title="Editar">
             <i class="bi bi-pencil-square"></i>
           </button>
-          <button class="btn btn-xs btn-danger py-0 px-1" 
+          <button type="button" class="btn btn-xs btn-danger py-0 px-1"
             onclick="deletePeriod('${p.id}', '${p.name}')"
             title="Eliminar">
             <i class="bi bi-trash"></i>

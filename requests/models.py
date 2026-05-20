@@ -127,8 +127,10 @@ class LeaveRequest(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
     class Meta:
+        managed = False
         db_table = 'leave_requests'
         ordering = ['-created_at']
 

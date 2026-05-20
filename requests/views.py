@@ -868,6 +868,7 @@ def api_leave_request_create(request):
     leave = LeaveRequest.objects.create(
         user=user,
         company=company,
+        leave_type=leave_type,
         start_date=start,
         end_date=end,
         leave_reason=data.get('leave_reason'),
@@ -1108,12 +1109,13 @@ def api_leave_request_cancel(request, leave_id):
 # =============================================================================
 
 @login_required_with_delegation_support
+@login_required_with_delegation_support
 def list_vacation_periods(request):
     """Lista todos los periodos vacacionales de la empresa del manager."""
     company = get_company(request)
 
     if not is_manager(request, company):
-        raise PermissionDenied()
+        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
 
     periods = VacationPeriodMultiplier.objects.filter(
         company=company,
@@ -1143,7 +1145,7 @@ def create_vacation_period(request):
     company = get_company(request)
 
     if not is_manager(request, company):
-        raise PermissionDenied()
+        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -1177,8 +1179,6 @@ def create_vacation_period(request):
             date_to=date_to,
             multiplier=multiplier,
             created_by=request.user,
-            created_at=timezone.now(),
-            updated_at=timezone.now(),
         )
 
         # Auditoría
@@ -1205,7 +1205,7 @@ def edit_vacation_period(request):
     company = get_company(request)
 
     if not is_manager(request, company):
-        raise PermissionDenied()
+        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
 
     try:
         data = json.loads(request.body)
@@ -1284,7 +1284,7 @@ def delete_vacation_period(request):
     company = get_company(request)
 
     if not is_manager(request, company):
-        raise PermissionDenied()
+        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
 
     try:
         data = json.loads(request.body)

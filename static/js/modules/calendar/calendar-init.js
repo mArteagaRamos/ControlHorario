@@ -57,6 +57,7 @@ import {
  */
 export async function initCalendar() {
   try {
+    console.log('[CALENDAR] Inicializando calendario...');
     // 1. Configurar min dates de inputs
     setupMinDates();
 

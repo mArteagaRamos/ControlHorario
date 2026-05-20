@@ -478,3 +478,20 @@ ADD COLUMN hour_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0
 -- Añadir columna para días de vacaciones por defecto
 ALTER TABLE company_settings
 ADD COLUMN default_vacation_days INTEGER NOT NULL DEFAULT 23;
+
+
+-- Cambiar el ID de SERIAL a UUID en vacation_period_multipliers
+ALTER TABLE vacation_period_multipliers 
+  DROP CONSTRAINT vacation_period_multipliers_pkey;
+
+ALTER TABLE vacation_period_multipliers 
+	ALTER COLUMN id DROP DEFAULT;
+
+ALTER TABLE vacation_period_multipliers 
+  ALTER COLUMN id TYPE uuid USING gen_random_uuid();
+
+ALTER TABLE vacation_period_multipliers 
+  ADD PRIMARY KEY (id);
+
+ALTER TABLE vacation_period_multipliers 
+  ALTER COLUMN id SET DEFAULT gen_random_uuid();

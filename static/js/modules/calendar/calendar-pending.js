@@ -40,6 +40,7 @@ export async function loadPendingRequests() {
     const res = await fetch(getLeavePendingUrl());
     const data = await res.json();
     const list = data.requests;
+    console.log('[PENDING] Loaded requests:', list.length, list);
     badge.textContent = list.length;
 
     if (list.length === 0) {
@@ -50,8 +51,10 @@ export async function loadPendingRequests() {
     // Guardamos los datos en un mapa para acceder desde el modal sin tocar el DOM
     initLeaveDataMap();
     list.forEach(l => {
+      console.log('[PENDING] Storing leave data:', l.id, l);
       setLeaveData(l.id, l);
     });
+    console.log('[PENDING] Stored data map:', window._leaveDataMap);
 
     container.innerHTML = list.map(l => `
       <div class="pending-item" id="pending-${l.id}">
@@ -91,13 +94,20 @@ export async function loadPendingRequests() {
  */
 export async function approveLeave(leaveId) {
   const l = getLeaveData(leaveId);
-  if (!l) return;
+  console.log('[DEBUG] approveLeave called:', { leaveId, leave: l });
+  if (!l) {
+    console.warn('[DEBUG] Leave data not found for:', leaveId);
+    return;
+  }
 
   // Si es vacaciones, mostrar modal con multiplicador
+  console.log('[DEBUG] leave_type_raw:', l.leave_type_raw, 'comparison result:', l.leave_type_raw === 'vacation');
   if (l.leave_type_raw === 'vacation') {
+    console.log('[DEBUG] Opening vacation approval modal');
     await openApproveVacationModal(leaveId);
   } else {
     // Para ausencias, aprobar directamente
+    console.log('[DEBUG] Approving absence directly');
     await submitReview(leaveId, 'approve', null);
   }
 }
@@ -133,16 +143,20 @@ export function openRejectModal(leaveId) {
 export async function openApproveVacationModal(leaveId) {
   try {
     // Cargar datos sugeridos desde la API
+    console.log('[DEBUG] Fetching vacation approval data for:', leaveId);
     const res = await fetch(`/leave/${leaveId}/for-review/`, {
       headers: { 'Accept': 'application/json' }
     });
 
+    console.log('[DEBUG] Fetch response status:', res.status, 'ok:', res.ok);
     if (!res.ok) {
       alert('Error al cargar los datos de la solicitud');
+      console.error('[DEBUG] Fetch failed with status:', res.status);
       return;
     }
 
     const data = await res.json();
+    console.log('[DEBUG] Fetched data:', data);
 
     // Llenar campos del modal
     document.getElementById('vacApproveUser').textContent = data.user;
@@ -176,6 +190,7 @@ export async function openApproveVacationModal(leaveId) {
     document.getElementById('btnConfirmApproveVacation').dataset.leaveId = leaveId;
 
     // Mostrar modal
+    console.log('[DEBUG] Showing approval modal');
     bootstrap.Modal.getOrCreateInstance(document.getElementById('approveVacationModal')).show();
 
   } catch (e) {
