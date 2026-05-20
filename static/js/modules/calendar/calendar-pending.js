@@ -21,6 +21,8 @@ import {
   getAllLeaveData,
 } from './calendar-state.js';
 
+import { loadVacationStatus } from './calendar-init.js';
+
 // ════════════════════════════════════════════════════════════════════════════
 // 📋 Cargar Solicitudes Pendientes
 // ════════════════════════════════════════════════════════════════════════════
@@ -239,6 +241,9 @@ export async function submitReview(leaveId, action, note, hourMultiplier = null)
       // Recargar eventos del calendario
       const calendarObj = getCalendarObj();
       if (calendarObj) calendarObj.refetchEvents();
+
+      // Recargar estado de vacaciones
+      await loadVacationStatus();
     } else {
       alert(data.error || 'Error al procesar la solicitud.');
     }

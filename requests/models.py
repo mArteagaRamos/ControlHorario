@@ -156,6 +156,7 @@ class LeaveRequest(models.Model):
         total_days = 0.0
         for leave in leave_requests:
             days = (leave.end_date - leave.start_date).days + 1
-            total_days += days
+            multiplier = float(leave.hour_multiplier) if leave.hour_multiplier else 1.0
+            total_days += days * multiplier
 
         return total_days

@@ -209,7 +209,7 @@ function setupTeamSelector() {
 /**
  * Carga y muestra el estado de vacaciones del usuario actual
  */
-async function loadVacationStatus() {
+export async function loadVacationStatus() {
   const statusCard = document.getElementById('vacationStatusCard');
   if (!statusCard) return;
 
@@ -226,15 +226,15 @@ async function loadVacationStatus() {
     // Actualizar barra de progreso
     const percentage = Math.min(100, data.consumed_percentage || 0);
     document.getElementById('vacStatusBar').style.width = percentage + '%';
-    document.getElementById('vacStatusBarText').textContent = `${Math.round(data.consumed_days)}/${data.available_days}`;
+    document.getElementById('vacStatusBarText').textContent = `${Math.round(data.consumed_days * 10) / 10}/${data.available_days}`;
 
     // Actualizar números
-    document.getElementById('vacStatusConsumed').textContent = Math.round(data.consumed_days);
-    document.getElementById('vacStatusRemaining').textContent = Math.round(data.remaining_days);
+    document.getElementById('vacStatusConsumed').textContent = Math.round(data.consumed_days * 10) / 10;
+    document.getElementById('vacStatusRemaining').textContent = Math.round(data.remaining_days * 10) / 10;
 
     // Actualizar mensaje según estado
     const messageEl = document.getElementById('vacStatusMessage');
-    const remaining = Math.round(data.remaining_days);
+    const remaining = Math.round(data.remaining_days * 10) / 10;
 
     if (remaining <= 0) {
       messageEl.textContent = '✓ Has consumido todas tus vacaciones';
