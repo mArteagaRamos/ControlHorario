@@ -1108,6 +1108,49 @@ def api_leave_request_cancel(request, leave_id):
 # VACATION PERIOD MULTIPLIERS MANAGEMENT (BLOQUE 4)
 # =============================================================================
 
+@login_required
+def api_user_vacation_status(request):
+    """Obtiene el estado de vacaciones del usuario actual (días consumidos, restantes, etc)."""
+    from datetime import datetime
+
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    year = datetime.now().year
+
+    # Obtener datos del usuario actual
+    user = Users.objects.filter(email=request.user.email).first()
+    if not user:
+        user = Users.objects.filter(username=request.user.username).first()
+
+    if not user:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
+
+    # Calcular días consumidos en el año
+    consumed_days = LeaveRequest.get_consumed_days(
+        user_id=user.id,
+        company_id=company.id,
+        year=year
+    )
+
+    # Obtener límite anual
+    settings = CompanySettings.objects.filter(company=company, deleted_at__isnull=True).first()
+    available_days = settings.default_vacation_days if settings else 23
+
+    # Calcular días restantes
+    remaining_days = available_days - consumed_days
+    consumed_percentage = min(100, int((consumed_days / available_days) * 100)) if available_days > 0 else 0
+
+    return JsonResponse({
+        'consumed_days': float(consumed_days),
+        'available_days': available_days,
+        'remaining_days': float(remaining_days),
+        'consumed_percentage': consumed_percentage,
+        'year': year
+    })
+
+
 @login_required_with_delegation_support
 @login_required_with_delegation_support
 def list_vacation_periods(request):
