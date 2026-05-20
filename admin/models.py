@@ -33,6 +33,7 @@ class CompanySettings(UppercaseNormalizationMixin, models.Model):
     auto_close_hours = models.IntegerField(default=12)
     weekend_days = weekend_days_field
     holidays = holidays_field
+    default_vacation_days = models.IntegerField(default=23)
     updated_at = models.DateTimeField(default=timezone.now)
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 

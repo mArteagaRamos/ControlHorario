@@ -450,3 +450,31 @@ CREATE INDEX idx_reports_company ON monthly_reports(company_id);
 
 -- 4. Comentario técnico para la documentación [cite: 254]
 COMMENT ON TABLE monthly_reports IS 'Almacena la cabecera de los informes mensuales de control incurrido para su firma y exportación.';
+
+-- AJUSTES PARA CONTROL DE VACACIONES
+CREATE TABLE vacation_period_multipliers (
+    id SERIAL PRIMARY KEY,
+    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    date_from DATE NOT NULL,
+    date_to DATE NOT NULL,
+    multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ NULL,
+    CONSTRAINT valid_multiplier CHECK (multiplier > 0 AND multiplier <= 2.0),
+    CONSTRAINT valid_dates CHECK (date_from <= date_to)
+);
+
+CREATE INDEX idx_vpm_company_dates
+ON vacation_period_multipliers(company_id, date_from, date_to)
+WHERE deleted_at IS NULL;
+
+ALTER TABLE leave_requests
+ADD COLUMN hour_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0
+    CONSTRAINT leave_requests_valid_multiplier CHECK (hour_multiplier > 0 AND hour_multiplier <= 2.0);
+
+-- Añadir columna para días de vacaciones por defecto
+ALTER TABLE company_settings
+ADD COLUMN default_vacation_days INTEGER NOT NULL DEFAULT 23;

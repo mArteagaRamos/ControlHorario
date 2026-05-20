@@ -16,7 +16,8 @@ from django.core.files.base import ContentFile
 import os
 from users.models import Users, UserCompany, Companies
 from timetracking.models import TimeEntries
-from requests.models import LeaveRequest, CorrectionRequests
+from requests.models import LeaveRequest, CorrectionRequests, VacationPeriodMultiplier
+from admin.models import CompanySettings
 from audit.models import AuditLog
 from audit.utils import safe_dict
 from core.decorators import login_required_with_delegation_support
@@ -354,8 +355,72 @@ def api_leave_pending(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@login_required_with_delegation_support
+def api_get_leave_for_review(request, leave_id):
+    """Obtiene detalles de una solicitud para el modal de aprobación,
+    incluyendo sugerencias de multiplicador para vacaciones."""
+    company = get_company(request)
+    leave = get_object_or_404(LeaveRequest, id=leave_id, company=company, status=LeaveRequest.LeaveStatus.PENDING)
 
-@login_required
+    response_data = {
+        'id': str(leave.id),
+        'user': f"{leave.user.username.title()} {leave.user.surname.title()}".strip(),
+        'leave_type': leave.leave_type,
+        'leave_type_display': leave.get_leave_type_display(),
+        'leave_reason': leave.leave_reason,
+        'leave_reason_display': leave.get_leave_reason_display(),
+        'start_date': leave.start_date.isoformat(),
+        'end_date': leave.end_date.isoformat(),
+        'reason_note': leave.reason_note or '',
+    }
+
+    # Si es vacaciones, agregar datos sugeridos
+    if leave.leave_type == 'vacation':
+        # 1. Obtener multiplicador sugerido
+        suggested_multiplier = VacationPeriodMultiplier.get_multiplier_for_range(
+            company_id=leave.company.id,
+            start_date=leave.start_date,
+            end_date=leave.end_date
+        )
+
+        # 2. Calcular días consumidos en el año
+        year = leave.start_date.year
+        consumed_days = LeaveRequest.get_consumed_days(
+            user_id=leave.user.id,
+            company_id=leave.company.id,
+            year=year
+        )
+
+        # 3. Obtener límite anual
+        settings = CompanySettings.objects.filter(company=leave.company, deleted_at__isnull=True).first()
+        available_days = settings.default_vacation_days if settings else 23
+
+        # 4. Calcular días de esta solicitud
+        request_days = (leave.end_date - leave.start_date).days + 1
+
+        # 5. Determinar si hay aviso
+        exceeds_limit = (consumed_days + request_days) > available_days
+        remaining_days = available_days - consumed_days
+        remaining_days_after = available_days - consumed_days - request_days
+        consumed_percentage = min(100, int((consumed_days / available_days) * 100)) if available_days > 0 else 0
+        consumed_days_with_request = consumed_days + request_days
+
+        response_data.update({
+            'suggested_multiplier': float(suggested_multiplier),
+            'consumed_days': float(consumed_days),
+            'available_days': available_days,
+            'remaining_days': float(remaining_days),
+            'request_days': request_days,
+            'exceeds_limit': exceeds_limit,
+            'remaining_days_after': float(remaining_days_after),
+            'consumed_percentage': consumed_percentage,
+            'consumed_days_with_request': consumed_days_with_request,
+        })
+
+    return JsonResponse(response_data)
+
+
+
 @login_required_with_delegation_support
 @require_POST
 def api_leave_review(request, leave_id):
@@ -380,13 +445,24 @@ def api_leave_review(request, leave_id):
     #todo: Validar estado de la solicitud antes de aprobar/rechazar (ej: no solapamientos aprobados, etc)
 
     if action == 'approve':
-
         new_status  = LeaveRequest.LeaveStatus.APPROVED
         action_type = AuditLog.AuditAction.UPDATE
-        
+
+        # Procesar hour_multiplier para vacaciones
+        hour_multiplier = 1.0
+        if leave.leave_type == 'vacation':
+            hour_multiplier = data.get('hour_multiplier', 1.0)
+            try:
+                hour_multiplier = float(hour_multiplier)
+                if not (0.1 <= hour_multiplier <= 2.0):
+                    return JsonResponse({'error': 'Multiplicador fuera de rango (0.1 a 2.0)'}, status=400)
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'Multiplicador inválido'}, status=400)
+
     elif action == 'reject':
         new_status  = LeaveRequest.LeaveStatus.REJECTED
         action_type = AuditLog.AuditAction.VOIDED
+        hour_multiplier = 1.0
     else:
         return JsonResponse({'error': 'Acción no válida. Usa "approve" o "reject"'}, status=400)
 
@@ -394,13 +470,19 @@ def api_leave_review(request, leave_id):
     leave.reviewed_by = request.user
     leave.reviewed_at = timezone.now()
     leave.review_note = note
-    updated = LeaveRequest.objects.filter(pk=leave.pk).update(
-        status      = new_status,
-        reviewed_by = leave.reviewed_by,
-        reviewed_at = leave.reviewed_at,
-        review_note = leave.review_note,
-        force_proof = True,
-    )
+
+    update_fields = {
+        'status': new_status,
+        'reviewed_by': leave.reviewed_by,
+        'reviewed_at': leave.reviewed_at,
+        'review_note': leave.review_note,
+        'force_proof': True,
+    }
+
+    if action == 'approve':
+        update_fields['hour_multiplier'] = hour_multiplier
+
+    updated = LeaveRequest.objects.filter(pk=leave.pk).update(**update_fields)
 
     if not updated:
         return JsonResponse({'error': 'No se pudo actualizar la solicitud.'}, status=500)
@@ -408,7 +490,7 @@ def api_leave_review(request, leave_id):
     leave.refresh_from_db()
     log_leave(leave, request.user, action_type, before=before,
                reason=note or ('Aprobación' if action == 'approve' else 'Rechazo'),
-               source='web') # Añadido
+               source='web')
 
     return JsonResponse({'ok': True, 'new_status': new_status})
  

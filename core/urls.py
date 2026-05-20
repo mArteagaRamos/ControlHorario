@@ -87,6 +87,7 @@ urlpatterns = [
 
     # Leave Requests (manager review)
     path('leave/pending/', requests_views.api_leave_pending, name='leave_pending'),
+    path('leave/<uuid:leave_id>/for-review/', requests_views.api_get_leave_for_review, name='leave_for_review'),
     path('leave/<uuid:leave_id>/review/', requests_views.api_leave_review, name='leave_review'),
     path('leave/resolved/', requests_views.api_leave_resolved, name='api_leave_resolved'),
     path('leave/<uuid:leave_id>/upload/', requests_views.api_leave_upload_attachment, name='api_leave_upload_attachment'),

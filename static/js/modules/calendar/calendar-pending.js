@@ -84,11 +84,22 @@ export async function loadPendingRequests() {
 
 /**
  * Aprueba una solicitud de vacaciones/ausencia
+ * Para vacaciones: carga datos sugeridos y muestra modal
+ * Para ausencias: aprueba directamente
  * @param {string} leaveId - ID de la solicitud
  * @returns {Promise<void>}
  */
 export async function approveLeave(leaveId) {
-  await submitReview(leaveId, 'approve', null);
+  const l = getLeaveData(leaveId);
+  if (!l) return;
+
+  // Si es vacaciones, mostrar modal con multiplicador
+  if (l.leave_type_raw === 'vacation') {
+    await openApproveVacationModal(leaveId);
+  } else {
+    // Para ausencias, aprobar directamente
+    await submitReview(leaveId, 'approve', null);
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -114,6 +125,65 @@ export function openRejectModal(leaveId) {
   bootstrap.Modal.getOrCreateInstance(document.getElementById('rejectModal')).show();
 }
 
+/**
+ * Abre el modal para aprobar una solicitud de vacaciones con multiplicador
+ * @param {string} leaveId - ID de la solicitud
+ * @returns {Promise<void>}
+ */
+export async function openApproveVacationModal(leaveId) {
+  try {
+    // Cargar datos sugeridos desde la API
+    const res = await fetch(`/leave/${leaveId}/for-review/`, {
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!res.ok) {
+      alert('Error al cargar los datos de la solicitud');
+      return;
+    }
+
+    const data = await res.json();
+
+    // Llenar campos del modal
+    document.getElementById('vacApproveUser').textContent = data.user;
+    document.getElementById('vacApproveDates').textContent = `${data.start_date} → ${data.end_date}`;
+    document.getElementById('vacApproveReason').textContent = data.leave_reason_display;
+
+    // Llenar campos de vacaciones
+    document.getElementById('vacApproveMultiplier').value = data.suggested_multiplier || 1.0;
+    document.getElementById('vacApproveRequest').textContent = data.request_days || 0;
+    document.getElementById('vacApproveRemaining').textContent = data.remaining_days_after || 0;
+    document.getElementById('vacApproveLimit').textContent = data.available_days || 23;
+    document.getElementById('vacApproveBarText').textContent = `${data.consumed_days || 0}/${data.available_days || 23} días`;
+    document.getElementById('vacApproveNote').value = '';
+
+    // Actualizar barra de progreso
+    const percentage = Math.min(100, ((data.consumed_days || 0) / (data.available_days || 23)) * 100);
+    const bar = document.getElementById('vacApproveBar');
+    bar.style.width = percentage + '%';
+    bar.classList.remove('bg-success', 'bg-danger');
+    bar.classList.add(data.exceeds_limit ? 'bg-danger' : 'bg-success');
+
+    // Mostrar alerta si excede
+    const alert = document.getElementById('vacApproveAlert');
+    if (data.exceeds_limit) {
+      alert.classList.remove('d-none');
+    } else {
+      alert.classList.add('d-none');
+    }
+
+    // Guardar leaveId en un atributo para usar después
+    document.getElementById('btnConfirmApproveVacation').dataset.leaveId = leaveId;
+
+    // Mostrar modal
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('approveVacationModal')).show();
+
+  } catch (e) {
+    console.error('Error opening approve vacation modal:', e);
+    alert('Error al cargar los datos de la solicitud');
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // 🔄 Procesar Revisión (Aprobar/Rechazar)
 // ════════════════════════════════════════════════════════════════════════════
@@ -123,17 +193,25 @@ export function openRejectModal(leaveId) {
  * @param {string} leaveId - ID de la solicitud
  * @param {string} action - 'approve' o 'reject'
  * @param {string|null} note - Nota opcional para el rechazo
+ * @param {number|null} hourMultiplier - Multiplicador de horas (solo para vacaciones aprobadas)
  * @returns {Promise<void>}
  */
-export async function submitReview(leaveId, action, note) {
+export async function submitReview(leaveId, action, note, hourMultiplier = null) {
   try {
+    const body = { action, note };
+
+    // Agregar multiplicador si es aprobación de vacaciones
+    if (action === 'approve' && hourMultiplier !== null) {
+      body.hour_multiplier = hourMultiplier;
+    }
+
     const res = await fetch(getLeaveBaseUrl() + leaveId + '/review/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRFToken': getCsrfToken()
       },
-      body: JSON.stringify({ action, note }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
 

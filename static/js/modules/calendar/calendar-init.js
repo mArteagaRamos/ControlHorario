@@ -37,6 +37,7 @@ import {
   loadPendingRequests,
   approveLeave,
   openRejectModal,
+  openApproveVacationModal,
   submitReview,
 } from './calendar-pending.js';
 
@@ -76,6 +77,9 @@ export async function initCalendar() {
 
     // 7. Configurar listener de confirmación de rechazo
     setupRejectListener();
+
+    // 7.5. Configurar listener de confirmación de aprobación de vacaciones
+    setupApproveVacationListener();
 
     // 8. Configurar listener de cambio de razón de ausencia
     setupAbsenceReasonListener();
@@ -331,6 +335,32 @@ function setupRejectListener() {
   });
 }
 
+/**
+ * Configura el listener del botón de confirmación de aprobación de vacaciones
+ */
+function setupApproveVacationListener() {
+  const btn = document.getElementById('btnConfirmApproveVacation');
+  if (!btn) return;
+
+  btn.addEventListener('click', async function () {
+    const leaveId = this.dataset.leaveId;
+    if (!leaveId) return;
+
+    const multiplier = parseFloat(document.getElementById('vacApproveMultiplier').value);
+    const note = document.getElementById('vacApproveNote').value.trim() || null;
+
+    // Validar multiplicador
+    if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 2.0) {
+      alert('El multiplicador debe estar entre 0.1 y 2.0');
+      return;
+    }
+
+    // Cerrar modal y enviar revisión
+    bootstrap.Modal.getInstance(document.getElementById('approveVacationModal')).hide();
+    await submitReview(leaveId, 'approve', note, multiplier);
+  });
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // 🪟 Exportar Funciones a Window (para onclick handlers)
 // ════════════════════════════════════════════════════════════════════════════
@@ -357,6 +387,7 @@ function exportFunctionsToWindow() {
   window.loadPendingRequests = loadPendingRequests;
   window.approveLeave = approveLeave;
   window.openRejectModal = openRejectModal;
+  window.openApproveVacationModal = openApproveVacationModal;
   window.submitReview = submitReview;
 
   // Funciones de resolved requests

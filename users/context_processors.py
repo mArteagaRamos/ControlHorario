@@ -11,6 +11,7 @@ BREADCRUMB_EXCLUDE = {
     'api_leave_resolved',
     'calendar_events',
     'aeptic_report_data',
+    'select_delegated_worker',
 }
 
 # Labels for URL names - maps route names to display labels
@@ -32,7 +33,7 @@ BREADCRUMB_LABELS = {
     'aeptic_history': 'Histórico de Reportes',
 }
 
-AEPTIC_TAX_ID = 'ESA12345678'  # Ajusta al tax_id real de AEPTIC en tu BD
+AEPTIC_TAX_ID = 'B90143645'
 
 
 def get_breadcrumbs(request):
