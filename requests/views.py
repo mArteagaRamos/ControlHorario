@@ -815,9 +815,11 @@ def api_leave_request_create(request):
 
     start_date   = data.get('start_date')
     end_date     = data.get('end_date')
-    leave_type   = data.get('leave_type', 'other')
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
+
+    # Deducir leave_type automáticamente del leave_reason
+    leave_type = LeaveRequest.LeaveType.VACATION if leave_reason == LeaveRequest.LeaveReason.ANNUAL else LeaveRequest.LeaveType.ABSENCE
 
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
@@ -1021,7 +1023,9 @@ def api_leave_request_edit(request, leave_id):
     leave.reason_note = reason_note
     leave.start_time = start_time
     leave.end_time = end_time
-    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'start_time', 'end_time', 'updated_at'])
+    # Deducir leave_type automáticamente del leave_reason
+    leave.leave_type = LeaveRequest.LeaveType.VACATION if leave_reason == LeaveRequest.LeaveReason.ANNUAL else LeaveRequest.LeaveType.ABSENCE
+    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'start_time', 'end_time', 'leave_type', 'updated_at'])
 
     log_leave(leave, request.user, AuditLog.AuditAction.UPDATE,
               before=before,
