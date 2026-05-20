@@ -83,6 +83,35 @@ def _create_audit_log(user, table_name, record_id, action_type, reason, before=N
         return None
 
 
+def _get_effective_user_for_aeptic(request, company):
+    """
+    Obtiene el usuario efectivo para operaciones de Aeptic.
+    Si admin está delegando en usuario de Aeptic: retorna el delegado
+    Si admin está delegando en usuario NO-Aeptic: retorna el admin
+    Si no hay delegación: retorna el usuario en sesión
+    """
+    effective_user = request.user
+
+    delegation_context = get_effective_context(request)
+
+    if delegation_context.get('is_delegating'):
+        delegated_user = Users.objects.filter(
+            id=delegation_context['delegated_user_id']
+        ).first()
+
+        if delegated_user:
+            delegated_membership = UserCompany.objects.filter(
+                user=delegated_user,
+                company=company,
+                deleted_at__isnull=True
+            ).first()
+
+            if delegated_membership:
+                effective_user = delegated_user
+
+    return effective_user
+
+
 # --- Vista: Obtener datos del mes en JSON (para preview) ---
 
 class MonthlyReportDataView(LoginRequiredMixin, View):
@@ -139,8 +168,9 @@ class MonthlyReportDataView(LoginRequiredMixin, View):
                 }, status=404)
 
             # 6. Generar datos del mes usando ExcelReportGenerator
+            effective_user = _get_effective_user_for_aeptic(request, company)
             generator = ExcelReportGenerator(
-                request.user,
+                effective_user,
                 company,
                 report_date
             )
@@ -229,8 +259,9 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
                 }, status=404)
 
             # 6. Obtener o crear MonthlyReport con status=draft
+            effective_user = _get_effective_user_for_aeptic(request, company)
             monthly_report, created = MonthlyReport.objects.get_or_create(
-                user=request.user,
+                user=effective_user,
                 company=company,
                 report_date=report_date,
                 defaults={'status': MonthlyReport.ReportStatus.DRAFT}
@@ -239,7 +270,7 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
             # 7. Generar archivo
             if format_type == 'xlsx':
                 generator = ExcelReportGenerator(
-                    request.user,
+                    effective_user,
                     company,
                     report_date
                 )
@@ -247,7 +278,7 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
                 content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 file_ext = 'xlsx'
             elif format_type == 'pdf':
-                generator = PDFReportGenerator(request.user, company, report_date)
+                generator = PDFReportGenerator(effective_user, company, report_date)
                 file_content = generator.generate()
                 content_type = 'application/pdf'
                 file_ext = 'pdf'
@@ -280,7 +311,7 @@ class MonthlyReportDownloadView(LoginRequiredMixin, View):
                 content_type=content_type
             )
 
-            filename = f"report_{request.user.email}_{report_date.strftime('%Y-%m-%d')}.{file_ext}"
+            filename = f"report_{effective_user.email}_{report_date.strftime('%Y-%m-%d')}.{file_ext}"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
             return response
@@ -378,12 +409,13 @@ class MonthlyReportUploadView(LoginRequiredMixin, View):
                 }, status=404)
 
             # 8. Crear carpeta si no existe
+            effective_user = _get_effective_user_for_aeptic(request, company)
             media_root = Path(settings.MEDIA_ROOT)
-            report_dir = media_root / 'monthly_reports' / str(request.user.id) / str(company.id)
+            report_dir = media_root / 'monthly_reports' / str(effective_user.id) / str(company.id)
             report_dir.mkdir(parents=True, exist_ok=True)
 
             # 9. Guardar archivo
-            filename = f"{request.user.email}_{report_date.strftime('%Y-%m-%d')}.{file_ext}"
+            filename = f"{effective_user.email}_{report_date.strftime('%Y-%m-%d')}.{file_ext}"
             file_path = report_dir / filename
 
             with open(file_path, 'wb') as f:
@@ -393,14 +425,14 @@ class MonthlyReportUploadView(LoginRequiredMixin, View):
             # Ruta relativa para BD
             relative_path = os.path.join(
                 'monthly_reports',
-                str(request.user.id),
+                str(effective_user.id),
                 str(company.id),
                 filename
             )
 
             # 10. Obtener o crear MonthlyReport
             monthly_report, created = MonthlyReport.objects.get_or_create(
-                user=request.user,
+                user=effective_user,
                 company=company,
                 report_date=report_date,
                 defaults={'status': MonthlyReport.ReportStatus.DRAFT}
@@ -602,15 +634,27 @@ class AepticSummaryView(LoginRequiredMixin, View):
             _check_aeptic_selected(request, company)
 
             # ── 2. Contexto de Delegación (Admin / User) ──
-            # Reutilizamos la lógica del FBV antiguo para determinar a quién miramos
             delegation_context = get_effective_context(request)
-            
+
+            target_user = request.user  # Por defecto, el admin/usuario en sesión
+
+            # Si está delegando, validar si el delegado pertenece a Aeptic
             if delegation_context.get('is_delegating'):
-                target_user = Users.objects.filter(id=delegation_context['delegated_user_id']).first()
-                # Si está delegando, puede que esté viendo otra empresa. Si no, usamos la devuelta arriba.
-                company = Companies.objects.filter(id=delegation_context['delegated_company_id']).first() or company
-            else:
-                target_user = request.user
+                delegated_user = Users.objects.filter(
+                    id=delegation_context['delegated_user_id']
+                ).first()
+
+                if delegated_user:
+                    # Verificar si el delegado pertenece a Aeptic
+                    delegated_membership = UserCompany.objects.filter(
+                        user=delegated_user,
+                        company=company,
+                        deleted_at__isnull=True
+                    ).first()
+
+                    # Si pertenece a Aeptic, usarlo. Si no, mantener el admin
+                    if delegated_membership:
+                        target_user = delegated_user
 
             if not target_user:
                 messages.error(request, 'Usuario no encontrado.')
