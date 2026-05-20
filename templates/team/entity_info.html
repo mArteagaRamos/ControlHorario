@@ -119,6 +119,15 @@
             </div>
           </div>
 
+          <div class="col-6 col-md-3">
+            <label class="form-label text-muted small mb-1">Días vacaciones anuales</label>
+            <div class="view-mode">{{ settings.default_vacation_days }} días</div>
+            <div class="edit-mode d-none">
+              <input class="form-control form-control-sm" type="number" name="default_vacation_days"
+                value="{{ settings.default_vacation_days }}" min="1" max="365">
+            </div>
+          </div>
+
           <div class="col-12">
             <label class="form-label text-muted small mb-1">Días de descanso</label>
             <div class="view-mode">
@@ -167,6 +176,67 @@
     </div>
     {% endif %}
 
+    {# ── Card: Periodos vacacionales especiales ── #}
+    {% if user_role == 'manager' or user_role == 'admin' %}
+    <div class="card mb-3">
+      <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-event"></i> Periodos vacacionales especiales</span>
+        <button type="button" class="btn btn-sm btn-success" onclick="openAddPeriodModal()" data-bs-toggle="modal" data-bs-target="#addPeriodModal">
+          <i class="bi bi-plus-circle"></i> Agregar período
+        </button>
+      </div>
+      <div class="card-body">
+        <div id="vacation-periods-container">
+          <div class="text-center text-muted py-3">
+            <small>Cargando periodos...</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Modal: Agregar/Editar Periodo ── #}
+    <div class="modal fade" id="addPeriodModal" tabindex="-1" aria-labelledby="periodModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="periodModalLabel">Agregar período vacacional</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Nombre del período</label>
+              <input type="text" class="form-control form-control-sm" id="period_name" placeholder="ej: Semana Santa" maxlength="100">
+            </div>
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Fecha inicio</label>
+                <input type="date" class="form-control form-control-sm" id="period_date_from">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Fecha fin</label>
+                <input type="date" class="form-control form-control-sm" id="period_date_to">
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Multiplicador de horas</label>
+              <div class="input-group input-group-sm">
+                <input type="number" class="form-control" id="period_multiplier" 
+                  min="0.1" max="2.0" step="0.1" value="1.0" required>
+                <span class="input-group-text">×</span>
+              </div>
+              <small class="form-text text-muted">Rango permitido: 0.1 a 2.0 (ejemplo: 0.8 = 80% de jornada)</small>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-sm btn-primary" id="savePeriodBtn">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+
     {# ── Save bar ── #}
     {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
@@ -175,6 +245,17 @@
     </div>
 
     </form>
+    <script>
+      // ========== Configuration for Vacation Periods ==========
+      window.vacationPeriodsUrls = {
+        list: "{% url 'list_vacation_periods' %}",
+        create: "{% url 'create_vacation_period' %}",
+        edit: "{% url 'edit_vacation_period' %}",
+        delete: "{% url 'delete_vacation_period' %}",
+        csrf_token: "{{ csrf_token }}"
+      };
+    </script>
+    <script src="{% static 'js/modules/team/vacation_periods.js' %}"></script>
     <script>
       let editing = false;
       function toggleEdit() {

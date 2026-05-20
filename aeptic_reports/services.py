@@ -104,7 +104,11 @@ def get_pause_hours_for_day(user_id, company_id, date):
 
 
 def get_vacation_hours_for_day(user_id, company_id, date):
-    """Obtener horas de vacaciones para un día específico"""
+    """Obtener horas de vacaciones para un día específico
+    
+    Utiliza el multiplicador de horas (hour_multiplier) si está disponible
+    para periodos vacacionales especiales.
+    """
     try:
         leave_request = LeaveRequest.objects.filter(
             user_id=user_id,
@@ -116,8 +120,16 @@ def get_vacation_hours_for_day(user_id, company_id, date):
         ).first()
 
         if leave_request:
-            # Retornar jornada laboral completa (default 8h)
-            return get_work_hours_per_day(company_id)
+            # Obtener jornada laboral diaria
+            daily_hours = get_work_hours_per_day(company_id)
+            
+            # Aplicar multiplicador (default 1.0)
+            multiplier = leave_request.hour_multiplier or 1.0
+            
+            # Calcular horas finales
+            vacation_hours = daily_hours * multiplier
+            
+            return round(vacation_hours, 2)
 
         return 0.0
 
