@@ -129,6 +129,8 @@ class LeaveRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
 
+    objects = SoftDeleteManager()
+
     class Meta:
         managed = False
         db_table = 'leave_requests'
