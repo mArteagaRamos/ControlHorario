@@ -509,7 +509,7 @@ def delete_vacation_period(request):
 
 ---
 
-## BLOQUE 5: URLs (core/urls.py)
+## BLOQUE 5: URLs (core/urls.py) ✅ COMPLETADO
 
 ### Archivo a modificar:
 - `core/urls.py`
