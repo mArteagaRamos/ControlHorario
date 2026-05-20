@@ -26,10 +26,10 @@ def send_new_user_email(user, password, company):
     """Send welcome email to newly created user with temporary password."""
     try:
         context = {
-            'username': user.username.title,
+            'username': user.username.title(),
             'email': user.email.lower(),
             'password': password,
-            'company_name': company.name.title,
+            'company_name': company.name.title(),
             'login_url': _get_login_url(),
             'current_year': datetime.now().year,
             'styles': _get_email_styles(),
@@ -38,7 +38,7 @@ def send_new_user_email(user, password, company):
         html_message = render_to_string('emails/new_user_email.html', context)
         text_message = strip_tags(html_message)
 
-        subject = f'Bienvenido a {company.name.title} - Credenciales de acceso'
+        subject = f'Bienvenido a {company.name.title()} - Credenciales de acceso'
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_message,
@@ -60,7 +60,7 @@ def send_new_auditor_email(user, password):
     """Send welcome email to newly created auditor with temporary password."""
     try:
         context = {
-            'username': user.username.title,
+            'username': user.username.title(),
             'email': user.email.lower(),
             'password': password,
             'login_url': _get_login_url(),
@@ -108,7 +108,7 @@ def send_existing_user_email(user, company, role):
         html_message = render_to_string('emails/existing_user_email.html', context)
         text_message = strip_tags(html_message)
 
-        subject = f'Se te ha añadido acceso a {company.name.title}'
+        subject = f'Se te ha añadido acceso a {company.name.title()}'
         email = EmailMultiAlternatives(
             subject=subject,
             body=text_message,

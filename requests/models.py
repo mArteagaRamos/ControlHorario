@@ -47,7 +47,7 @@ class VacationPeriodMultiplier(UppercaseNormalizationMixin, models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        db_column='created_by_id',
+        db_column='created_by',
         related_name='vacation_multipliers_created'
     )
     created_at = models.DateTimeField(default=timezone.now)
