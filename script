@@ -285,6 +285,7 @@ CREATE TABLE vacation_period_multipliers (
     created_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMPTZ  NULL,
+    weekdays TEXT NULL DEFAULT NULL,
     CONSTRAINT valid_multiplier CHECK (multiplier > 0 AND multiplier <= 2.0),
     CONSTRAINT valid_dates      CHECK (date_from <= date_to)
 );

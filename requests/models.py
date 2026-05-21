@@ -35,11 +35,30 @@ class CorrectionRequests(UppercaseNormalizationMixin, models.Model):
 
 
 class VacationPeriodMultiplier(UppercaseNormalizationMixin, models.Model):
+    WEEKDAY_CHOICES = [
+        ('monday', 'Lunes'),
+        ('tuesday', 'Martes'),
+        ('wednesday', 'Miércoles'),
+        ('thursday', 'Jueves'),
+        ('friday', 'Viernes'),
+        ('saturday', 'Sábado'),
+        ('sunday', 'Domingo'),
+    ]
+    WEEKDAY_MAP = {
+        0: 'monday',
+        1: 'tuesday',
+        2: 'wednesday',
+        3: 'thursday',
+        4: 'friday',
+        5: 'saturday',
+        6: 'sunday',
+    }
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     company = models.ForeignKey(Companies, on_delete=models.CASCADE, db_column='company_id')
     name = models.CharField(max_length=100)
-    date_from = models.DateField()
-    date_to = models.DateField()
+    date_from = models.DateField(null=True, blank=True)
+    date_to = models.DateField(null=True, blank=True)
     multiplier = models.DecimalField(max_digits=4, decimal_places=2, default=1.0)
 
     created_by = models.ForeignKey(
@@ -53,7 +72,8 @@ class VacationPeriodMultiplier(UppercaseNormalizationMixin, models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
     deleted_at = models.DateTimeField(null=True, blank=True, default=None)
-
+    weekdays = models.TextField(null=True, blank=True)
+    
     objects = SoftDeleteManager()
 
     class Meta:
@@ -61,20 +81,56 @@ class VacationPeriodMultiplier(UppercaseNormalizationMixin, models.Model):
         db_table = 'vacation_period_multipliers'
 
     def __str__(self):
+        if self.weekdays:
+            return f"{self.name} (días específicos) x{self.multiplier}"
         return f"{self.name} ({self.date_from} - {self.date_to}) x{self.multiplier}"
+
+    def get_weekdays_list(self):
+        if not self.weekdays:
+            return []
+        try:
+            import json
+            return json.loads(self.weekdays)
+        except:
+            return []
+
+    def set_weekdays_list(self, weekdays_list):
+        import json
+        self.weekdays = json.dumps(weekdays_list) if weekdays_list else None
 
     @staticmethod
     def get_multiplier_for_range(company_id, start_date, end_date):
-        period = VacationPeriodMultiplier.objects.filter(
-            company_id=company_id,
-            date_from__lte=end_date,
-            date_to__gte=start_date,
-            deleted_at__isnull=True
-        ).first()
+        import json
+        from datetime import timedelta
 
-        if period:
-            return float(period.multiplier)
-        return 1.0
+        periods = VacationPeriodMultiplier.objects.filter(
+            company_id=company_id,
+            deleted_at__isnull=True
+        )
+
+        max_multiplier = 1.0
+
+        for period in periods:
+            # Verificar si coincide con rango de fechas
+            if period.date_from and period.date_to:
+                if period.date_from <= end_date and period.date_to >= start_date:
+                    max_multiplier = max(max_multiplier, float(period.multiplier))
+
+            # Verificar si coincide con días de la semana
+            if period.weekdays:
+                try:
+                    weekdays_list = json.loads(period.weekdays)
+                    current_date = start_date
+                    while current_date <= end_date:
+                        day_name = VacationPeriodMultiplier.WEEKDAY_MAP[current_date.weekday()]
+                        if day_name in weekdays_list:
+                            max_multiplier = max(max_multiplier, float(period.multiplier))
+                            break
+                        current_date += timedelta(days=1)
+                except:
+                    pass
+
+        return max_multiplier
 
 
 class LeaveRequest(models.Model):

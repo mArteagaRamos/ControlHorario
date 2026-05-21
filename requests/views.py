@@ -1164,15 +1164,16 @@ def list_vacation_periods(request):
     periods = VacationPeriodMultiplier.objects.filter(
         company=company,
         deleted_at__isnull=True
-    ).order_by('date_from')
+    ).order_by('date_from', 'name')
 
     return JsonResponse({
         'periods': [
             {
                 'id': str(p.id),
                 'name': p.name,
-                'date_from': p.date_from.isoformat(),
-                'date_to': p.date_to.isoformat(),
+                'date_from': p.date_from.isoformat() if p.date_from else None,
+                'date_to': p.date_to.isoformat() if p.date_to else None,
+                'weekdays': p.get_weekdays_list(),
                 'multiplier': float(p.multiplier),
                 'created_by': p.created_by.username if p.created_by else 'Sistema',
                 'created_at': p.created_at.isoformat(),
@@ -1196,34 +1197,51 @@ def create_vacation_period(request):
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
 
-    required = ['name', 'date_from', 'date_to', 'multiplier']
-    if not all(data.get(f) for f in required):
-        return JsonResponse({'error': 'Campos requeridos incompletos'}, status=400)
-
     try:
-        name = data.get('name').strip()
-        date_from = datetime.strptime(data.get('date_from'), '%Y-%m-%d').date()
-        date_to = datetime.strptime(data.get('date_to'), '%Y-%m-%d').date()
-        multiplier = float(data.get('multiplier'))
+        name = data.get('name', '').strip()
+        multiplier = float(data.get('multiplier', 1.0))
+        weekdays = data.get('weekdays', [])
+        date_from = data.get('date_from')
+        date_to = data.get('date_to')
 
         # Validaciones
+        if not name:
+            return JsonResponse({'error': 'Nombre del período requerido'}, status=400)
         if not (0.1 <= multiplier <= 1.0):
             return JsonResponse({'error': 'Unidad de Vacación debe estar entre 0.1 y 1.0'}, status=400)
-        if date_from > date_to:
-            return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
         if len(name) > 100:
             return JsonResponse({'error': 'Nombre muy largo'}, status=400)
+
+        # Al menos debe haber fechas o días de la semana
+        has_dates = date_from and date_to
+        has_weekdays = weekdays and len(weekdays) > 0
+
+        if not has_dates and not has_weekdays:
+            return JsonResponse({'error': 'Debes configurar un rango de fechas o seleccionar días de la semana'}, status=400)
+
+        # Parsear fechas si existen
+        parsed_date_from = None
+        parsed_date_to = None
+        if has_dates:
+            parsed_date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+            parsed_date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+            if parsed_date_from > parsed_date_to:
+                return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
 
         # Crear periodo
         period = VacationPeriodMultiplier.objects.create(
             id=uuid.uuid4(),
             company=company,
             name=name,
-            date_from=date_from,
-            date_to=date_to,
+            date_from=parsed_date_from,
+            date_to=parsed_date_to,
             multiplier=multiplier,
             created_by=request.user,
         )
+
+        if has_weekdays:
+            period.set_weekdays_list(weekdays)
+            period.save()
 
         # Auditoría
         AuditLog.objects.create(
@@ -1267,29 +1285,46 @@ def edit_vacation_period(request):
     )
 
     try:
-        # Guardamos el estado anterior
         before = {
             'name': period.name,
-            'date_from': str(period.date_from),
-            'date_to': str(period.date_to),
+            'date_from': str(period.date_from) if period.date_from else None,
+            'date_to': str(period.date_to) if period.date_to else None,
+            'weekdays': period.get_weekdays_list(),
             'multiplier': float(period.multiplier),
         }
 
         # Actualizar campos si se proporcionan
         if 'name' in data:
             period.name = data['name'].strip()
-        if 'date_from' in data:
+        if 'date_from' in data and data['date_from']:
             period.date_from = datetime.strptime(data['date_from'], '%Y-%m-%d').date()
-        if 'date_to' in data:
+        elif 'date_from' in data:
+            period.date_from = None
+        if 'date_to' in data and data['date_to']:
             period.date_to = datetime.strptime(data['date_to'], '%Y-%m-%d').date()
+        elif 'date_to' in data:
+            period.date_to = None
         if 'multiplier' in data:
             mult = float(data['multiplier'])
             if not (0.1 <= mult <= 1.0):
                 return JsonResponse({'error': 'Unidad de Vacación debe estar entre 0.1 y 1.0'}, status=400)
             period.multiplier = mult
+        if 'weekdays' in data:
+            weekdays = data['weekdays']
+            if weekdays and len(weekdays) > 0:
+                period.set_weekdays_list(weekdays)
+            else:
+                period.weekdays = None
+
+        # Validar que al menos hay fechas o días de la semana
+        has_dates = period.date_from and period.date_to
+        has_weekdays = period.weekdays is not None
+
+        if not has_dates and not has_weekdays:
+            return JsonResponse({'error': 'Debes configurar un rango de fechas o seleccionar días de la semana'}, status=400)
 
         # Validación de fechas
-        if period.date_from > period.date_to:
+        if period.date_from and period.date_to and period.date_from > period.date_to:
             return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
 
         period.updated_at = timezone.now()
@@ -1298,8 +1333,9 @@ def edit_vacation_period(request):
         # Auditoría
         after = {
             'name': period.name,
-            'date_from': str(period.date_from),
-            'date_to': str(period.date_to),
+            'date_from': str(period.date_from) if period.date_from else None,
+            'date_to': str(period.date_to) if period.date_to else None,
+            'weekdays': period.get_weekdays_list(),
             'multiplier': float(period.multiplier),
         }
 

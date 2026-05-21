@@ -198,7 +198,7 @@
     {# ── Modal: Agregar/Editar Periodo ── #}
     {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="modal fade" id="addPeriodModal" tabindex="-1" aria-labelledby="periodModalLabel" aria-hidden="true">
-      <div class="modal-dialog">
+      <div class="modal-dialog modal-lg">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="periodModalLabel">Agregar período vacacional</h5>
@@ -209,20 +209,71 @@
               <label class="form-label">Nombre del período</label>
               <input type="text" class="form-control form-control-sm" id="period_name" placeholder="ej: Semana Santa" maxlength="100">
             </div>
-            <div class="row mb-3">
-              <div class="col-md-6">
-                <label class="form-label">Fecha inicio</label>
-                <input type="date" class="form-control form-control-sm" id="period_date_from">
+
+            {# Tabs: Configuración por fechas vs días de la semana #}
+            <ul class="nav nav-tabs mb-3 flex-nowrap overflow-x-auto pb-1" id="periodTabs" role="tablist" style="--bs-nav-link-color: #6c757d; --bs-nav-link-hover-color: #ffffff; --bs-nav-tabs-link-active-color: #495057;">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active text-nowrap" id="date-range-tab" data-bs-toggle="tab" data-bs-target="#date-range-pane" type="button" role="tab" aria-controls="date-range-pane" aria-selected="true">
+                  <i class="bi bi-calendar-range"></i> Rango de fechas
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link text-nowrap" id="weekdays-tab" data-bs-toggle="tab" data-bs-target="#weekdays-pane" type="button" role="tab" aria-controls="weekdays-pane" aria-selected="false">
+                  <i class="bi bi-repeat"></i> Días específicos
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content" id="periodTabContent">
+              {# Tab 1: Rango de fechas #}
+              <div class="tab-pane fade show active" id="date-range-pane" role="tabpanel" aria-labelledby="date-range-tab">
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Fecha inicio</label>
+                    <input type="date" class="form-control form-control-sm" id="period_date_from">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Fecha fin</label>
+                    <input type="date" class="form-control form-control-sm" id="period_date_to">
+                  </div>
+                </div>
               </div>
-              <div class="col-md-6">
-                <label class="form-label">Fecha fin</label>
-                <input type="date" class="form-control form-control-sm" id="period_date_to">
+
+              {# Tab 2: Días específicos #}
+              <div class="tab-pane fade" id="weekdays-pane" role="tabpanel" aria-labelledby="weekdays-tab">
+                <div class="mb-3">
+                  <label class="form-label">Selecciona los días de la semana</label>
+                  <div class="d-flex gap-3 justify-content-start">
+                    <div class="form-check">
+                      <input class="form-check-input weekday-checkbox" type="checkbox" id="weekday_monday" value="monday">
+                      <label class="form-check-label" for="weekday_monday">Lunes</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input weekday-checkbox" type="checkbox" id="weekday_tuesday" value="tuesday">
+                      <label class="form-check-label" for="weekday_tuesday">Martes</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input weekday-checkbox" type="checkbox" id="weekday_wednesday" value="wednesday">
+                      <label class="form-check-label" for="weekday_wednesday">Miércoles</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input weekday-checkbox" type="checkbox" id="weekday_thursday" value="thursday">
+                      <label class="form-check-label" for="weekday_thursday">Jueves</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input weekday-checkbox" type="checkbox" id="weekday_friday" value="friday">
+                      <label class="form-check-label" for="weekday_friday">Viernes</label>
+                    </div>
+                  </div>
+                  <small class="form-text text-muted d-block mt-2">Se aplicará a todos los días seleccionados</small>
+                </div>
               </div>
             </div>
+
             <div class="mb-3">
               <label class="form-label">Unidad de Vacación</label>
               <div class="input-group input-group-sm">
-                <input type="number" class="form-control" id="period_multiplier" 
+                <input type="number" class="form-control" id="period_multiplier"
                   min="0.1" max="1.0" step="0.1" value="1.0" required>
                 <span class="input-group-text">×</span>
               </div>
@@ -230,8 +281,8 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-sm btn-dark" id="savePeriodBtn">Guardar</button>
+            <button type="button" class="std-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="std-btn" id="savePeriodBtn">Guardar</button>
           </div>
         </div>
       </div>
@@ -241,8 +292,8 @@
     {# ── Save bar ── #}
     {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
-      <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
-      <button type="submit" class="btn btn-sm btn-dark">Guardar cambios</button>
+      <button type="button" class="std-btn-secondary" onclick="toggleEdit()">Cancelar</button>
+      <button type="submit" class="std-btn">Guardar cambios</button>
     </div>
 
     </form>
@@ -254,7 +305,13 @@
         document.querySelectorAll('.edit-mode').forEach(el => el.classList.toggle('d-none', !editing));
         const btn = document.getElementById('editToggleBtn');
         btn.textContent = editing ? 'Cancelar' : 'Editar';
-        btn.className = editing ? 'btn btn-sm btn-secondary' : 'btn btn-sm btn-dark';
+        if (editing) {
+          btn.style.setProperty('--bs-nav-link-color', '#6c757d');
+          btn.style.setProperty('--bs-nav-link-hover-color', '#dc3545');
+        } else {
+          btn.style.setProperty('--bs-nav-link-color', '#6c757d');
+          btn.style.setProperty('--bs-nav-link-hover-color', '#ffffff');
+        }
       }
     </script>
     {% endif %}
