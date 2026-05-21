@@ -359,7 +359,7 @@ def api_leave_pending(request):
 @login_required_with_delegation_support
 def api_get_leave_for_review(request, leave_id):
     """Obtiene detalles de una solicitud para el modal de aprobación,
-    incluyendo sugerencias de multiplicador para vacaciones."""
+    incluyendo sugerencias de unidad de vacación para vacaciones."""
     company = get_company(request)
     leave = get_object_or_404(LeaveRequest, id=leave_id, company=company, status=LeaveRequest.LeaveStatus.PENDING)
 
@@ -377,7 +377,7 @@ def api_get_leave_for_review(request, leave_id):
 
     # Si es vacaciones, agregar datos sugeridos
     if leave.leave_type == 'vacation':
-        # 1. Obtener multiplicador sugerido
+        # 1. Obtener unidad de vacación sugerida
         suggested_multiplier = VacationPeriodMultiplier.get_multiplier_for_range(
             company_id=leave.company.id,
             start_date=leave.start_date,
@@ -455,10 +455,10 @@ def api_leave_review(request, leave_id):
             hour_multiplier = data.get('hour_multiplier', 1.0)
             try:
                 hour_multiplier = float(hour_multiplier)
-                if not (0.1 <= hour_multiplier <= 2.0):
-                    return JsonResponse({'error': 'Multiplicador fuera de rango (0.1 a 2.0)'}, status=400)
+                if not (0.1 <= hour_multiplier <= 1.0):
+                    return JsonResponse({'error': 'Unidad de Vacación fuera de rango (0.1 a 1.0)'}, status=400)
             except (ValueError, TypeError):
-                return JsonResponse({'error': 'Multiplicador inválido'}, status=400)
+                return JsonResponse({'error': 'Unidad de Vacación inválida'}, status=400)
 
     elif action == 'reject':
         new_status  = LeaveRequest.LeaveStatus.REJECTED
@@ -1188,7 +1188,7 @@ def list_vacation_periods(request):
 @login_required_with_delegation_support
 @require_POST
 def create_vacation_period(request):
-    """Crea un nuevo periodo de multiplicador."""
+    """Crea un nuevo periodo de unidad de vacación."""
     company = get_company(request)
 
     if not is_manager(request, company):
@@ -1210,8 +1210,8 @@ def create_vacation_period(request):
         multiplier = float(data.get('multiplier'))
 
         # Validaciones
-        if not (0.1 <= multiplier <= 2.0):
-            return JsonResponse({'error': 'Multiplicador debe estar entre 0.1 y 2.0'}, status=400)
+        if not (0.1 <= multiplier <= 1.0):
+            return JsonResponse({'error': 'Unidad de Vacación debe estar entre 0.1 y 1.0'}, status=400)
         if date_from > date_to:
             return JsonResponse({'error': 'Fecha inicio debe ser anterior a fecha fin'}, status=400)
         if len(name) > 100:
@@ -1287,8 +1287,8 @@ def edit_vacation_period(request):
             period.date_to = datetime.strptime(data['date_to'], '%Y-%m-%d').date()
         if 'multiplier' in data:
             mult = float(data['multiplier'])
-            if not (0.1 <= mult <= 2.0):
-                return JsonResponse({'error': 'Multiplicador debe estar entre 0.1 y 2.0'}, status=400)
+            if not (0.1 <= mult <= 1.0):
+                return JsonResponse({'error': 'Unidad de Vacación debe estar entre 0.1 y 1.0'}, status=400)
             period.multiplier = mult
 
         # Validación de fechas

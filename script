@@ -1,175 +1,26 @@
+
+  -- =============================================================================
+-- SCHEMA CONSOLIDADO: control_horario
+-- =============================================================================
+
+-- Extensiones
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
-
-CREATE TYPE company_role AS ENUM ('manager', 'employee'); 
-CREATE TYPE user_status AS ENUM ('active', 'inactive', 'suspended');
-CREATE TYPE entry_status AS ENUM ('ongoing', 'confirmed', 'auto_closed', 'corrected', 'voided');
-CREATE TYPE event_type AS ENUM ('clock_in', 'clock_out', 'pause_start', 'pause_end', 'manual_adjust', 'reopen', 'auto_close');
-CREATE TYPE correction_status AS ENUM ('pending', 'approved', 'rejected');
-CREATE TYPE audit_action AS ENUM ('create', 'update', 'voided', 'manual_correction');
-
-
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    username VARCHAR(50) NOT NULL,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    surname VARCHAR(100) NOT NULL,
-    is_admin BOOLEAN DEFAULT FALSE,
-    status user_status DEFAULT 'active',
-    date_joined TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    password_hash VARCHAR(255) NOT NULL
-);
-
-CREATE TABLE companies (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) NOT NULL,
-    legal_name VARCHAR(200) not null,
-    tax_id VARCHAR(20) UNIQUE,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE user_company_membership (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    role company_role DEFAULT 'employee', 
-    joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, company_id)
-);
-
-CREATE TABLE company_settings (
-    id SERIAL PRIMARY KEY,
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    work_start TIME DEFAULT '08:00:00',
-    work_end TIME DEFAULT '15:00:00',
-    max_tolerance INTERVAL DEFAULT '15 minutes',
-    auto_close_hours INTEGER DEFAULT 12,
-    weekend_days INTEGER[] DEFAULT ARRAY[6, 0],
-    holidays DATE[],
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE time_entries (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    date DATE NOT NULL DEFAULT CURRENT_DATE,
-    clock_in TIMESTAMPTZ NOT NULL,
-    clock_out TIMESTAMPTZ,
-    status entry_status DEFAULT 'ongoing',
-    notes TEXT
-);
-
-CREATE TABLE time_entry_event (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    time_entry_id UUID REFERENCES time_entries(id) ON DELETE CASCADE,
-    event_type event_type NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    actor_id UUID REFERENCES users(id),
-    note TEXT
-);
-
-CREATE TABLE correction_requests (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    time_entry_id UUID REFERENCES time_entries(id) ON DELETE CASCADE,
-    requester_id UUID REFERENCES users(id),
-    request_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    reason TEXT NOT NULL,
-    new_clock_in TIMESTAMPTZ,
-    new_clock_out TIMESTAMPTZ,
-    status correction_status DEFAULT 'pending',
-    approver_id UUID REFERENCES users(id),
-    approval_date TIMESTAMPTZ,
-    correction_note TEXT
-);
-
-CREATE TABLE audit_log (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    table_name VARCHAR(50) NOT NULL,
-    record_id UUID NOT NULL,
-    actor_id UUID REFERENCES users(id),
-    action_type audit_action NOT NULL,
-    before JSONB,
-    after JSONB,
-    reason TEXT,
-    timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX idx_time_entries_company_date ON time_entries(company_id, date);
-CREATE INDEX idx_membership_lookup ON user_company_membership(user_id, company_id);
-
-
--- añadidos despues
-
-ALTER TABLE users
-ADD COLUMN last_login TIMESTAMPTZ DEFAULT now();
- 
-UPDATE users
-SET last_login = now();
- 
-ALTER TABLE time_entries
-ADD COLUMN IF NOT EXISTS total_seconds INTEGER DEFAULT 0;
-
-ALTER TABLE correction_requests 
-ADD COLUMN IF NOT EXISTS new_clock_in TIMESTAMPTZ,
-ADD COLUMN IF NOT EXISTS new_clock_out TIMESTAMPTZ;
-
-ALTER TABLE users
-ADD COLUMN must_change_password BOOLEAN DEFAULT false not null;
-
-ALTER TABLE users
-RENAME COLUMN flag TO must_change_password;
-
-ALTER TABLE audit_log 
-RENAME COLUMN actor_id TO user_id;
-
-ALTER TABLE user_company_membership RENAME TO user_company;
-
--- ADICIÓN POST DEMO
-
-Añadir columna DNI y normalizar nombres de columnas si es necesario
-ALTER TABLE users 
-ADD COLUMN dni VARCHAR(20) UNIQUE;
-
--- Limpieza y Normalización a MAYÚSCULAS
-UPDATE users SET 
-    username = UPPER(TRIM(username)),
-    surname = UPPER(TRIM(surname)),
-    email = UPPER(TRIM(email));
-
--- Forzar que las nuevas entradas sean siempre en mayúsculas (Opcional pero recomendado)
-ALTER TABLE users ADD CONSTRAINT unique_user_dni UNIQUE (dni);
-
-
--- Normalización de datos existentes
-UPDATE companies SET 
-    name = UPPER(TRIM(name)),
-    legal_name = UPPER(TRIM(legal_name)),
-    tax_id = UPPER(TRIM(tax_id));
-
--- Aplicar restricciones de unicidad para evitar duplicados
-ALTER TABLE companies 
-ADD CONSTRAINT unique_company_name UNIQUE (name),
-ADD CONSTRAINT unique_company_legal_name UNIQUE (legal_name);
-
-
--- Activar extensión para búsqueda de texto
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Índices para búsqueda rápida en empresas
-CREATE INDEX idx_companies_search_name ON companies USING gin (name gin_trgm_ops);
-CREATE INDEX idx_companies_search_taxid ON companies USING gin (tax_id gin_trgm_ops);
 
--- Índices para búsqueda rápida en usuarios
-CREATE INDEX idx_users_search_composite ON users USING gin (surname gin_trgm_ops);
-CREATE INDEX idx_users_search_email ON users USING gin (email gin_trgm_ops);
+-- =============================================================================
+-- TIPOS ENUM
+-- =============================================================================
 
-
---CREACIÓN DE TIPOS ENUM 
-CREATE TYPE leave_type AS ENUM ('vacation', 'absence');
-
-CREATE TYPE leave_reason AS ENUM (
+CREATE TYPE company_role      AS ENUM ('manager', 'employee');
+CREATE TYPE user_status       AS ENUM ('active', 'inactive', 'suspended');
+CREATE TYPE entry_status      AS ENUM ('ongoing', 'confirmed', 'auto_closed', 'corrected', 'voided');
+CREATE TYPE event_type        AS ENUM ('clock_in', 'clock_out', 'pause_start', 'pause_end', 'manual_adjust', 'reopen', 'auto_close');
+CREATE TYPE correction_status AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE audit_action      AS ENUM ('create', 'update', 'delete', 'voided', 'manual_correction');
+CREATE TYPE note_type         AS ENUM ('urgent', 'general', 'task', 'other');
+CREATE TYPE leave_type        AS ENUM ('vacation', 'absence');
+CREATE TYPE leave_reason      AS ENUM (
     'annual',               -- Vacaciones anuales
     'sick',                 -- Baja por enfermedad
     'maternity',            -- Maternidad / Paternidad
@@ -180,198 +31,273 @@ CREATE TYPE leave_reason AS ENUM (
     'personal',             -- Asuntos propios
     'other'                 -- Otros
 );
+CREATE TYPE leave_status      AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE report_status     AS ENUM ('draft', 'generated', 'signed', 'archived');
 
--- CREACIÓN DE LA TABLA CON RELACIONES 
-CREATE TABLE leave_requests (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Usa la extensión ya creada [cite: 1, 26]
-    
 
-    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
-    company_id          UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE, 
-    
-    leave_type          leave_type NOT NULL DEFAULT 'absence',
-    leave_reason        leave_reason NOT NULL DEFAULT 'other',
-    reason_note         TEXT,          
-    
-    start_date          DATE NOT NULL,
-    end_date            DATE NOT NULL,
-    
+-- =============================================================================
+-- TABLAS
+-- =============================================================================
 
-    status              leave_status NOT NULL DEFAULT 'pending', 
-    
-
-    attachment_path     VARCHAR(500),  
-    attachment_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    force_proof         BOOLEAN NOT NULL DEFAULT FALSE, 
-    
-
-    reviewed_by         UUID REFERENCES users(id) ON DELETE SET NULL,          
-    reviewed_at         TIMESTAMPTZ,
-    review_note         TEXT,
-    
-    created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-
-    -- Validación de coherencia de fechas [cite: 30]
-    CONSTRAINT chk_dates CHECK (end_date >= start_date)
+-- -----------------------------------------------------------------------------
+-- users
+-- -----------------------------------------------------------------------------
+CREATE TABLE users (
+    id                   UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username             VARCHAR(50)  NOT NULL,
+    email                VARCHAR(100) UNIQUE NOT NULL,
+    surname              VARCHAR(100) NOT NULL,
+    dni                  VARCHAR(20)  UNIQUE,
+    password_hash        VARCHAR(255) NOT NULL,
+    is_admin             BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_auditor           BOOLEAN      NOT NULL DEFAULT FALSE,
+    must_change_password BOOLEAN      NOT NULL DEFAULT FALSE,
+    status               user_status  NOT NULL DEFAULT 'active',
+    last_login           TIMESTAMPTZ  DEFAULT now(),
+    date_joined          TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at           TIMESTAMPTZ  NULL
 );
 
---  RESTRICCIÓN DE JUSTIFICANTES
+-- Índices de búsqueda de texto (trigram)
+CREATE INDEX idx_users_search_surname ON users USING gin (surname gin_trgm_ops);
+CREATE INDEX idx_users_search_email   ON users USING gin (email   gin_trgm_ops);
 
-ALTER TABLE leave_requests
-    ADD CONSTRAINT chk_requires_proof CHECK (
-        (
-            leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
-            AND force_proof = FALSE
-        )
-        OR attachment_path IS NOT NULL
+
+-- -----------------------------------------------------------------------------
+-- companies
+-- -----------------------------------------------------------------------------
+CREATE TABLE companies (
+    id         UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name       VARCHAR(100) NOT NULL,
+    legal_name VARCHAR(200) NOT NULL,
+    tax_id     VARCHAR(20)  UNIQUE,
+    created_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ  NULL,
+    CONSTRAINT unique_company_name       UNIQUE (name),
+    CONSTRAINT unique_company_legal_name UNIQUE (legal_name)
+);
+
+-- Índices de búsqueda de texto (trigram)
+CREATE INDEX idx_companies_search_name  ON companies USING gin (name   gin_trgm_ops);
+CREATE INDEX idx_companies_search_taxid ON companies USING gin (tax_id gin_trgm_ops);
+
+
+-- -----------------------------------------------------------------------------
+-- user_company  (antes: user_company_membership)
+-- -----------------------------------------------------------------------------
+CREATE TABLE user_company (
+    id         UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id    UUID         NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+    company_id UUID         NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    role       company_role NOT NULL DEFAULT 'employee',
+    joined_at  TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ  NULL,
+    UNIQUE (user_id, company_id)
+);
+
+CREATE INDEX idx_membership_lookup ON user_company(user_id, company_id);
+
+
+-- -----------------------------------------------------------------------------
+-- company_settings
+-- -----------------------------------------------------------------------------
+CREATE TABLE company_settings (
+    id                   SERIAL      PRIMARY KEY,
+    company_id           UUID        REFERENCES companies(id) ON DELETE CASCADE,
+    work_start           TIME        DEFAULT '08:00:00',
+    work_end             TIME        DEFAULT '15:00:00',
+    max_tolerance        INTERVAL    DEFAULT '15 minutes',
+    auto_close_hours     INTEGER     DEFAULT 12,
+    weekend_days         INTEGER[]   DEFAULT ARRAY[6, 0],
+    holidays             DATE[],
+    default_vacation_days INTEGER    NOT NULL DEFAULT 23,
+    updated_at           TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at           TIMESTAMPTZ NULL
+);
+
+
+-- -----------------------------------------------------------------------------
+-- time_entries
+-- -----------------------------------------------------------------------------
+CREATE TABLE time_entries (
+    id           UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id      UUID         NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+    company_id   UUID         NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    date         DATE         NOT NULL DEFAULT CURRENT_DATE,
+    clock_in     TIMESTAMPTZ  NOT NULL,
+    clock_out    TIMESTAMPTZ,
+    total_seconds INTEGER     DEFAULT 0,
+    status       entry_status NOT NULL DEFAULT 'ongoing',
+    notes        TEXT,
+    deleted_at   TIMESTAMPTZ  NULL
+);
+
+CREATE INDEX idx_time_entries_company_date ON time_entries(company_id, date);
+
+
+-- -----------------------------------------------------------------------------
+-- time_entry_event
+-- -----------------------------------------------------------------------------
+CREATE TABLE time_entry_event (
+    id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    time_entry_id UUID        NOT NULL REFERENCES time_entries(id) ON DELETE CASCADE,
+    event_type    event_type  NOT NULL,
+    timestamp     TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    actor_id      UUID        REFERENCES users(id),
+    note          TEXT,
+    deleted_at    TIMESTAMPTZ NULL
+);
+
+
+-- -----------------------------------------------------------------------------
+-- correction_requests
+-- -----------------------------------------------------------------------------
+CREATE TABLE correction_requests (
+    id             UUID              PRIMARY KEY DEFAULT uuid_generate_v4(),
+    time_entry_id  UUID              NOT NULL REFERENCES time_entries(id) ON DELETE CASCADE,
+    requester_id   UUID              REFERENCES users(id),
+    request_date   TIMESTAMPTZ       DEFAULT CURRENT_TIMESTAMP,
+    reason         TEXT              NOT NULL,
+    new_clock_in   TIMESTAMPTZ,
+    new_clock_out  TIMESTAMPTZ,
+    status         correction_status NOT NULL DEFAULT 'pending',
+    approver_id    UUID              REFERENCES users(id),
+    approval_date  TIMESTAMPTZ,
+    correction_note TEXT,
+    deleted_at     TIMESTAMPTZ       NULL
+);
+
+
+-- -----------------------------------------------------------------------------
+-- audit_log
+-- -----------------------------------------------------------------------------
+CREATE TABLE audit_log (
+    id             UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    table_name     VARCHAR(50)  NOT NULL,
+    record_id      UUID         NOT NULL,
+    user_id        UUID         REFERENCES users(id),
+    action_type    audit_action NOT NULL,
+    before         JSONB,
+    after          JSONB,
+    reason         TEXT,
+    previous_hash  TEXT,
+    event_hash     TEXT,
+    source         VARCHAR(50)  DEFAULT 'web',
+    timestamp      TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at     TIMESTAMPTZ  NULL
+);
+
+
+-- -----------------------------------------------------------------------------
+-- leave_requests
+-- -----------------------------------------------------------------------------
+CREATE TABLE leave_requests (
+    id                  UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id             UUID         NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+    company_id          UUID         NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    leave_type          leave_type   NOT NULL DEFAULT 'absence',
+    leave_reason        leave_reason NOT NULL DEFAULT 'other',
+    reason_note         TEXT,
+    start_date          DATE         NOT NULL,
+    end_date            DATE         NOT NULL,
+    status              leave_status NOT NULL DEFAULT 'pending',
+    hour_multiplier     DECIMAL(4,2) NOT NULL DEFAULT 1.0,
+    attachment_path     VARCHAR(500),
+    attachment_verified BOOLEAN      NOT NULL DEFAULT FALSE,
+    force_proof         BOOLEAN      NOT NULL DEFAULT FALSE,
+    reviewed_by_id      UUID         REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at         TIMESTAMPTZ,
+    review_note         TEXT,
+    created_at          TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at          TIMESTAMPTZ  NULL,
+    CONSTRAINT chk_dates           CHECK (end_date >= start_date),
+    CONSTRAINT chk_requires_proof  CHECK (
+        attachment_path IS NOT NULL
         OR status = 'pending'
-    );
+        OR force_proof = TRUE
+        OR leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
+    ),
+    CONSTRAINT leave_requests_valid_multiplier CHECK (
+        hour_multiplier > 0 AND hour_multiplier <= 2.0
+    )
+);
 
-
-CREATE INDEX idx_leave_requests_user ON leave_requests(user_id);
+CREATE INDEX idx_leave_requests_user           ON leave_requests(user_id);
 CREATE INDEX idx_leave_requests_company_status ON leave_requests(company_id, status) WHERE status = 'pending';
-CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
+CREATE INDEX idx_leave_requests_dates          ON leave_requests(start_date, end_date);
 
 
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_leave_requests_updated_at ON leave_requests;
-CREATE TRIGGER trg_leave_requests_updated_at
-    BEFORE UPDATE ON leave_requests
-    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-
-
--- ── Tablón de anuncios ────────────────────────────────────────────────────────
-
-CREATE TYPE note_type AS ENUM ('urgent', 'general', 'task', 'other');
-
+-- -----------------------------------------------------------------------------
+-- notes  (tablón de anuncios)
+-- -----------------------------------------------------------------------------
 CREATE TABLE notes (
-    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    company_id  UUID REFERENCES companies(id) ON DELETE CASCADE,
-    author_id   UUID REFERENCES users(id) ON DELETE SET NULL,
-    type        note_type NOT NULL DEFAULT 'general',
-    title       VARCHAR(200) NOT NULL,
-    body        TEXT,
-    tasks       JSONB DEFAULT '[]',
-    pinned      BOOLEAN DEFAULT FALSE,
-    created_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    id         UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    company_id UUID        REFERENCES companies(id) ON DELETE CASCADE,
+    author_id  UUID        REFERENCES users(id)     ON DELETE SET NULL,
+    type       note_type   NOT NULL DEFAULT 'general',
+    title      VARCHAR(200) NOT NULL,
+    body       TEXT,
+    tasks      JSONB       DEFAULT '[]',
+    pinned     BOOLEAN     DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ NULL
 );
 
 CREATE INDEX idx_notes_company ON notes(company_id, created_at DESC);
 
 
--- ── Columna de eliminación lógica ────────────────────────────────────────────────
-
-DO $$
-DECLARE
-    r RECORD;
-BEGIN
-    FOR r IN (
-        SELECT table_name
-        FROM information_schema.tables
-        WHERE table_schema = 'control_horario'
-        AND table_type = 'BASE TABLE'
-    )
-    LOOP
-        EXECUTE format(
-            'ALTER TABLE %I ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;',
-            r.table_name
-        );
-    END LOOP;
-END $$;
-
-
--- ── Auditor column ────────────────────────────────────────────────
-alter table users
-add column is_auditor boolean default false;
-
--- ── Audit action column modification ────────────────────────────────────────────────
-ALTER TYPE audit_action 
-ADD VALUE 'delete' AFTER 'update';
-
--- 1. LIMPIEZA DE POSIBLES CONFLICTOS
-DROP TABLE IF EXISTS leave_requests CASCADE;
-DROP TYPE IF EXISTS leave_reason CASCADE;
-DROP TYPE IF EXISTS leave_type CASCADE;
-
--- 2. CREACIÓN DE TIPOS ENUM (Asegurando compatibilidad con tu esquema)
-CREATE TYPE leave_type AS ENUM ('vacation', 'absence');
-
-CREATE TYPE leave_reason AS ENUM (
-    'annual',               -- Vacaciones anuales
-    'sick',                 -- Baja por enfermedad
-    'maternity',            -- Maternidad / Paternidad
-    'wedding',              -- Matrimonio
-    'bereavement',          -- Fallecimiento familiar
-    'medical_appointment',  -- Cita médica
-    'legal_duty',           -- Deber público/legal
-    'personal',             -- Asuntos propios
-    'other'                 -- Otros
+-- -----------------------------------------------------------------------------
+-- monthly_reports
+-- -----------------------------------------------------------------------------
+CREATE TABLE monthly_reports (
+    id            UUID          PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id       UUID          NOT NULL REFERENCES users(id)     ON DELETE CASCADE,
+    company_id    UUID          NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+    report_date   DATE          NOT NULL,  -- Primer día del mes del informe
+    status        report_status NOT NULL DEFAULT 'draft',
+    generated_at  TIMESTAMPTZ   DEFAULT CURRENT_TIMESTAMP,
+    signed_at     TIMESTAMPTZ,
+    document_path VARCHAR(500),
+    deleted_at    TIMESTAMPTZ   NULL,
+    UNIQUE (user_id, company_id, report_date)
 );
 
--- 3. CREACIÓN DE LA TABLA CON RELACIONES (Foreign Keys)
-CREATE TABLE leave_requests (
-    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Usa la extensión ya creada [cite: 1, 26]
-    
-    -- Relaciones vinculadas a tus tablas actuales [cite: 4, 5]
-    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
-    company_id          UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE, 
-    
-    leave_type          leave_type NOT NULL DEFAULT 'absence',
-    leave_reason        leave_reason NOT NULL DEFAULT 'other',
-    reason_note         TEXT,          
-    
-    start_date          DATE NOT NULL,
-    end_date            DATE NOT NULL,
-    
-    -- Utilizamos el tipo leave_status que ya definiste previamente [cite: 26]
-    status              leave_status NOT NULL DEFAULT 'pending', 
-    
-    -- Campos de justificante y control
-    attachment_path     VARCHAR(500),  
-    attachment_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    force_proof         BOOLEAN NOT NULL DEFAULT FALSE, 
-    
-    -- Relación con el revisor (Manager) [cite: 4, 29]
-    reviewed_by         UUID REFERENCES users(id) ON DELETE SET NULL,          
-    reviewed_at         TIMESTAMPTZ,
-    review_note         TEXT,
-    
-    created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+CREATE INDEX idx_reports_user_date ON monthly_reports(user_id, report_date);
+CREATE INDEX idx_reports_company   ON monthly_reports(company_id);
 
-    -- Validación de coherencia de fechas [cite: 30]
-    CONSTRAINT chk_dates CHECK (end_date >= start_date)
+COMMENT ON TABLE monthly_reports IS 'Almacena la cabecera de los informes mensuales de control incurrido para su firma y exportación.';
+
+
+-- -----------------------------------------------------------------------------
+-- vacation_period_multipliers
+-- -----------------------------------------------------------------------------
+CREATE TABLE vacation_period_multipliers (
+    id         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id UUID         REFERENCES companies(id) ON DELETE CASCADE,
+    name       VARCHAR(100) NOT NULL,
+    date_from  DATE         NOT NULL,
+    date_to    DATE         NOT NULL,
+    multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0,
+    created_by UUID         REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ  DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMPTZ  NULL,
+    CONSTRAINT valid_multiplier CHECK (multiplier > 0 AND multiplier <= 2.0),
+    CONSTRAINT valid_dates      CHECK (date_from <= date_to)
 );
 
--- 4. LÓGICA DE NEGOCIO: RESTRICCIÓN DE JUSTIFICANTES
--- Obliga a subir archivo si el motivo lo requiere o el manager lo fuerza, 
--- pero permite el estado 'pending' sin archivo para que el empleado lo suba luego.
-ALTER TABLE leave_requests
-    ADD CONSTRAINT chk_requires_proof CHECK (
-        (
-            leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
-            AND force_proof = FALSE
-        )
-        OR attachment_path IS NOT NULL
-        OR status = 'pending'
-    );
+CREATE INDEX idx_vpm_company_dates ON vacation_period_multipliers(company_id, date_from, date_to)
+    WHERE deleted_at IS NULL;
 
--- 5. ÍNDICES PARA OPTIMIZACIÓN [cite: 31, 32]
-CREATE INDEX idx_leave_requests_user ON leave_requests(user_id);
-CREATE INDEX idx_leave_requests_company_status ON leave_requests(company_id, status) WHERE status = 'pending';
-CREATE INDEX idx_leave_requests_dates ON leave_requests(start_date, end_date);
 
--- 6. TRIGGER AUTOMÁTICO PARA UPDATED_AT
+-- =============================================================================
+-- FUNCIONES Y TRIGGERS
+-- =============================================================================
+
+-- Función genérica para mantener updated_at actualizado
 CREATE OR REPLACE FUNCTION set_updated_at()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -380,118 +306,8 @@ BEGIN
 END;
 $$;
 
+-- Trigger: leave_requests
 DROP TRIGGER IF EXISTS trg_leave_requests_updated_at ON leave_requests;
 CREATE TRIGGER trg_leave_requests_updated_at
     BEFORE UPDATE ON leave_requests
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
-
-ALTER TABLE leave_requests 
-RENAME COLUMN reviewed_by TO reviewed_by_id;
-
-
-
-SELECT pg_get_constraintdef(oid) 
-FROM pg_constraint 
-WHERE conname = 'chk_requires_proof';
-
-SELECT conname, pg_get_constraintdef(oid, true)
-FROM pg_constraint
-WHERE conrelid = 'leave_requests'::regclass;
-
-
-ALTER TABLE leave_requests DROP CONSTRAINT chk_requires_proof;
-
-ALTER TABLE leave_requests ADD CONSTRAINT chk_requires_proof CHECK (
-    attachment_path IS NOT NULL
-    OR status = 'pending'
-    OR force_proof = true
-    OR leave_reason NOT IN ('sick', 'maternity', 'wedding', 'bereavement', 'medical_appointment', 'legal_duty')
-);
-
-ALTER TABLE audit_log
-ADD COLUMN previous_hash text,
-ADD COLUMN event_hash text;
- 
-ALTER TABLE audit_log
-ADD COLUMN source VARCHAR(50) DEFAULT 'web';
-
--- TABLA DE INFORMES MENSUALES PARA CONTROL INCURRIDO DE AEPTIC
-
-
--- 1. Crear tipo enumerado para el estado del informe
-CREATE TYPE report_status AS ENUM ('draft', 'generated', 'signed', 'archived');
-
--- 2. Creación de la tabla de informes mensuales
-CREATE TABLE monthly_reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
-    -- FKs necesarias según la documentación técnica [cite: 142, 161]
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-    
-    -- Información del periodo (Mes y Año para el Excel) 
-    report_date DATE NOT NULL, -- Se recomienda el primer día del mes correspondiente
-    
-    -- Metadatos para el autocompletado y firma
-    status report_status DEFAULT 'draft',
-    generated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    signed_at TIMESTAMPTZ,
-    
-    -- Almacenamiento del documento final (opcional, ruta al PDF firmado)
-    document_path VARCHAR(500),
-    
-    -- Restricción para evitar duplicados: un informe por usuario/empresa/mes
-    UNIQUE(user_id, company_id, report_date)
-);
-
--- 3. Índices para optimizar la generación desde la página web
-CREATE INDEX idx_reports_user_date ON monthly_reports(user_id, report_date);
-CREATE INDEX idx_reports_company ON monthly_reports(company_id);
-
--- 4. Comentario técnico para la documentación [cite: 254]
-COMMENT ON TABLE monthly_reports IS 'Almacena la cabecera de los informes mensuales de control incurrido para su firma y exportación.';
-
--- AJUSTES PARA CONTROL DE VACACIONES
-CREATE TABLE vacation_period_multipliers (
-    id SERIAL PRIMARY KEY,
-    company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
-    date_from DATE NOT NULL,
-    date_to DATE NOT NULL,
-    multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0,
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMPTZ NULL,
-    CONSTRAINT valid_multiplier CHECK (multiplier > 0 AND multiplier <= 2.0),
-    CONSTRAINT valid_dates CHECK (date_from <= date_to)
-);
-
-CREATE INDEX idx_vpm_company_dates
-ON vacation_period_multipliers(company_id, date_from, date_to)
-WHERE deleted_at IS NULL;
-
-ALTER TABLE leave_requests
-ADD COLUMN hour_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.0
-    CONSTRAINT leave_requests_valid_multiplier CHECK (hour_multiplier > 0 AND hour_multiplier <= 2.0);
-
--- Añadir columna para días de vacaciones por defecto
-ALTER TABLE company_settings
-ADD COLUMN default_vacation_days INTEGER NOT NULL DEFAULT 23;
-
-
--- Cambiar el ID de SERIAL a UUID en vacation_period_multipliers
-ALTER TABLE vacation_period_multipliers 
-  DROP CONSTRAINT vacation_period_multipliers_pkey;
-
-ALTER TABLE vacation_period_multipliers 
-	ALTER COLUMN id DROP DEFAULT;
-
-ALTER TABLE vacation_period_multipliers 
-  ALTER COLUMN id TYPE uuid USING gen_random_uuid();
-
-ALTER TABLE vacation_period_multipliers 
-  ADD PRIMARY KEY (id);
-
-ALTER TABLE vacation_period_multipliers 
-  ALTER COLUMN id SET DEFAULT gen_random_uuid();

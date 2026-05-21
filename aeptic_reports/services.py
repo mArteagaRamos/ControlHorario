@@ -106,7 +106,7 @@ def get_pause_hours_for_day(user_id, company_id, date):
 def get_vacation_hours_for_day(user_id, company_id, date):
     """Obtener horas de vacaciones para un día específico
 
-    Utiliza el multiplicador de horas (hour_multiplier) si está disponible
+    Utiliza la unidad de vacación (hour_multiplier) si está disponible
     para periodos vacacionales especiales.
     """
     try:
