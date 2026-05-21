@@ -1,0 +1,154 @@
+/* ========== AUDIT PAGES STYLES ========== */
+
+/* Dashboard specific */
+.card-audit {
+    margin-bottom: 1rem;
+}
+
+.card-body {
+    padding: 1.5rem !important;
+}
+
+.display-4 {
+    color: #1a1f2e;
+}
+
+.card-title {
+    font-size: 1.1rem;
+}
+
+.card-text {
+    font-size: 0.875rem;
+}
+
+/* Dashboard headings */
+h2.dashboard-title {
+    color: #1a1f2e;
+}
+
+h1.card-icon {
+    color: #1a1f2e;
+}
+
+/* Audit pages titles */
+.audit-page-title {
+    color: #1a1f2e;
+}
+
+/* Filter form styles */
+.filter-card {
+    background-color: #f8f9fa;
+    border: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Button group for filters */
+.btn-group-audit {
+    gap: 0.5rem;
+}
+
+/* Status badges */
+.badge-success {
+    background-color: #28a745;
+}
+
+.badge-warning {
+    background-color: #ffc107;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+}
+
+/* Modal detail styles */
+.modal-detail-container {
+    padding: 2rem 1rem;
+}
+
+.detail-section {
+    margin-bottom: 2rem;
+}
+
+.detail-header {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    margin-bottom: 0.75rem;
+}
+
+.detail-value {
+    word-break: break-word;
+}
+
+/* Before/After states */
+.state-before {
+    border-bottom: 1px solid #dc3545;
+    padding-bottom: 2rem;
+    margin-bottom: 2rem;
+}
+
+.state-after {
+    padding-top: 1rem;
+}
+
+/* List item styling for details */
+.list-group-item-detail {
+    background-color: transparent;
+    padding: 0.5rem 0;
+}
+
+.list-group-item-detail:not(:last-child) {
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Responsive fixes for pages */
+@media (max-width: 768px) {
+    .card-audit {
+        margin-bottom: 1rem;
+    }
+    .card-body {
+        padding: 1.5rem !important;
+    }
+    .display-4 {
+        font-size: 2rem !important;
+    }
+    .card-title {
+        font-size: 1.1rem;
+    }
+    .card-text {
+        font-size: 0.875rem;
+    }
+    .std-btn {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .container {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+    .row-cols-md-2 {
+        --bs-columns: 1;
+    }
+    .card-body {
+        padding: 1rem !important;
+    }
+    h2 {
+        font-size: 1.5rem !important;
+    }
+    .card-title {
+        font-size: 1rem;
+    }
+    .detail-section {
+        margin-bottom: 1.5rem;
+    }
+    .state-before {
+        margin-bottom: 1.5rem;
+    }
+}

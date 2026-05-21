@@ -17,46 +17,8 @@
     <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
     <link rel="stylesheet" href="{% static 'css/workday.css' %}">
     <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
-
-    <style>
-        @media (max-width: 768px) {
-            .main-content {
-                padding: 1rem !important;
-                margin-left: 0 !important;
-            }
-            .container-fluid {
-                padding-left: 0.5rem;
-                padding-right: 0.5rem;
-            }
-            .table-responsive {
-                font-size: 0.875rem;
-            }
-            .table td, .table th {
-                padding: 0.5rem !important;
-            }
-            .modal-dialog {
-                margin: 0.5rem;
-            }
-            .modal-body {
-                padding: 1rem !important;
-            }
-            .card {
-                margin-bottom: 1rem;
-            }
-        }
-        @media (max-width: 576px) {
-            .main-content {
-                padding: 0.75rem !important;
-            }
-            .navbar-user span {
-                display: none !important;
-            }
-            .btn-sm {
-                padding: 0.25rem 0.5rem;
-                font-size: 0.75rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/audit/audit_base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/audit/audit_pages.css' %}">
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -84,7 +46,7 @@
             {% endif %}
 
             <div class="dropdown">
-                <button class="btn btn-link text-white p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
+                <button class="btn btn-link text-white p-0 btn-link-no-decoration" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-person-circle fs-4"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
@@ -98,7 +60,7 @@
 </nav>
 
 <!-- CONTENT -->
-<main class="main-content" style="margin-left: 0; padding: 2rem;">
+<main class="main-content">
     {% block content %}{% endblock %}
 </main>
 
@@ -122,39 +84,16 @@ function showToast(message) {
 </script>
 
 {% if messages %}
-    <div id="django-messages-container" style="
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
-        width: 90%;
-        max-width: 400px;
-    ">
+    <div id="django-messages-container">
         {% for message in messages %}
-        <div class="alert shadow-lg" style="
-            background-color: white;
-            border-radius: 12px;
-            padding: 25px;
-            text-align: center;
-            border-left: 5px solid {% if message.tags == 'error' %}#dc3545{% else %}#28a745{% endif %};
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        ">
-            <div style="font-size: 40px; margin-bottom: 10px;">
+        <div class="alert alert-message-custom {% if message.tags == 'error' %}error{% else %}success{% endif %}">
+            <div class="alert-message-icon">
                 {% if message.tags == 'error' %}⚠️{% else %}✅{% endif %}
             </div>
-            <p style="margin: 0; font-weight: bold; color: #333; font-size: 1.1rem;">
+            <p class="alert-message-text">
                 {{ message }}
             </p>
-            <button onclick="document.getElementById('django-messages-container').remove()" style="
-                margin-top: 20px;
-                padding: 8px 20px;
-                border: none;
-                background: #f1f1f1;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: bold;
-            ">Entendido</button>
+            <button onclick="document.getElementById('django-messages-container').remove()" class="alert-message-button">Entendido</button>
             </div>
         {% endfor %}
     </div>
