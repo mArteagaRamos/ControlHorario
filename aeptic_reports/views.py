@@ -24,7 +24,6 @@ from requests.models import LeaveRequest
 from timetracking.models import TimeEntries
 from users.models import UserCompany, Companies, Users
 from audit.models import AuditLog
-from core.decorators import auditor_cannot_access
 
 
 # --- Funciones de validación auxiliares ---

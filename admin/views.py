@@ -235,7 +235,6 @@ def export_deleted_records(request):
     fecha_reporte = timezone.now().strftime('%d_%m_%Y')
     response['Content-Disposition'] = f"attachment; filename=\"{config['filename']}_{fecha_reporte}.csv\""
 
-    # Byte order mark for Excel with accents
     response.write(u'\ufeff'.encode('utf8'))
 
     writer = csv.writer(response, delimiter=';')
@@ -277,7 +276,6 @@ def export_all_companies(request):
     fecha_reporte = timezone.now().strftime('%d_%m_%Y_%H%M%S')
     response['Content-Disposition'] = f"attachment; filename=\"reporte_empresas_{fecha_reporte}.csv\""
 
-    # Byte order mark for Excel with accents
     response.write(u'\ufeff'.encode('utf8'))
 
     writer = csv.writer(response, delimiter=';')
@@ -324,14 +322,12 @@ def export_all_workers(request):
     fecha_reporte = timezone.now().strftime('%d_%m_%Y_%H%M%S')
     response['Content-Disposition'] = f"attachment; filename=\"reporte_trabajadores_{fecha_reporte}.csv\""
 
-    # Byte order mark for Excel with accents
     response.write(u'\ufeff'.encode('utf8'))
 
     writer = csv.writer(response, delimiter=';')
     writer.writerow(['Nombre', 'Apellidos', 'Email', 'DNI', 'Estado', 'Empresas', 'Creado'])
 
     for worker in workers:
-        # Get companies for this worker
         companies = Companies.objects.filter(
             usercompany__user=worker,
             usercompany__deleted_at__isnull=True
