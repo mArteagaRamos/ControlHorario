@@ -231,7 +231,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-sm btn-primary" id="savePeriodBtn">Guardar</button>
+            <button type="button" class="btn btn-sm btn-dark" id="savePeriodBtn">Guardar</button>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@
     {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
       <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
-      <button type="submit" class="btn btn-sm btn-success">Guardar cambios</button>
+      <button type="submit" class="btn btn-sm btn-dark">Guardar cambios</button>
     </div>
 
     </form>
