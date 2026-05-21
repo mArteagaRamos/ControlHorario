@@ -1,0 +1,32 @@
+#excel-reminder {
+    background: #1a1f2e;
+    border-top: 3px solid #c9a84c;
+    color: #f0e6c8;
+    padding: .7rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: .88rem;
+    position: relative;
+    z-index: 100;
+}
+
+#excel-reminder .reminder-text strong {
+    color: #c9a84c;
+}
+
+#excel-reminder .reminder-close {
+    background: none;
+    border: none;
+    color: #c9a84c;
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 .25rem;
+    flex-shrink: 0;
+}
+
+#excel-reminder .reminder-close:hover {
+    color: #fff;
+}

@@ -1,6 +1,9 @@
 .table-scroll-container {
     max-height: 500px;
     overflow-y: auto;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
 .table-scroll-container.has-fixed-height {
@@ -14,13 +17,47 @@
     z-index: 10;
     background-color: #f8f9fa;
 }
+
 .table-scroll-container::-webkit-scrollbar { width: 8px; height: 8px; }
 .table-scroll-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
-/* Responsive mobile cards */
+.table-scroll-container table {
+    min-width: 800px !important;
+    white-space: nowrap !important;
+    table-layout: auto !important;
+}
+
+/* También aplica a .table-responsive por compatibilidad */
+.table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+}
+
+/* ── Cabecera de tabla ─────────────────────────────────────────────────── */
+thead.table-dark,
+thead.table-dark th {
+    background-color: #1a1f2e !important;
+    color: white !important;
+    border-bottom-color: #1a1f2e !important;
+}
+
+/* ── Colores de paginación ─────────────────────────────────────────────── */
+.pagination .page-link { color: #1a1f2e; }
+.pagination .page-link:hover { color: #1a1f2e; background-color: #e9ecef; }
+.pagination .page-item.active .page-link,
+.pagination .page-link.bg-corporate {
+    background-color: #1a1f2e !important;
+    border-color: #1a1f2e !important;
+    color: white !important;
+}
+
+/* ── Responsive mobile cards ───────────────────────────────────────────── */
 @media (max-width: 767px) {
     .text-nowrap { white-space: normal !important; }
+
     #resultadoTabla thead { display: none; }
+
     #resultadoTabla tbody tr.data-row {
         display: block;
         margin-bottom: 1rem;
@@ -30,6 +67,7 @@
         padding: 0.5rem;
         background-color: #fff;
     }
+
     #resultadoTabla tbody tr.data-row td {
         display: flex;
         justify-content: space-between;
@@ -38,9 +76,11 @@
         padding: 0.75rem 0.5rem;
         text-align: right;
     }
+
     #resultadoTabla tbody tr.data-row td:last-child {
         border-bottom: none;
     }
+
     #resultadoTabla tbody tr.data-row td::before {
         content: attr(data-label);
         font-weight: 600;
@@ -48,9 +88,40 @@
         text-align: left;
         margin-right: 1rem;
     }
+
     .acciones-movil {
         justify-content: flex-end !important;
         width: 100%;
+    }
+}
+
+/* Restaurar comportamiento nativo de tabla en móviles para scroll horizontal */
+@media (max-width: 768px) {
+    .table-scroll-container table {
+        display: table !important;
+    }
+
+    .table-scroll-container thead {
+        display: table-header-group !important;
+    }
+
+    .table-scroll-container tbody {
+        display: table-row-group !important;
+    }
+
+    .table-scroll-container tr {
+        display: table-row !important;
+    }
+
+    .table-scroll-container th,
+    .table-scroll-container td {
+        display: table-cell !important;
+        width: auto !important;
+        text-align: left !important;
+    }
+
+    .table-scroll-container td::before {
+        display: none !important;
     }
 }
 
