@@ -96,6 +96,7 @@ urlpatterns = [
     path('api/leave/validate-overlap/', requests_views.api_validate_leave_overlap, name='api_validate_leave_overlap'),
     path('leave/<uuid:leave_id>/cancel/', requests_views.api_leave_request_cancel, name='api_leave_cancel'),
     path('leave/<uuid:leave_id>/edit/', requests_views.api_leave_request_edit, name='api_leave_edit'),
+    path('leave/<uuid:leave_id>/delete/', requests_views.api_delete_leave_request, name='api_delete_leave'),
     path('api/vacation-status/', requests_views.api_user_vacation_status, name='api_user_vacation_status'),
 
     # Vacation Period Multipliers (manager only)

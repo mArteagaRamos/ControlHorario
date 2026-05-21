@@ -421,7 +421,6 @@ def api_get_leave_for_review(request, leave_id):
     return JsonResponse(response_data)
 
 
-
 @login_required_with_delegation_support
 @require_POST
 def api_leave_review(request, leave_id):
@@ -550,6 +549,11 @@ def api_leave_resolved(request):
 
     show_user_col: bool = user_is_manager and user_id == 'all'
 
+    # La columna de eliminar se muestra SOLO si:
+    # 1. El usuario ES manager, AND
+    # 2. Está viendo otros empleados (user_id != '' AND user_id != None)
+    show_delete_col = user_is_manager and user_id and user_id != '' and user_id != 'all'
+
     data = []
     for l in leaves:
         data.append({
@@ -570,6 +574,7 @@ def api_leave_resolved(request):
     return JsonResponse({
         'requests':      data,
         'show_user_col': user_is_manager and user_id == 'all',
+        'show_delete_col': show_delete_col,
     })
 
 @login_required
@@ -1401,6 +1406,66 @@ def delete_vacation_period(request):
         before=before,
         after={'deleted_at': str(period.deleted_at)},
         reason=f"Eliminación (soft-delete) de periodo '{period.name}'",
+        source='web'
+    )
+
+    return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def api_delete_leave_request(request, leave_id):
+    """
+    Soft-delete de una solicitud de vacaciones/ausencia por el manager.
+
+    - Solo managers pueden eliminar
+    - Solo si NO es PENDING
+    - Registra en AuditLog
+
+    POST params:
+    - leave_id (URL)
+
+    Returns: JSON con status OK o error
+    """
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No tienes acceso a esta operación'}, status=403)
+
+    # Validar que sea manager
+    if not is_manager(request, company):
+        return JsonResponse({'error': 'Solo managers pueden eliminar solicitudes'}, status=403)
+
+    # Obtener la solicitud
+    try:
+        leave = get_object_or_404(LeaveRequest, id=leave_id, company=company)
+    except:
+        return JsonResponse({'error': 'Solicitud no encontrada'}, status=404)
+
+    # Validar que NO sea PENDING
+    if leave.status == LeaveRequest.LeaveStatus.PENDING:
+        return JsonResponse({'error': 'No se pueden eliminar solicitudes pendientes'}, status=400)
+
+    # Validar que NO esté ya eliminada
+    if leave.deleted_at is not None:
+        return JsonResponse({'error': 'Esta solicitud ya ha sido eliminada'}, status=400)
+
+    # Guardar estado anterior para auditoría
+    estado_anterior = safe_dict(leave)
+
+    # Soft-delete
+    leave.deleted_at = timezone.now()
+    leave.save()
+
+    # Registrar en AuditLog
+    AuditLog.objects.create(
+        id=uuid.uuid4(),
+        table_name='leave_requests',
+        record_id=str(leave.id),
+        user=request.user,
+        action_type='voided',
+        before=estado_anterior,
+        after=safe_dict(leave),
+        reason="Eliminación (soft-delete) de solicitud de vacaciones/ausencia",
         source='web'
     )
 
