@@ -5,93 +5,6 @@
 {% block extra_head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        /* Estilos corporativos y semáforo */
-        .bg-corporate { background-color: #1a1f2e !important; color: white !important; }
-        .text-corporate { color: #1a1f2e !important; }
-        .border-corporate { border-left: 4px solid #1a1f2e !important; }
-        thead.table-dark,
-        thead.table-dark th {
-            background-color: #1a1f2e !important;
-            color: white !important;
-            border-bottom-color: #1a1f2e !important; /* Para evitar que la línea de abajo se vea gris/negra */
-        }
-
-        /* Ajuste para que el amarillo se lea bien */
-        .badge.bg-warning { color: #212529 !important; font-weight: 600; }
-
-        /* Estilo para los botones personalizados si los usas */
-        .std-btn {
-            background-color: #1a1f2e;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            transition: opacity 0.2s;
-        }
-        .std-btn:hover { opacity: 0.9; color: white; }
-
-        /* Estilos para el paginador (cambiador de páginas) */
-        .pagination .page-link {
-            color: #1a1f2e; /* Cambia el color de los números al azul corporativo */
-        }
-
-        .pagination .page-link:hover {
-            color: #1a1f2e;
-            background-color: #e9ecef; /* Un fondo gris suave al pasar el ratón */
-        }
-
-        .pagination .page-item.active .page-link,
-        .pagination .page-link.bg-corporate {
-            background-color: #1a1f2e !important;
-            border-color: #1a1f2e !important;
-            color: white !important;
-        }
-
-        @media (max-width: 768px) {
-            .row.g-3 {
-                gap: 0.75rem !important;
-            }
-            .col-md-5, .col-md-3, .col-md-1 {
-                min-width: 0;
-            }
-            #filter-form .row {
-                gap: 0.5rem;
-            }
-            .table {
-                font-size: 0.85rem;
-            }
-            .badge {
-                font-size: 0.75rem;
-                padding: 0.35rem 0.5rem !important;
-            }
-            .pagination {
-                flex-wrap: wrap;
-            }
-            .pagination .page-item {
-                margin: 0.25rem;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .d-flex.justify-content-between {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            .table-responsive {
-                font-size: 0.75rem;
-            }
-            .table td, .table th {
-                padding: 0.4rem !important;
-            }
-            .btn.btn-outline-secondary {
-                font-size: 0.75rem;
-                padding: 0.35rem 0.5rem;
-            }
-            .modal-dialog {
-                margin: 0 !important;
-            }
-        }
-    </style>
 {% endblock %}
 
 {% block content %}
@@ -120,7 +33,7 @@
                 <input type="date" name="hasta" class="form-control" id="hasta" value="{{ hasta|default:'' }}">
             </div>
             <div class="col-12 col-md-1 d-flex">
-                <a href="{% url 'audit_users' %}" class="btn btn-outline-secondary w-100 d-flex justify-content-center align-items-center" title="Limpiar filtros" style="height: 38px;">
+                <a href="{% url 'audit_users' %}" class="btn btn-outline-secondary w-100 d-flex justify-content-center align-items-center" title="Limpiar filtros" class="btn-clear">
                     <i class="fas fa-eraser"></i>
                 </a>
             </div>
@@ -169,7 +82,7 @@
                     <td class="text-muted font-monospace small">{{ log.record_id|truncatechars:12 }}</td>
                     <td>{{ log.reason|default:"-" }}</td>
                     <td class="text-center">
-                        <button type="button" class="std-btn" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
+                        <button type="button" class="std-btn" class="std-btn small-compact-alt" data-bs-toggle="modal" data-bs-target="#modalDetalle{{ log.id }}">
                             <i class="fas fa-search me-1"></i> Ver Detalles
                         </button>
                     </td>
@@ -272,7 +185,7 @@
                         {% for key, value in log.after.items %}
                             <li class="list-group-item bg-transparent px-2 px-md-4 py-2 py-md-3 d-flex justify-content-between align-items-start border-bottom flex-column flex-md-row">
                                 <span class="text-muted text-capitalize fw-bold mb-1 mb-md-0">{{ key|title }}</span>
-                                <span class="text-end text-break ms-md-3 w-100 w-md-auto" style="max-width: 60%;">
+                                <span class="text-end text-break ms-md-3 w-100 w-md-auto" class="text-overflow-controlled">
                                     {% if value is iterable and value is not string %}
                                         <div class="badge bg-secondary me-2 rounded-pill">{{ value|length }} item(s)</div>
                                         <small class="text-muted d-block mt-1">
