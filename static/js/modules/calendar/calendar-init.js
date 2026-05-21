@@ -203,7 +203,61 @@ function setupTeamSelector() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  Cargar Datos Iniciales
+// Cargar Estado de Vacaciones
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Carga y muestra el estado de vacaciones del usuario actual
+ */
+export async function loadVacationStatus() {
+  const statusCard = document.getElementById('vacationStatusCard');
+  if (!statusCard) return;
+
+  try {
+    const res = await fetch('/api/vacation-status/');
+    if (!res.ok) {
+      console.warn('Error loading vacation status:', res.status);
+      statusCard.style.display = 'none';
+      return;
+    }
+
+    const data = await res.json();
+
+    // Actualizar barra de progreso
+    const percentage = Math.min(100, data.consumed_percentage || 0);
+    document.getElementById('vacStatusBar').style.width = percentage + '%';
+    document.getElementById('vacStatusBarText').textContent = `${Math.round(data.consumed_days * 10) / 10}/${data.available_days}`;
+
+    // Actualizar números
+    document.getElementById('vacStatusConsumed').textContent = Math.round(data.consumed_days * 10) / 10;
+    document.getElementById('vacStatusRemaining').textContent = Math.round(data.remaining_days * 10) / 10;
+
+    // Actualizar mensaje según estado
+    const messageEl = document.getElementById('vacStatusMessage');
+    const remaining = Math.round(data.remaining_days * 10) / 10;
+
+    if (remaining <= 0) {
+      messageEl.textContent = '✓ Has consumido todas tus vacaciones';
+      messageEl.style.background = '#fef2f2';
+      messageEl.style.color = '#991b1b';
+    } else if (remaining <= 5) {
+      messageEl.textContent = `⚠️ Te quedan ${remaining} días de vacaciones`;
+      messageEl.style.background = '#fef3c7';
+      messageEl.style.color = '#92400e';
+    } else {
+      messageEl.textContent = `✓ Te quedan ${remaining} días de vacaciones`;
+      messageEl.style.background = '#f0fdf4';
+      messageEl.style.color = '#065f46';
+    }
+
+  } catch (e) {
+    console.error('Error loading vacation status:', e);
+    statusCard.style.display = 'none';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 📦 Cargar Datos Iniciales
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -217,6 +271,9 @@ async function setupInitialData() {
 
   // Cargar solicitudes resueltas para el usuario
   await loadResolvedRequests(null);
+
+  // Cargar estado de vacaciones del usuario
+  await loadVacationStatus();
 }
 
 // ════════════════════════════════════════════════════════════════════════════

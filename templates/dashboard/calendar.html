@@ -108,6 +108,28 @@
         </div>
       </div>
 
+      <!-- ── Estado de Vacaciones ────────────────────────────────────────── -->
+      <div class="card shadow-sm mb-3" id="vacationStatusCard">
+        <div class="card-header fw-semibold d-flex align-items-center gap-2">
+          <i class="bi bi-calendar-range" style="color:#10b981;"></i>
+          Tus Vacaciones
+        </div>
+        <div class="card-body" style="font-size:.85rem;">
+          <div class="mb-3">
+            <div class="progress mb-2" style="height: 20px;">
+              <div class="progress-bar" id="vacStatusBar" role="progressbar" style="width: 0%;background:#10b981;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <span id="vacStatusBarText" style="font-size:.75rem;font-weight:600;color:white;">0/23</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:.8rem;color:#64748b;">
+              <span><strong>Consumidos:</strong> <span id="vacStatusConsumed">0</span> días</span>
+              <span><strong>Restantes:</strong> <span id="vacStatusRemaining">23</span> días</span>
+            </div>
+          </div>
+          <div id="vacStatusMessage" style="padding:.5rem;border-radius:.35rem;background:#f0fdf4;color:#065f46;font-size:.8rem;text-align:center;"></div>
+        </div>
+      </div>
+
       <!-- ── Solicitar AUSENCIA ────────────────────────────────────────── -->
 <div class="card shadow-sm mb-3">
         <div class="card-header fw-semibold">Solicitar ausencia</div>

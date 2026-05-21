@@ -815,9 +815,11 @@ def api_leave_request_create(request):
 
     start_date   = data.get('start_date')
     end_date     = data.get('end_date')
-    leave_type   = data.get('leave_type', 'other')
     leave_reason = data.get('leave_reason', LeaveRequest.LeaveReason.OTHER)
     reason_note  = data.get('reason_note', '')
+
+    # Deducir leave_type automáticamente del leave_reason
+    leave_type = LeaveRequest.LeaveType.VACATION if leave_reason == LeaveRequest.LeaveReason.ANNUAL else LeaveRequest.LeaveType.ABSENCE
 
     if not start_date or not end_date:
         return JsonResponse({'error': 'Fechas obligatorias'}, status=400)
@@ -1021,7 +1023,9 @@ def api_leave_request_edit(request, leave_id):
     leave.reason_note = reason_note
     leave.start_time = start_time
     leave.end_time = end_time
-    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'start_time', 'end_time', 'updated_at'])
+    # Deducir leave_type automáticamente del leave_reason
+    leave.leave_type = LeaveRequest.LeaveType.VACATION if leave_reason == LeaveRequest.LeaveReason.ANNUAL else LeaveRequest.LeaveType.ABSENCE
+    leave.save(update_fields=['start_date', 'end_date', 'leave_reason', 'reason_note', 'start_time', 'end_time', 'leave_type', 'updated_at'])
 
     log_leave(leave, request.user, AuditLog.AuditAction.UPDATE,
               before=before,
@@ -1108,14 +1112,54 @@ def api_leave_request_cancel(request, leave_id):
 # VACATION PERIOD MULTIPLIERS MANAGEMENT (BLOQUE 4)
 # =============================================================================
 
+@login_required
+def api_user_vacation_status(request):
+    """Obtiene el estado de vacaciones del usuario actual (días consumidos, restantes, etc)."""
+    from datetime import datetime
+
+    company = get_company(request)
+    if not company:
+        return JsonResponse({'error': 'No company'}, status=400)
+
+    year = datetime.now().year
+
+    # Obtener datos del usuario actual
+    user = Users.objects.filter(email=request.user.email).first()
+    if not user:
+        user = Users.objects.filter(username=request.user.username).first()
+
+    if not user:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=400)
+
+    # Calcular días consumidos en el año
+    consumed_days = LeaveRequest.get_consumed_days(
+        user_id=user.id,
+        company_id=company.id,
+        year=year
+    )
+
+    # Obtener límite anual
+    settings = CompanySettings.objects.filter(company=company, deleted_at__isnull=True).first()
+    available_days = settings.default_vacation_days if settings else 23
+
+    # Calcular días restantes
+    remaining_days = available_days - consumed_days
+    consumed_percentage = min(100, int((consumed_days / available_days) * 100)) if available_days > 0 else 0
+
+    return JsonResponse({
+        'consumed_days': float(consumed_days),
+        'available_days': available_days,
+        'remaining_days': float(remaining_days),
+        'consumed_percentage': consumed_percentage,
+        'year': year
+    })
+
+
 @login_required_with_delegation_support
 @login_required_with_delegation_support
 def list_vacation_periods(request):
     """Lista todos los periodos vacacionales de la empresa del manager."""
     company = get_company(request)
-
-    if not is_manager(request, company):
-        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
 
     periods = VacationPeriodMultiplier.objects.filter(
         company=company,
