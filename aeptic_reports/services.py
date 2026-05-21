@@ -50,13 +50,13 @@ COLUMNS = [
 ]
 
 DAYS_OF_WEEK_ES = {
-    0: 'Lunes',
-    1: 'Martes',
-    2: 'Miércoles',
-    3: 'Jueves',
-    4: 'Viernes',
-    5: 'Sábado',
-    6: 'Domingo',
+    0: 'Domingo',
+    1: 'Lunes',
+    2: 'Martes',
+    3: 'Miércoles',
+    4: 'Jueves',
+    5: 'Viernes',
+    6: 'Sábado',
 }
 
 
@@ -116,14 +116,19 @@ def get_vacation_hours_for_day(user_id, company_id, date):
             leave_type='vacation',
             status='approved',
             start_date__lte=date,
-            end_date__gte=date,
-            deleted_at__isnull=True
+            end_date__gte=date
         ).first()
 
         if leave_request:
+            # Obtener jornada laboral diaria
             daily_hours = get_work_hours_per_day(company_id)
-            multiplier = float(leave_request.hour_multiplier or 1.0)
+
+            # Aplicar multiplicador (default 1.0)
+            multiplier = leave_request.hour_multiplier or 1.0
+
+            # Calcular horas finales
             vacation_hours = daily_hours * multiplier
+
             return round(vacation_hours, 2)
 
         return 0.0
@@ -147,8 +152,7 @@ def get_sick_leave_for_day(user_id, company_id, date):
             leave_type='absence',
             status='approved',
             start_date__lte=date,
-            end_date__gte=date,
-            deleted_at__isnull=True
+            end_date__gte=date
         ).first()
 
         if leave_request and leave_request.leave_reason in sick_leave_reasons:
@@ -179,8 +183,7 @@ def get_time_off_for_day(user_id, company_id, date):
             leave_type='absence',
             status='approved',
             start_date__lte=date,
-            end_date__gte=date,
-            deleted_at__isnull=True
+            end_date__gte=date
         ).first()
 
         if leave_request and leave_request.leave_reason in time_off_reasons:

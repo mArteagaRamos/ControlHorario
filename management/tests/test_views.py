@@ -212,7 +212,7 @@ class ManagementViewTest(TestCase):
             'work_start': '09:00',
             'work_end': '18:00',
             'max_tolerance': '15',
-            'weekend_days': ['5', '6'], # Sábado y Domingo
+            'weekend_days': ['6', '0'], # Sábado y Domingo
             'auto_close_hours': '12'
         })
         
