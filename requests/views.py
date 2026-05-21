@@ -1161,9 +1161,6 @@ def list_vacation_periods(request):
     """Lista todos los periodos vacacionales de la empresa del manager."""
     company = get_company(request)
 
-    if not is_manager(request, company):
-        return JsonResponse({'error': 'No tienes permiso para esta operación'}, status=403)
-
     periods = VacationPeriodMultiplier.objects.filter(
         company=company,
         deleted_at__isnull=True

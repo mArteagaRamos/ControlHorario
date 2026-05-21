@@ -8,8 +8,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const modalElement = document.getElementById('addPeriodModal');
   if (modalElement) {
     vacationPeriodsModal = new bootstrap.Modal(modalElement);
-    loadVacationPeriods();
   }
+  loadVacationPeriods();
 });
 
 async function loadVacationPeriods() {
@@ -29,12 +29,13 @@ async function loadVacationPeriods() {
 
 function renderVacationPeriods(periods) {
   const container = document.getElementById('vacation-periods-container');
-  
+  const isManager = window.userRole === 'manager' || window.userRole === 'admin';
+
   if (!periods || periods.length === 0) {
     container.innerHTML = '<div class="text-center text-muted py-3"><small>No hay períodos especiales configurados</small></div>';
     return;
   }
-  
+
   let html = `
     <div class="table-responsive">
       <table class="table table-sm table-hover mb-0">
@@ -43,43 +44,47 @@ function renderVacationPeriods(periods) {
             <th>Nombre</th>
             <th>Fechas</th>
             <th>Multiplicador</th>
-            <th class="text-end">Acciones</th>
+            ${isManager ? '<th class="text-end">Acciones</th>' : ''}
           </tr>
         </thead>
         <tbody>
   `;
-  
+
   periods.forEach(p => {
     const dateFrom = new Date(p.date_from).toLocaleDateString('es-ES');
     const dateTo = new Date(p.date_to).toLocaleDateString('es-ES');
+
+    const actionButtons = isManager ? `
+      <td class="text-end">
+        <button type="button" class="btn btn-xs btn-warning py-0 px-1"
+          onclick="editPeriod('${p.id}', '${p.name}', '${p.date_from}', '${p.date_to}', ${p.multiplier})"
+          title="Editar">
+          <i class="bi bi-pencil-square"></i>
+        </button>
+        <button type="button" class="btn btn-xs btn-danger py-0 px-1"
+          onclick="deletePeriod('${p.id}', '${p.name}')"
+          title="Eliminar">
+          <i class="bi bi-trash"></i>
+        </button>
+      </td>
+    ` : '';
 
     html += `
       <tr>
         <td><strong>${p.name}</strong></td>
         <td><small>${dateFrom} → ${dateTo}</small></td>
         <td><span class="badge text-bg-info">${p.multiplier}×</span></td>
-        <td class="text-end">
-          <button type="button" class="btn btn-xs btn-warning py-0 px-1"
-            onclick="editPeriod('${p.id}', '${p.name}', '${p.date_from}', '${p.date_to}', ${p.multiplier})"
-            title="Editar">
-            <i class="bi bi-pencil-square"></i>
-          </button>
-          <button type="button" class="btn btn-xs btn-danger py-0 px-1"
-            onclick="deletePeriod('${p.id}', '${p.name}')"
-            title="Eliminar">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
+        ${actionButtons}
       </tr>
     `;
   });
-  
+
   html += `
         </tbody>
       </table>
     </div>
   `;
-  
+
   container.innerHTML = html;
 }
 
