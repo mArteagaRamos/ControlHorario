@@ -31,7 +31,7 @@ CREATE TYPE leave_reason      AS ENUM (
     'personal',             -- Asuntos propios
     'other'                 -- Otros
 );
-CREATE TYPE leave_status      AS ENUM ('pending', 'approved', 'rejected');
+CREATE TYPE leave_status      AS ENUM ('pending', 'approved', 'rejected', 'canceled');
 CREATE TYPE report_status     AS ENUM ('draft', 'generated', 'signed', 'archived');
 
 

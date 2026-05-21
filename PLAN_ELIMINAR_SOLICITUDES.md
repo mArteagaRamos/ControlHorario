@@ -5,19 +5,6 @@ Permitir que los managers eliminen (soft-delete) solicitudes de vacaciones, ause
 
 ---
 
-## 🔄 Cambio de Enfoque (Actualización)
-
-**Enfoque Original**: Modificar módulos ES6 (`calendar-resolved.js`, `calendar-init.js`)
-- ❌ Causaba errores de módulo que rompían todo el calendario
-
-**Nuevo Enfoque**: Script inline en el template
-- ✅ No toca módulos ES6 ya funcionales
-- ✅ Inyecta columna de eliminación dinámicamente
-- ✅ Riesgo mínimo, implementación más robusta
-- ✅ Mantiene el calendario funcionando en todo momento
-
----
-
 ## 📊 Vista General
 
 ### Requisitos Funcionales
@@ -41,13 +28,12 @@ La columna "Eliminar" debe estar disponible para solicitudes con estos estados:
 ## 🏗️ Arquitectura de Cambios
 
 ```
-Frontend (HTML Template)            Backend (Django)                  Database
+Frontend (JavaScript)              Backend (Django)                  Database
 ─────────────────────────────────────────────────────────────────────────────
-calendar.html              ──────→   api_delete_leave_request   ──────→  leave_requests
-   (inline script)          (POST)        (requests/views.py)          (soft-delete)
-   (agregar columna           ↑                                           ↓
-    + icono papelera)         └─────────── Auditoría (AuditLog)
-
+calendar-resolved.js    ──────→   api_delete_leave_request   ──────→  leave_requests
+   (agregar columna        (POST)        (requests/views.py)          (soft-delete)
+    + icono papelera)                                                     ↓
+                                        Auditoría (AuditLog)
 ```
 
 ---
@@ -105,29 +91,49 @@ path('leave/<uuid:leave_id>/delete/', requests_views.api_delete_leave_request, n
 
 ---
 
-### BLOQUE 3: Frontend - Modificar Template HTML
-**Archivo**: `templates/calendar.html`
+### BLOQUE 3: Frontend - Actualizar Tabla en calendar-resolved.js
+**Archivo**: `static/js/modules/calendar/calendar-resolved.js`
 
-**Tarea 3.1**: Agregar estructura HTML para la columna "Eliminar"
-**Ubicación**: Tabla de "Solicitudes Resueltas" (buscar `resolvedContainer`)
+**Tarea 3.1**: Modificar función `loadResolvedRequests`
+**Ubicación**: Línea 72-134 (generación de filas HTML)
 
 **Cambios necesarios**:
 
-1. **Buscar la sección donde se renderiza la tabla de solicitudes** (línea aproximada 600-700)
-2. **Agregar contenedor para el script inline** (al final del template):
-```html
-<!-- Script para manejar eliminación de solicitudes -->
-<script>
-  // Será agregado en BLOQUE 5
-</script>
-```
+1. **Parámetro `show_delete_col`**:
+   - Recibir desde el backend: `show_delete_col` (boolean)
+   - Condición: `show_delete_col = user_is_manager && user_id != ''` (en la vista)
+   - Si manager está en "Mi calendario", NO mostrar
 
-3. **NO modificar** `calendar-resolved.js` - El contenido de la columna será generado por el script inline que se ejecutará después de que el módulo carga la tabla.
+2. **Función generadora de filas (línea 72)**:
+   - Agregar nueva celda en cada fila para el botón de eliminar
+   - Ubicación: DESPUÉS de la columna "Justificante" (línea 132)
+   - HTML del botón:
+   ```html
+   <td style="padding:.5rem .6rem;text-align:center;">
+     <button onclick="deleteLeaveRequest('${l.id}')"
+             style="background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;"
+             title="Eliminar solicitud"
+             class="btn-delete-leave">
+       <i class="bi bi-trash"></i>
+     </button>
+   </td>
+   ```
+
+3. **Condición en header de tabla**:
+   - Agregar `<th>` solo si `show_delete_col = true`
+   ```html
+   ${show_delete_col ? '<th style="...">Eliminar</th>' : ''}
+   ```
+
+4. **Guardar en contexto global**:
+   - Agregar a `window.AEPTIC_CALENDAR` o variable local: `window.showDeleteCol = show_delete_col`
 
 **Criterios de Aceptación**:
-- ✅ Template carga sin errores
-- ✅ Tabla de solicitudes se renderiza normalmente
-- ✅ Script inline está listo para ejecutarse
+- ✅ Columna "Eliminar" aparece SOLO cuando manager ve otros empleados (`user_id != ''`)
+- ✅ Columna NO aparece cuando manager ve "Mi calendario" (sin `user_id`)
+- ✅ Botón de papelera con estilo rojo (#dc2626)
+- ✅ Tooltip con texto "Eliminar solicitud"
+- ✅ Bootstrap Icons (bi bi-trash) disponible
 
 ---
 
@@ -163,110 +169,89 @@ path('leave/<uuid:leave_id>/delete/', requests_views.api_delete_leave_request, n
 
 ---
 
-### BLOQUE 5: Frontend - Script Inline para Manejo de Eliminación
-**Archivo**: `templates/calendar.html`
+### BLOQUE 5: Frontend - Función de Eliminación
+**Archivo**: `static/js/modules/calendar/calendar-resolved.js`
 
-**Tarea 5.1**: Agregar script inline al final del template para manejar eliminación
+**Tarea 5.1**: Agregar función `deleteLeaveRequest(leave_id)`
+**Ubicación**: Al final del archivo, antes de los comentarios finales
 
-**Ubicación**: Al final de `calendar.html`, dentro de `<script>` inline
-
-**Script a agregar**:
+**Función**:
 ```javascript
-// Manejo de eliminación de solicitudes
-window.deleteLeaveRequest = async function(leaveId) {
-  if (!confirm('¿Eliminar esta solicitud? Esta acción no se puede deshacer.')) {
+export function deleteLeaveRequest(leaveId) {
+  // 1. Confirmar con modal/dialog
+  if (!confirm('¿Estás seguro de que deseas eliminar esta solicitud? Esta acción no se puede deshacer.')) {
     return;
   }
 
-  try {
-    const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || '';
-    const res = await fetch(`/leave/${leaveId}/delete/`, {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': csrfToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({})
-    });
-
-    const data = await res.json();
+  // 2. Enviar DELETE por POST (Django no soporta DELETE en forms)
+  fetch(`/leave/${leaveId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({})
+  })
+  .then(res => res.json())
+  .then(data => {
     if (data.ok) {
-      // Recargar tabla de solicitudes resueltas
+      // 3. Recargar tabla
       const selector = document.getElementById('teamSelector');
-      const userId = selector?.value || null;
-      await loadResolvedRequests(userId);
-      alert('Solicitud eliminada correctamente');
+      const userId = selector ? selector.value : '';
+      loadResolvedRequests(userId);
+      showNotification('Solicitud eliminada correctamente', 'success');
     } else {
-      alert(`Error: ${data.error || 'No se pudo eliminar'}`);
+      showNotification(data.error || 'Error al eliminar', 'error');
     }
-  } catch (err) {
+  })
+  .catch(err => {
     console.error('Delete error:', err);
-    alert('Error de conexión');
-  }
-};
-
-// Inyectar columna de eliminación después de que la tabla se renderiza
-// Observer para cuando se actualiza resolvedContainer
-const observerConfig = { childList: true, subtree: true };
-const observer = new MutationObserver(function(mutations) {
-  // Buscar tabla en resolvedContainer
-  const table = document.querySelector('#resolvedContainer table');
-  if (!table) return;
-
-  // Agregar encabezado si no existe
-  const headerRow = table.querySelector('thead tr');
-  if (headerRow && !headerRow.querySelector('.delete-header')) {
-    const deleteHeader = document.createElement('th');
-    deleteHeader.className = 'delete-header';
-    deleteHeader.style.cssText = 'padding:.4rem .6rem;font-weight:600;text-align:center;';
-    deleteHeader.textContent = 'Eliminar';
-    headerRow.appendChild(deleteHeader);
-  }
-
-  // Agregar botones en filas (solo si no existen)
-  const bodyRows = table.querySelectorAll('tbody tr:not(.review-note-row):not([data-delete-added])');
-  bodyRows.forEach(row => {
-    // Verificar que la fila tiene el contenido de la solicitud (no es fila de nota)
-    if (row.cells.length > 0 && !row.hasAttribute('data-delete-added')) {
-      const deleteCell = document.createElement('td');
-      deleteCell.style.cssText = 'padding:.5rem .6rem;text-align:center;';
-      
-      // Obtener el ID de la solicitud desde los atributos o data
-      // Buscar en el onclick de botones existentes
-      const editBtn = row.querySelector('[onclick*="editLeaveRequest"]');
-      let leaveId = null;
-      if (editBtn) {
-        const match = editBtn.getAttribute('onclick').match(/leave-([^']+)/);
-        if (match) leaveId = match[1];
-      }
-      
-      if (leaveId) {
-        const deleteBtn = document.createElement('button');
-        deleteBtn.onclick = function(e) { e.preventDefault(); deleteLeaveRequest(leaveId); };
-        deleteBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;';
-        deleteBtn.title = 'Eliminar solicitud';
-        deleteBtn.className = 'btn-delete-leave';
-        deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
-        deleteCell.appendChild(deleteBtn);
-      }
-      
-      row.appendChild(deleteCell);
-      row.setAttribute('data-delete-added', 'true');
-    }
+    showNotification('Error de conexión', 'error');
   });
-});
-
-observer.observe(document.getElementById('resolvedContainer'), observerConfig);
+}
 ```
 
+**Notas Importantes**:
+- El CSRF token debe obtenerse del contexto (ver línea 466 en calendar.html)
+- O mejor: usar `window.AEPTIC_CALENDAR.CSRF_TOKEN`
+- Función `showNotification` debe existir o crear una simple
+
 **Criterios de Aceptación**:
-- ✅ Función `deleteLeaveRequest()` se registra en `window`
-- ✅ Se ejecuta después de que la tabla se renderiza
-- ✅ Agrega columna "Eliminar" con botones de papelera
-- ✅ Botones solo en filas de solicitudes (no en filas de notas)
-- ✅ Confirmación antes de eliminar
-- ✅ Refresca la tabla tras eliminación exitosa
-- ✅ Maneja errores apropiadamente
+- ✅ Muestra confirmación antes de eliminar
+- ✅ Envía POST a `/leave/{id}/delete/`
+- ✅ Incluye CSRF token
+- ✅ Refresca la tabla después de eliminar
+- ✅ Muestra mensaje de éxito
+- ✅ Maneja errores con mensaje visual
+
+---
+
+### BLOQUE 6: Frontend - Helper para Notificaciones (Opcional)
+**Archivo**: `static/js/modules/calendar/calendar-resolved.js`
+
+**Tarea 6.1**: Agregar función `showNotification` (si no existe)
+```javascript
+function showNotification(message, type = 'info') {
+  // Crear elemento temporal
+  const notifClass = type === 'success' ? 'alert-success' : 
+                    type === 'error' ? 'alert-danger' : 'alert-info';
+  
+  const html = `<div class="alert ${notifClass} alert-dismissible fade show" role="alert">
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  </div>`;
+  
+  // Insertar en top del documento
+  const container = document.querySelector('.cal-page');
+  if (container) {
+    container.insertAdjacentHTML('afterbegin', html);
+    setTimeout(() => {
+      const alert = container.querySelector('.alert');
+      if (alert) alert.remove();
+    }, 3000);
+  }
+}
+```
 
 ---
 
@@ -330,7 +315,9 @@ observer.observe(document.getElementById('resolvedContainer'), observerConfig);
 | `requests/views.py` | ~1410+ | **NEW** | Nueva función `api_delete_leave_request` |
 | `requests/views.py` | 502-573 | **EDIT** | Modificar `api_leave_resolved` para agregar `show_delete_col` |
 | `core/urls.py` | ~100 | **ADD** | Nueva ruta `/leave/<id>/delete/` |
-| `templates/calendar.html` | Final | **ADD** | Script inline para manejar eliminación y inyectar botones |
+| `calendar-resolved.js` | 72-154 | **EDIT** | Agregar columna "Eliminar" a tabla |
+| `calendar-resolved.js` | 217+ | **ADD** | Nueva función `deleteLeaveRequest()` |
+| `calendar-resolved.js` | 217+ | **ADD** | Helper `showNotification()` (opcional) |
 
 ---
 
@@ -339,8 +326,10 @@ observer.observe(document.getElementById('resolvedContainer'), observerConfig);
 1. **BLOQUE 1**: Crear vista backend ✓
 2. **BLOQUE 4**: Modificar respuesta JSON ✓
 3. **BLOQUE 2**: Agregar ruta URL ✓
-4. **BLOQUE 5**: Agregar script inline en template ✓
-5. **BLOQUE 7**: Validar en navegador ✓
+4. **BLOQUE 3**: Actualizar tabla HTML ✓
+5. **BLOQUE 5**: Agregar función de eliminación ✓
+6. **BLOQUE 6**: Agregar notificaciones (opcional) ✓
+7. **BLOQUE 7**: Validar en navegador ✓
 
 ---
 
@@ -373,5 +362,5 @@ observer.observe(document.getElementById('resolvedContainer'), observerConfig);
 
 ---
 
-**Estado del Plan**: 📋 Actualizado con nuevo enfoque - Listo para ejecución
-**Última actualización**: 2026-05-21 (Cambio de enfoque: ES6 modules → Script inline en template)
+**Estado del Plan**: 📋 Listo para ejecución
+**Última actualización**: 2026-05-21
