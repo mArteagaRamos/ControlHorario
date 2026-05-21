@@ -43,7 +43,7 @@ function renderVacationPeriods(periods) {
           <tr>
             <th>Nombre</th>
             <th>Fechas</th>
-            <th>Multiplicador</th>
+            <th>Unidad de Vacación</th>
             ${isManager ? '<th class="text-end">Acciones</th>' : ''}
           </tr>
         </thead>
@@ -125,8 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showError('Las fechas son requeridas');
         return;
       }
-      if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 2.0) {
-        showError('El multiplicador debe estar entre 0.1 y 2.0');
+      if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 1.0) {
+        showError('La unidad de vacación debe estar entre 0.1 y 1.0');
         return;
       }
       if (new Date(dateFrom) > new Date(dateTo)) {

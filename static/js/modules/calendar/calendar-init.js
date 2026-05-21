@@ -48,7 +48,7 @@ import {
 } from './calendar-resolved.js';
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🔥 PUNTO DE ENTRADA PRINCIPAL
+//  PUNTO DE ENTRADA PRINCIPAL
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -94,7 +94,7 @@ export async function initCalendar() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 📅 Setup de Inputs
+//  Setup de Inputs
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -111,7 +111,7 @@ function setupMinDates() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🎛️ Setup de Filtros de Estado
+//  Setup de Filtros de Estado
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -133,7 +133,7 @@ function setupStatusFilters() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 📆 Setup de FullCalendar
+//  Setup de FullCalendar
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -184,7 +184,7 @@ function setupFullCalendar() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 👥 Setup de Selector de Equipo
+//  Setup de Selector de Equipo
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -203,7 +203,7 @@ function setupTeamSelector() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🏖️ Cargar Estado de Vacaciones
+// Cargar Estado de Vacaciones
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -277,7 +277,7 @@ async function setupInitialData() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🔘 Setup de Listeners de Botones
+//  Setup de Listeners de Botones
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -306,7 +306,7 @@ function setupButtonListeners() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🔧 Setup de Listener para Razón de Ausencia
+//  Setup de Listener para Razón de Ausencia
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -376,7 +376,7 @@ function setupAbsenceReasonListener() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// ❌ Setup de Listener de Rechazo
+//  Setup de Listener de Rechazo
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -407,9 +407,9 @@ function setupApproveVacationListener() {
     const multiplier = parseFloat(document.getElementById('vacApproveMultiplier').value);
     const note = document.getElementById('vacApproveNote').value.trim() || null;
 
-    // Validar multiplicador
-    if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 2.0) {
-      alert('El multiplicador debe estar entre 0.1 y 2.0');
+    // Validar unidad de vacación
+    if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 1.0) {
+      alert('La unidad de vacación debe estar entre 0.1 y 1.0');
       return;
     }
 
@@ -420,7 +420,7 @@ function setupApproveVacationListener() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🪟 Exportar Funciones a Window (para onclick handlers)
+//  Exportar Funciones a Window (para onclick handlers)
 // ════════════════════════════════════════════════════════════════════════════
 
 /**

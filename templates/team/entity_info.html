@@ -220,18 +220,18 @@
               </div>
             </div>
             <div class="mb-3">
-              <label class="form-label">Multiplicador de horas</label>
+              <label class="form-label">Unidad de Vacación</label>
               <div class="input-group input-group-sm">
-                <input type="number" class="form-control" id="period_multiplier"
-                  min="0.1" max="2.0" step="0.1" value="1.0" required>
+                <input type="number" class="form-control" id="period_multiplier" 
+                  min="0.1" max="1.0" step="0.1" value="1.0" required>
                 <span class="input-group-text">×</span>
               </div>
-              <small class="form-text text-muted">Rango permitido: 0.1 a 2.0 (ejemplo: 0.8 = 80% de jornada)</small>
+              <small class="form-text text-muted">Rango permitido: 0.1 a 1.0 (ejemplo: 0.8 = 80% de jornada)</small>
             </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-            <button type="button" class="btn btn-sm btn-primary" id="savePeriodBtn">Guardar</button>
+            <button type="button" class="btn btn-sm btn-dark" id="savePeriodBtn">Guardar</button>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@
     {% if user_role == 'manager' or user_role == 'admin' %}
     <div class="edit-mode d-none d-flex justify-content-end gap-2">
       <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit()">Cancelar</button>
-      <button type="submit" class="btn btn-sm btn-success">Guardar cambios</button>
+      <button type="submit" class="btn btn-sm btn-dark">Guardar cambios</button>
     </div>
 
     </form>

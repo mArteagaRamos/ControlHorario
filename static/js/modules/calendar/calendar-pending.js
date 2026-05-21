@@ -96,20 +96,16 @@ export async function loadPendingRequests() {
  */
 export async function approveLeave(leaveId) {
   const l = getLeaveData(leaveId);
-  console.log('[DEBUG] approveLeave called:', { leaveId, leave: l });
   if (!l) {
     console.warn('[DEBUG] Leave data not found for:', leaveId);
     return;
   }
 
-  // Si es vacaciones, mostrar modal con multiplicador
-  console.log('[DEBUG] leave_type_raw:', l.leave_type_raw, 'comparison result:', l.leave_type_raw === 'vacation');
+  // Si es vacaciones, mostrar modal con unidad de vacación
   if (l.leave_type_raw === 'vacation') {
-    console.log('[DEBUG] Opening vacation approval modal');
     await openApproveVacationModal(leaveId);
   } else {
     // Para ausencias, aprobar directamente
-    console.log('[DEBUG] Approving absence directly');
     await submitReview(leaveId, 'approve', null);
   }
 }
@@ -138,27 +134,23 @@ export function openRejectModal(leaveId) {
 }
 
 /**
- * Abre el modal para aprobar una solicitud de vacaciones con multiplicador
+ * Abre el modal para aprobar una solicitud de vacaciones con unidad de vacación
  * @param {string} leaveId - ID de la solicitud
  * @returns {Promise<void>}
  */
 export async function openApproveVacationModal(leaveId) {
   try {
     // Cargar datos sugeridos desde la API
-    console.log('[DEBUG] Fetching vacation approval data for:', leaveId);
     const res = await fetch(`/leave/${leaveId}/for-review/`, {
       headers: { 'Accept': 'application/json' }
     });
 
-    console.log('[DEBUG] Fetch response status:', res.status, 'ok:', res.ok);
     if (!res.ok) {
       alert('Error al cargar los datos de la solicitud');
-      console.error('[DEBUG] Fetch failed with status:', res.status);
       return;
     }
 
     const data = await res.json();
-    console.log('[DEBUG] Fetched data:', data);
 
     // Llenar campos del modal
     document.getElementById('vacApproveUser').textContent = data.user;
@@ -210,14 +202,14 @@ export async function openApproveVacationModal(leaveId) {
  * @param {string} leaveId - ID de la solicitud
  * @param {string} action - 'approve' o 'reject'
  * @param {string|null} note - Nota opcional para el rechazo
- * @param {number|null} hourMultiplier - Multiplicador de horas (solo para vacaciones aprobadas)
+ * @param {number|null} hourMultiplier - Unidad de Vacación (solo para vacaciones aprobadas)
  * @returns {Promise<void>}
  */
 export async function submitReview(leaveId, action, note, hourMultiplier = null) {
   try {
     const body = { action, note };
 
-    // Agregar multiplicador si es aprobación de vacaciones
+    // Agregar unidad de vacación si es aprobación de vacaciones
     if (action === 'approve' && hourMultiplier !== null) {
       body.hour_multiplier = hourMultiplier;
     }

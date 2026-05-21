@@ -30,13 +30,13 @@ from django.contrib import messages
 
 # Constants
 WEEKDAY = [
-    (0, 'Lunes'),
-    (1, 'Martes'),
-    (2, 'Miércoles'),
-    (3, 'Jueves'),
-    (4, 'Viernes'),
-    (5, 'Sábado'),
-    (6, 'Domingo'),
+    (0, 'Domingo'),
+    (1, 'Lunes'),
+    (2, 'Martes'),
+    (3, 'Miércoles'),
+    (4, 'Jueves'),
+    (5, 'Viernes'),
+    (6, 'Sábado'),
 ]
 
 
@@ -868,6 +868,9 @@ def entity_info(request):
             before_cierre = {
                 'auto_close_hours': settings_obj.auto_close_hours,
             }
+            before_vacaciones = {
+                'default_vacation_days': settings_obj.default_vacation_days,
+            }
 
             # Aplicar cambios
             work_start = request.POST.get('work_start')
@@ -885,6 +888,10 @@ def entity_info(request):
             auto_close = request.POST.get('auto_close_hours')
             if auto_close is not None and auto_close != '':
                 settings_obj.auto_close_hours = int(auto_close)
+
+            default_vacation = request.POST.get('default_vacation_days')
+            if default_vacation is not None and default_vacation != '':
+                settings_obj.default_vacation_days = int(default_vacation)
 
             settings_obj.weekend_days = [
                 int(day) for day in request.POST.getlist('weekend_days')
@@ -915,6 +922,9 @@ def entity_info(request):
             after_cierre = {
                 'auto_close_hours': settings_obj.auto_close_hours,
             }
+            after_vacaciones = {
+                'default_vacation_days': settings_obj.default_vacation_days,
+            }
 
             # AUDITORÍA: Jornada laboral
             if before_jornada != after_jornada:
@@ -943,6 +953,20 @@ def entity_info(request):
                     after=after_cierre,
                     reason=f'Modificación de cierre automático en empresa {company.name}',
                     source='web' # Añadido
+                )
+
+            # AUDITORÍA: Días de vacaciones
+            if before_vacaciones != after_vacaciones:
+                AuditLog.objects.create(
+                    id=uuid.uuid4(),
+                    table_name='company_settings',
+                    record_id=settings_obj.id,
+                    user=request.user,
+                    action_type=AuditLog.AuditAction.UPDATE,
+                    before=before_vacaciones,
+                    after=after_vacaciones,
+                    reason=f'Modificación de días de vacaciones anuales en empresa {company.name}',
+                    source='web'
                 )
 
         return redirect('manager_entity_info')
