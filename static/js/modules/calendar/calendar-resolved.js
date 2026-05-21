@@ -12,16 +12,17 @@ import {
   getLeaveResolvedUrl,
   getCurrentUserId,
   setLeaveData,
+  deleteLeaveRequest,
 } from './calendar-state.js';
 
 // ════════════════════════════════════════════════════════════════════════════
-// 📊 Estado de Visibilidad (Local)
+// Estado de Visibilidad (Local)
 // ════════════════════════════════════════════════════════════════════════════
 
 let _resolvedVisible = true;
 
 // ════════════════════════════════════════════════════════════════════════════
-// 📋 Cargar Solicitudes Resueltas
+// Cargar Solicitudes Resueltas
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -67,6 +68,7 @@ export async function loadResolvedRequests(userId) {
       pending: { bg: '#fef3c7', border: '#fde68a', color: '#92400e', icon: '⏱' },
       approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
       rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
+      canceled: { bg: '#e2e8f0', border: '#cbd5e1', color: '#475569', icon: '⊘' },
     };
 
     const rows = list.map(l => {
@@ -79,6 +81,7 @@ export async function loadResolvedRequests(userId) {
         reason_note: l.reason_note,
         status: l.status,
         attachment_path: l.attachment_path,
+
       });
 
       // Validación defensiva: verificar que status sea válido
@@ -118,9 +121,22 @@ export async function loadResolvedRequests(userId) {
           </button>`;
       }
 
+
       const userCell = showUserCol
         ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
         : '';
+
+      // Botón de eliminar universal (independiente del estado)
+      const deleteButtonHtml = `
+        <button onclick="deleteLeaveRequest('${l.id}')"
+                style="background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;font-size:1rem;transition:color 0.2s;"
+                title="Eliminar esta solicitud"
+                class="btn-delete-leave"
+                onmouseover="this.style.color='#991b1b'"
+                onmouseout="this.style.color='#dc2626'">
+          <i class="bi bi-trash"></i>
+        </button>
+      `;
 
       return `<tr style="font-size:.82rem;border-bottom:1px solid #f1f5f9;">
         ${userCell}
@@ -130,7 +146,7 @@ export async function loadResolvedRequests(userId) {
         <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
         <td style="padding:.5rem .6rem;">${badge}${reviewNote}${editIcon}</td>
         <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
-      </tr>`;
+        <td style="padding:.5rem .6rem;text-align:center;">${deleteButtonHtml}</td>      </tr>`;
     }).join('');
 
     const userHeader = showUserCol
@@ -148,6 +164,7 @@ export async function loadResolvedRequests(userId) {
             <th style="padding:.4rem .6rem;font-weight:600;">Motivo</th>
             <th style="padding:.4rem .6rem;font-weight:600;">Estado</th>
             <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Justificante</th>
+            <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Eliminar</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -159,7 +176,55 @@ export async function loadResolvedRequests(userId) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 🔄 Toggle Visibilidad
+// Eliminar Solicitud (Soft-Delete)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Envía una petición POST al servidor para eliminar una solicitud
+ * @param {string} leaveId - El ID puro de la solicitud
+ */
+async function deleteLeaveRequest(leaveId) {
+  if (!confirm('¿Estás seguro de que quieres eliminar esta solicitud? Esta acción no se puede deshacer.')) {
+    return;
+  }
+
+  try {
+    // Buscar token CSRF de la configuración global de la app
+    const csrfToken = window.AEPTIC_CALENDAR?.CSRF_TOKEN || '';
+
+    const res = await fetch(`/leave/${leaveId}/delete/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      // Forzar recarga automática de la lista respetando el filtro actual del selector
+      const selector = document.getElementById('teamSelector');
+      const userId = selector?.value || null;
+      
+      await loadResolvedRequests(userId);
+      alert('Solicitud eliminada correctamente');
+    } else {
+      alert(`Error: ${data.error || 'No se pudo eliminar la solicitud'}`);
+    }
+  } catch (err) {
+    console.error('[DELETE_LEAVE] Error:', err);
+    alert('Error de conexión al intentar eliminar la solicitud');
+  }
+}
+
+// Hacer las funciones disponibles globalmente para los "onclick" del HTML/String
+window.deleteLeaveRequest = deleteLeaveRequest;
+window.toggleResolved = toggleResolved;
+window.toggleReviewNote = toggleReviewNote;
+
+// ════════════════════════════════════════════════════════════════════════════
+// Toggle Visibilidad
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -169,13 +234,17 @@ export async function loadResolvedRequests(userId) {
 export function toggleResolved() {
   const container = document.getElementById('resolvedContainer');
   const icon = document.getElementById('resolvedToggleIcon');
+  if (!container) return;
+
   _resolvedVisible = !_resolvedVisible;
   container.style.display = _resolvedVisible ? '' : 'none';
-  icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
+  if (icon) {
+    icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 💬 Notas de Resolución (Expandible)
+// Notas de Resolución (Expandible)
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -186,8 +255,8 @@ export function toggleResolved() {
  */
 export function toggleReviewNote(element, note) {
   const mainRow = element.closest('tr');
-
   const nextRow = mainRow.nextElementSibling;
+
   if (nextRow && nextRow.classList.contains('review-note-row')) {
     nextRow.remove();
     return;
@@ -215,3 +284,10 @@ export function toggleReviewNote(element, note) {
   // Insertamos la fila justo debajo de la actual
   mainRow.parentNode.insertBefore(noteRow, mainRow.nextSibling);
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// Exportar al objeto Window (Requerido para enlaces inline y onClick)
+// ════════════════════════════════════════════════════════════════════════════
+window.deleteLeaveRequest = deleteLeaveRequest;
+window.toggleResolved = toggleResolved;
+window.toggleReviewNote = toggleReviewNote;

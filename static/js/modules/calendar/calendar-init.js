@@ -452,6 +452,7 @@ function exportFunctionsToWindow() {
   window.loadResolvedRequests = loadResolvedRequests;
   window.toggleResolved = toggleResolved;
   window.toggleReviewNote = toggleReviewNote;
+  window.deleteLeaveRequest = deleteLeaveRequest;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
