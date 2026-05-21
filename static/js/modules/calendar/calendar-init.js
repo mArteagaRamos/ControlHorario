@@ -407,9 +407,9 @@ function setupApproveVacationListener() {
     const multiplier = parseFloat(document.getElementById('vacApproveMultiplier').value);
     const note = document.getElementById('vacApproveNote').value.trim() || null;
 
-    // Validar multiplicador
-    if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 2.0) {
-      alert('El multiplicador debe estar entre 0.1 y 2.0');
+    // Validar unidad de vacación
+    if (isNaN(multiplier) || multiplier < 0.1 || multiplier > 1.0) {
+      alert('La unidad de vacación debe estar entre 0.1 y 1.0');
       return;
     }
 
