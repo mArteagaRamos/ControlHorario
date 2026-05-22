@@ -449,14 +449,12 @@
 
 {% endblock %}
 
-
 {% block extra_scripts %}
 <script>
   // ════════════════════════════════════════════════════════════════════════════════
   // CONFIGURACIÓN GLOBAL - Requerida por los módulos de calendario
   // Esta es la ÚNICA configuración que permanece en el template
   // ════════════════════════════════════════════════════════════════════════════════
-
   window.AEPTIC_CALENDAR = {
     EVENTS_URL: '{% url "calendar_events" %}',
     LEAVE_CREATE_URL: '{% url "leave_create" %}',
@@ -467,20 +465,8 @@
   };
 
   // ════════════════════════════════════════════════════════════════════════════════
-  // VARIABLES COMPARTIDAS - Estado global necesario para FullCalendar
-  // ════════════════════════════════════════════════════════════════════════════════
-
-  let currentUserId    = null;                          // ID del usuario seleccionado
-  let calendarObj      = null;                          // Instancia de FullCalendar
-  let _pendingRejectId = null;                          // ID de solicitud siendo rechazada
-  let currentLeaveId   = null;                          // ID de solicitud en modal
-  window._leaveDataMap = {};                            // Mapa de datos de solicitudes
-  window.selectedStatuses = ['pending', 'approved'];    // Filtros de estado por defecto
-
-  // ════════════════════════════════════════════════════════════════════════════════
   // DELEGACIÓN - Limpiar delegación
   // ════════════════════════════════════════════════════════════════════════════════
-
   async function clearDelegation() {
     const response = await fetch("{% url 'clear_delegated_worker' %}", {
       method: 'POST',
@@ -490,12 +476,7 @@
       location.reload();
     }
   }
-
 </script>
-
-<!-- ════════════════════════════════════════════════════════════════════════════════ -->
-<!-- MÓDULO INICIALIZADOR - Importa y coordina todos los módulos -->
-<!-- ════════════════════════════════════════════════════════════════════════════════ -->
 
 <script type="module">
   import('{% static "js/modules/calendar/calendar-init.js" %}')

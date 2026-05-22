@@ -6,13 +6,13 @@
  * - Cargar solicitudes resueltas
  * - Toggle de visibilidad de tabla
  * - Expandir/contraer notas de resolución
+ * - Eliminar solicitudes
  */
 
 import {
   getLeaveResolvedUrl,
   getCurrentUserId,
   setLeaveData,
-  deleteLeaveRequest,
 } from './calendar-state.js';
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -34,6 +34,8 @@ let _resolvedVisible = true;
 export async function loadResolvedRequests(userId) {
   const container = document.getElementById('resolvedContainer');
   const titleEl = document.getElementById('resolvedTitle');
+
+  if (!container) return;
 
   // Título dinámico según filtro
   if (titleEl) {
@@ -68,7 +70,7 @@ export async function loadResolvedRequests(userId) {
       pending: { bg: '#fef3c7', border: '#fde68a', color: '#92400e', icon: '⏱' },
       approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
       rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
-      canceled: { bg: '#e2e8f0', border: '#cbd5e1', color: '#475569', icon: '⊘' },
+      canceled: { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569', icon: '⊘' }
     };
 
     const rows = list.map(l => {
@@ -81,36 +83,29 @@ export async function loadResolvedRequests(userId) {
         reason_note: l.reason_note,
         status: l.status,
         attachment_path: l.attachment_path,
-
       });
 
-      // Validación defensiva: verificar que status sea válido
       const validStatuses = ['pending', 'approved', 'rejected', 'canceled'];
-      if (!validStatuses.includes(l.status)) {
-        console.warn(`Invalid status received: ${l.status} for leave ${l.id}`);
-        return '';
-      }
+      const currentStatus = validStatuses.includes(l.status) ? l.status : 'canceled';
 
-      const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
+      const s = STATUS_STYLE[currentStatus];
       const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
-      const rowId = `resolved-row-${l.id}`;
 
       let attachCell = '<span style="color:#94a3b8;font-size:.78rem;">—</span>';
       if (l.attachment_path) {
         attachCell = `<a href="/media/${l.attachment_path}" target="_blank"
-          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600; #1a1f2e:;text-decoration:none;"
+          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600;text-decoration:none;"
           title="Ver justificante"><i class="bi bi-file-earmark-text"></i> Ver</a>`;
       }
 
       const reviewNote = l.review_note
         ? `<span onclick="toggleReviewNote(this, '${l.review_note.replace(/'/g, "\\'")}')"
                 style="cursor:pointer; margin-left:0.5rem; font-size:0.7rem;"
-                class=" " title="Ver motivo">
+                title="Ver motivo">
               <i class="bi-chat-dots"></i>
           </span>`
         : '';
 
-      // Icono de editar para solicitudes PENDING
       let editIcon = '';
       if (l.status === 'pending') {
         editIcon = `<button onclick="editLeaveRequest('leave-${l.id}')"
@@ -121,12 +116,11 @@ export async function loadResolvedRequests(userId) {
           </button>`;
       }
 
-
       const userCell = showUserCol
         ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
         : '';
 
-      // Botón de eliminar universal (independiente del estado)
+      // Botón universal de eliminación (Papelera)
       const deleteButtonHtml = `
         <button onclick="deleteLeaveRequest('${l.id}')"
                 style="background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;font-size:1rem;transition:color 0.2s;"
@@ -146,7 +140,8 @@ export async function loadResolvedRequests(userId) {
         <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
         <td style="padding:.5rem .6rem;">${badge}${reviewNote}${editIcon}</td>
         <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
-        <td style="padding:.5rem .6rem;text-align:center;">${deleteButtonHtml}</td>      </tr>`;
+        <td style="padding:.5rem .6rem;text-align:center;">${deleteButtonHtml}</td>
+      </tr>`;
     }).join('');
 
     const userHeader = showUserCol
@@ -164,7 +159,7 @@ export async function loadResolvedRequests(userId) {
             <th style="padding:.4rem .6rem;font-weight:600;">Motivo</th>
             <th style="padding:.4rem .6rem;font-weight:600;">Estado</th>
             <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Justificante</th>
-            <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Eliminar</th>
+            <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Acciones</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -175,21 +170,16 @@ export async function loadResolvedRequests(userId) {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// Eliminar Solicitud (Soft-Delete)
-// ════════════════════════════════════════════════════════════════════════════
-
 /**
- * Envía una petición POST al servidor para eliminar una solicitud
- * @param {string} leaveId - El ID puro de la solicitud
+ * Envía una petición POST al servidor para eliminar una solicitud (Soft-Delete)
+ * @param {string} leaveId - ID único de la solicitud
  */
-async function deleteLeaveRequest(leaveId) {
+export async function deleteLeaveRequest(leaveId) {
   if (!confirm('¿Estás seguro de que quieres eliminar esta solicitud? Esta acción no se puede deshacer.')) {
     return;
   }
 
   try {
-    // Buscar token CSRF de la configuración global de la app
     const csrfToken = window.AEPTIC_CALENDAR?.CSRF_TOKEN || '';
 
     const res = await fetch(`/leave/${leaveId}/delete/`, {
@@ -203,7 +193,6 @@ async function deleteLeaveRequest(leaveId) {
 
     const data = await res.json();
     if (data.ok) {
-      // Forzar recarga automática de la lista respetando el filtro actual del selector
       const selector = document.getElementById('teamSelector');
       const userId = selector?.value || null;
       
@@ -218,19 +207,9 @@ async function deleteLeaveRequest(leaveId) {
   }
 }
 
-// Hacer las funciones disponibles globalmente para los "onclick" del HTML/String
-window.deleteLeaveRequest = deleteLeaveRequest;
-window.toggleResolved = toggleResolved;
-window.toggleReviewNote = toggleReviewNote;
-
 // ════════════════════════════════════════════════════════════════════════════
-// Toggle Visibilidad
+// Toggle Visibilidad de la Sección
 // ════════════════════════════════════════════════════════════════════════════
-
-/**
- * Toglea la visibilidad de la tabla de solicitudes resueltas
- * @returns {void}
- */
 export function toggleResolved() {
   const container = document.getElementById('resolvedContainer');
   const icon = document.getElementById('resolvedToggleIcon');
@@ -244,15 +223,8 @@ export function toggleResolved() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Notas de Resolución (Expandible)
+// Notas de Resolución (Fila Desplegable)
 // ════════════════════════════════════════════════════════════════════════════
-
-/**
- * Expande/contrae la nota de resolución en la fila de la tabla
- * @param {HTMLElement} element - Elemento del ícono (this)
- * @param {string} note - Contenido de la nota
- * @returns {void}
- */
 export function toggleReviewNote(element, note) {
   const mainRow = element.closest('tr');
   const nextRow = mainRow.nextElementSibling;
@@ -281,13 +253,10 @@ export function toggleReviewNote(element, note) {
     </td>
   `;
 
-  // Insertamos la fila justo debajo de la actual
   mainRow.parentNode.insertBefore(noteRow, mainRow.nextSibling);
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// Exportar al objeto Window (Requerido para enlaces inline y onClick)
-// ════════════════════════════════════════════════════════════════════════════
+// Exportar al objeto Window para soportar los handlers onclick inline del HTML dinámico
 window.deleteLeaveRequest = deleteLeaveRequest;
 window.toggleResolved = toggleResolved;
 window.toggleReviewNote = toggleReviewNote;
