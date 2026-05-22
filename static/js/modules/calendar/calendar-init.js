@@ -45,6 +45,7 @@ import {
   loadResolvedRequests,
   toggleResolved,
   toggleReviewNote,
+  deleteLeaveRequest,
 } from './calendar-resolved.js';
 
 // ════════════════════════════════════════════════════════════════════════════

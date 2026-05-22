@@ -6,7 +6,7 @@
  * - Cargar solicitudes resueltas
  * - Toggle de visibilidad de tabla
  * - Expandir/contraer notas de resolución
- * - Eliminar solicitudes
+ * - Eliminar solicitudes (soft-delete, solo managers)
  */
 
 import {
@@ -60,6 +60,7 @@ export async function loadResolvedRequests(userId) {
     const data = await res.json();
     const list = data.requests;
     const showUserCol = data.show_user_col;
+    const showDeleteCol = !!data.show_delete_col;
 
     if (!list || list.length === 0) {
       container.innerHTML = '<small class="text-muted ps-2">No hay solicitudes resueltas.</small>';
@@ -120,17 +121,19 @@ export async function loadResolvedRequests(userId) {
         ? `<td style="padding:.5rem .6rem;white-space:nowrap;font-weight:500;">${l.user_name}</td>`
         : '';
 
-      // Botón universal de eliminación (Papelera)
-      const deleteButtonHtml = `
-        <button onclick="deleteLeaveRequest('${l.id}')"
-                style="background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;font-size:1rem;transition:color 0.2s;"
-                title="Eliminar esta solicitud"
-                class="btn-delete-leave"
-                onmouseover="this.style.color='#991b1b'"
-                onmouseout="this.style.color='#dc2626'">
-          <i class="bi bi-trash"></i>
-        </button>
-      `;
+      // Celda de eliminar: visible solo cuando showDeleteCol=true y status != pending
+      const deleteCell = showDeleteCol
+        ? l.status !== 'pending'
+          ? `<td style="padding:.5rem .6rem;text-align:center;">
+               <button onclick="deleteLeaveRequest('${l.id}')"
+                       style="background:none;border:none;cursor:pointer;padding:0 .25rem;color:#dc2626;"
+                       title="Eliminar solicitud"
+                       class="btn-delete-leave">
+                 <i class="bi bi-trash"></i>
+               </button>
+             </td>`
+          : '<td></td>'
+        : '';
 
       return `<tr style="font-size:.82rem;border-bottom:1px solid #f1f5f9;">
         ${userCell}
@@ -140,12 +143,16 @@ export async function loadResolvedRequests(userId) {
         <td style="padding:.5rem .6rem;">${l.leave_reason}</td>
         <td style="padding:.5rem .6rem;">${badge}${reviewNote}${editIcon}</td>
         <td style="padding:.5rem .6rem;text-align:center;">${attachCell}</td>
-        <td style="padding:.5rem .6rem;text-align:center;">${deleteButtonHtml}</td>
+        ${deleteCell}
       </tr>`;
     }).join('');
 
     const userHeader = showUserCol
       ? `<th style="padding:.4rem .6rem;font-weight:600;">Empleado</th>`
+      : '';
+
+    const deleteHeader = showDeleteCol
+      ? `<th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Eliminar</th>`
       : '';
 
     container.innerHTML = `
@@ -159,7 +166,7 @@ export async function loadResolvedRequests(userId) {
             <th style="padding:.4rem .6rem;font-weight:600;">Motivo</th>
             <th style="padding:.4rem .6rem;font-weight:600;">Estado</th>
             <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Justificante</th>
-            <th style="padding:.4rem .6rem;font-weight:600;text-align:center;">Acciones</th>
+            ${deleteHeader}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -256,7 +263,44 @@ export function toggleReviewNote(element, note) {
   mainRow.parentNode.insertBefore(noteRow, mainRow.nextSibling);
 }
 
-// Exportar al objeto Window para soportar los handlers onclick inline del HTML dinámico
-window.deleteLeaveRequest = deleteLeaveRequest;
-window.toggleResolved = toggleResolved;
-window.toggleReviewNote = toggleReviewNote;
+// ════════════════════════════════════════════════════════════════════════════
+// 🗑️ Eliminar Solicitud (Manager)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Soft-delete de una solicitud resuelta por el manager.
+ * Solo se muestra el botón cuando show_delete_col=true (manager viendo
+ * un empleado específico, no "Mi calendario" ni "Todos").
+ * @param {string} leaveId - ID de la solicitud (UUID sin prefijo)
+ * @returns {Promise<void>}
+ */
+export async function deleteLeaveRequest(leaveId) {
+  if (!confirm('¿Estás seguro de que deseas eliminar esta solicitud? Esta acción no se puede deshacer.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/leave/${leaveId}/delete/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': window.AEPTIC_CALENDAR?.CSRF_TOKEN || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.ok) {
+      // Recargar la tabla con el mismo filtro activo
+      const selector = document.getElementById('teamSelector');
+      const userId = selector ? selector.value : '';
+      await loadResolvedRequests(userId || null);
+    } else {
+      alert(data.error || 'Error al eliminar la solicitud.');
+    }
+  } catch (err) {
+    console.error('[deleteLeaveRequest] Error:', err);
+    alert('Error de conexión. Inténtalo de nuevo.');
+  }
+}
