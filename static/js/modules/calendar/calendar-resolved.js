@@ -16,13 +16,13 @@ import {
 } from './calendar-state.js';
 
 // ════════════════════════════════════════════════════════════════════════════
-// Estado de Visibilidad (Local)
+// 📊 Estado de Visibilidad (Local)
 // ════════════════════════════════════════════════════════════════════════════
 
 let _resolvedVisible = true;
 
 // ════════════════════════════════════════════════════════════════════════════
-// Cargar Solicitudes Resueltas
+// 📋 Cargar Solicitudes Resueltas
 // ════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -34,8 +34,6 @@ let _resolvedVisible = true;
 export async function loadResolvedRequests(userId) {
   const container = document.getElementById('resolvedContainer');
   const titleEl = document.getElementById('resolvedTitle');
-
-  if (!container) return;
 
   // Título dinámico según filtro
   if (titleEl) {
@@ -71,7 +69,6 @@ export async function loadResolvedRequests(userId) {
       pending: { bg: '#fef3c7', border: '#fde68a', color: '#92400e', icon: '⏱' },
       approved: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534', icon: '✓' },
       rejected: { bg: '#fff1f2', border: '#fecaca', color: '#991b1b', icon: '✗' },
-      canceled: { bg: '#f1f5f9', border: '#cbd5e1', color: '#475569', icon: '⊘' }
     };
 
     const rows = list.map(l => {
@@ -86,27 +83,32 @@ export async function loadResolvedRequests(userId) {
         attachment_path: l.attachment_path,
       });
 
+      // Validación defensiva: verificar que status sea válido
       const validStatuses = ['pending', 'approved', 'rejected', 'canceled'];
-      const currentStatus = validStatuses.includes(l.status) ? l.status : 'canceled';
+      if (!validStatuses.includes(l.status)) {
+        console.warn(`Invalid status received: ${l.status} for leave ${l.id}`);
+        return '';
+      }
 
-      const s = STATUS_STYLE[currentStatus];
+      const s = STATUS_STYLE[l.status] || STATUS_STYLE.canceled;
       const badge = `<span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:999px;background:${s.bg};border:1px solid ${s.border};color:${s.color};">${s.icon} ${l.status_display}</span>`;
 
       let attachCell = '<span style="color:#94a3b8;font-size:.78rem;">—</span>';
       if (l.attachment_path) {
         attachCell = `<a href="/media/${l.attachment_path}" target="_blank"
-          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600;text-decoration:none;"
+          style="display:inline-flex;align-items:center;gap:.3rem;font-size:.78rem;font-weight:600; #1a1f2e:;text-decoration:none;"
           title="Ver justificante"><i class="bi bi-file-earmark-text"></i> Ver</a>`;
       }
 
       const reviewNote = l.review_note
         ? `<span onclick="toggleReviewNote(this, '${l.review_note.replace(/'/g, "\\'")}')"
                 style="cursor:pointer; margin-left:0.5rem; font-size:0.7rem;"
-                title="Ver motivo">
+                class=" " title="Ver motivo">
               <i class="bi-chat-dots"></i>
           </span>`
         : '';
 
+      // Icono de editar para solicitudes PENDING
       let editIcon = '';
       if (l.status === 'pending') {
         editIcon = `<button onclick="editLeaveRequest('leave-${l.id}')"
@@ -177,65 +179,36 @@ export async function loadResolvedRequests(userId) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// 🔄 Toggle Visibilidad
+// ════════════════════════════════════════════════════════════════════════════
+
 /**
- * Envía una petición POST al servidor para eliminar una solicitud (Soft-Delete)
- * @param {string} leaveId - ID único de la solicitud
+ * Toglea la visibilidad de la tabla de solicitudes resueltas
+ * @returns {void}
  */
-export async function deleteLeaveRequest(leaveId) {
-  if (!confirm('¿Estás seguro de que quieres eliminar esta solicitud? Esta acción no se puede deshacer.')) {
-    return;
-  }
-
-  try {
-    const csrfToken = window.AEPTIC_CALENDAR?.CSRF_TOKEN || '';
-
-    const res = await fetch(`/leave/${leaveId}/delete/`, {
-      method: 'POST',
-      headers: {
-        'X-CSRFToken': csrfToken,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({})
-    });
-
-    const data = await res.json();
-    if (data.ok) {
-      const selector = document.getElementById('teamSelector');
-      const userId = selector?.value || null;
-      
-      await loadResolvedRequests(userId);
-      alert('Solicitud eliminada correctamente');
-    } else {
-      alert(`Error: ${data.error || 'No se pudo eliminar la solicitud'}`);
-    }
-  } catch (err) {
-    console.error('[DELETE_LEAVE] Error:', err);
-    alert('Error de conexión al intentar eliminar la solicitud');
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-// Toggle Visibilidad de la Sección
-// ════════════════════════════════════════════════════════════════════════════
 export function toggleResolved() {
   const container = document.getElementById('resolvedContainer');
   const icon = document.getElementById('resolvedToggleIcon');
-  if (!container) return;
-
   _resolvedVisible = !_resolvedVisible;
   container.style.display = _resolvedVisible ? '' : 'none';
-  if (icon) {
-    icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
-  }
+  icon.textContent = _resolvedVisible ? '▲ ocultar' : '▼ mostrar';
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Notas de Resolución (Fila Desplegable)
+// 💬 Notas de Resolución (Expandible)
 // ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Expande/contrae la nota de resolución en la fila de la tabla
+ * @param {HTMLElement} element - Elemento del ícono (this)
+ * @param {string} note - Contenido de la nota
+ * @returns {void}
+ */
 export function toggleReviewNote(element, note) {
   const mainRow = element.closest('tr');
-  const nextRow = mainRow.nextElementSibling;
 
+  const nextRow = mainRow.nextElementSibling;
   if (nextRow && nextRow.classList.contains('review-note-row')) {
     nextRow.remove();
     return;
@@ -260,6 +233,7 @@ export function toggleReviewNote(element, note) {
     </td>
   `;
 
+  // Insertamos la fila justo debajo de la actual
   mainRow.parentNode.insertBefore(noteRow, mainRow.nextSibling);
 }
 
