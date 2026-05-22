@@ -551,8 +551,8 @@ def api_leave_resolved(request):
 
     # La columna de eliminar se muestra SOLO si:
     # 1. El usuario ES manager, AND
-    # 2. Está viendo otros empleados (user_id != '' AND user_id != None)
-    show_delete_col = user_is_manager and user_id and user_id != '' and user_id != 'all'
+    # 2. Está viendo otros empleados
+    show_delete_col = user_is_manager and user_id and user_id != ''
 
     data = []
     for l in leaves:
@@ -1454,6 +1454,7 @@ def api_delete_leave_request(request, leave_id):
 
     # Soft-delete
     leave.deleted_at = timezone.now()
+    leave.status = LeaveRequest.LeaveStatus.CANCELED
     leave.save()
 
     # Registrar en AuditLog
