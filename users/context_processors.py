@@ -12,6 +12,8 @@ BREADCRUMB_EXCLUDE = {
     'calendar_events',
     'aeptic_report_data',
     'select_delegated_worker',
+    'api_user_vacation_status',
+    'list_vacation_periods',
 }
 
 # Labels for URL names - maps route names to display labels
