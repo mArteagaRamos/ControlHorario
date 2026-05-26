@@ -12,6 +12,17 @@ import { toggleClass, addClass, removeClass, hasClass } from '../../utils/dom-ut
 console.log('[BaseLayout] Module loaded');
 
 /**
+ * Inicializa los tooltips de Bootstrap
+ */
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    console.log('[BaseLayout] Tooltips initialized');
+}
+
+/**
  * Inicializa la lógica del sidebar en mobile
  */
 function initializeSidebarToggle() {
@@ -146,6 +157,12 @@ export function initializeBaseLayout() {
         initializeMessageAutoClose();
     } catch (error) {
         console.error('[BaseLayout] Error initializing message auto-close:', error);
+    }
+
+    try {
+        initializeTooltips();
+    } catch (error) {
+        console.error('[BaseLayout] Error initializing tooltips:', error);
     }
 
     console.log('[BaseLayout] All components initialized');

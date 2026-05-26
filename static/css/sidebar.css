@@ -35,6 +35,7 @@ nav.navbar {
     flex-shrink: 0;
     display: flex;
     align-items: center;
+    gap: 0.75rem;
     padding: 0 1rem;
     border-right: 1px solid #1a1f2e;
 }
@@ -102,6 +103,31 @@ nav.navbar {
 
 .btn-menu-toggle:hover {
     background: rgba(255,255,255,0.1);
+}
+
+.navbar-logo {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.navbar-logo:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.navbar-company {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.navbar-company .navbar-brand {
+    font-size: 1.4rem;
+    font-weight: 600;
 }
 
 

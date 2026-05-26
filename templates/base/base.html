@@ -28,28 +28,19 @@
         <button class="btn-menu-toggle d-md-none" id="menu-toggle">
             <i class="bi bi-list"></i>
         </button>
-        <a href="{% url 'home_timetracking' %}" class="navbar-logo d-none d-md-block">
+        <a href="{% url 'home_timetracking' %}" class="navbar-logo d-none d-md-block" title="Inicio" data-bs-toggle="tooltip" data-bs-placement="bottom">
             <img src="{% static 'img/icon_clock.png' %}" height="36">
         </a>
-    </div>
-
-    <div class="d-md-none position-absolute start-50 translate-middle-x">
-        <a href="{% url 'home_timetracking' %}">
-            <img src="{% static 'img/icon_clock.png' %}" height="36">
-        </a>
-    </div>
-
-    <div class="navbar-main-zone d-flex align-items-center justify-content-end flex-grow-1">
-
+        
         {% if company_count == 1 %}
-        <div class="me-2">
+        <div class="navbar-company">
             <span class="navbar-brand" style="color: white !important;">
                 <span class="d-none d-sm-inline">{{ current_company.name|title }}</span>
                 <i class="bi bi-building d-sm-none"></i>
             </span>
         </div>
         {% elif company_count > 1 %}
-        <div class="dropdown me-2">
+        <div class="dropdown navbar-company">
             <a class="navbar-brand dropdown-toggle" href="#" data-bs-toggle="dropdown">
                 {% if current_company %}
                     <span class="d-none d-sm-inline" style="color: white !important;">{{ current_company.name|title }}</span>
@@ -67,6 +58,15 @@
             </ul>
         </div>
         {% endif %}
+    </div>
+
+    <div class="d-md-none position-absolute start-50 translate-middle-x">
+        <a href="{% url 'home_timetracking' %}" title="Inicio" data-bs-toggle="tooltip" data-bs-placement="bottom">
+            <img src="{% static 'img/icon_clock.png' %}" height="36">
+        </a>
+    </div>
+
+    <div class="navbar-main-zone d-flex align-items-center justify-content-end flex-grow-1">
 
         <div class="navbar-user">
             {% if request.user.is_authenticated %}
@@ -78,7 +78,7 @@
                 </span>
             {% endif %}
 
-            <a href="{% url 'workday' %}">
+            <a href="{% url 'workday' %}" title="Perfil" data-bs-toggle="tooltip" data-bs-placement="bottom">
                 <i class="bi bi-person-circle text-white fs-4"></i>
             </a>
         </div>
